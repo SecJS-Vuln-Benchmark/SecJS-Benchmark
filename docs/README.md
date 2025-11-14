@@ -1,39 +1,27 @@
-# SecJS GitHub Pages 演示网站
+# SecJS GitHub Pages Demo
 
-这是SecJS项目的GitHub Pages演示网站。
+This folder contains the public landing page served via GitHub Pages.
 
-## 部署说明
+## Deployment
+1. Push `docs/index.html` (and any assets) to the repository
+2. Enable GitHub Pages: `Settings → Pages`
+   - Source: **Deploy from a branch**
+   - Branch: `master` (or `main`), Folder: `/docs`
+3. Wait a few minutes; the site will be available at `https://<username>.github.io/<repo>/`
 
-1. 将 `docs/index.html` 文件推送到GitHub仓库
-2. 在GitHub仓库设置中启用GitHub Pages：
-   - 进入仓库 Settings → Pages
-   - Source 选择 "Deploy from a branch"
-   - Branch 选择 `main` 或 `master`，文件夹选择 `/docs`
-   - 点击 Save
-
-3. 网站将在几分钟内上线，地址为：
-   `https://secjs.github.io/js-vuln-benchmark/` 或
-   `https://[你的用户名].github.io/[仓库名]/`
-
-## 文件结构
-
+## Layout
 ```
 docs/
-├── index.html          # 主页面
-└── README.md          # 本文件
+├── index.html   # Main page
+└── README.md    # This file
 ```
 
-## 自定义
+## Customization
+- Update statistics and copywriting in `index.html`
+- Adjust colors/typography in the embedded `<style>` block
+- Add new sections or assets as needed (images, JS, etc.)
 
-你可以根据需要修改 `index.html` 中的内容：
-- 更新统计数据
-- 添加更多功能说明
-- 修改样式和颜色
-- 添加更多页面
-
-## 注意事项
-
-- 确保所有链接指向正确的GitHub仓库地址
-- 图片资源需要上传到仓库或使用外部链接
-- 代码示例可以根据实际代码更新
-
+## Tips
+- Keep links pointing to the correct GitHub repository
+- Upload images/assets to the repo or reference trusted CDNs
+- Sync the README and landing page so instructions stay consistent

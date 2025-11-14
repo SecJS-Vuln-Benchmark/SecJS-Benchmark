@@ -1,89 +1,63 @@
-# SecJS - JavaScript漏洞检测基准测试
+# SecJS – JavaScript Vulnerability Benchmark
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![GitHub Pages](https://img.shields.io/badge/docs-GitHub%20Pages-brightgreen)](https://secjs.github.io/js-vuln-benchmark/)
+[![GitHub Pages](https://img.shields.io/badge/docs-GitHub%20Pages-brightgreen)](https://secjs-vuln-benchmark.github.io/SecJS-Benchmark/)
 
-**首个系统化的JavaScript漏洞检测基准测试框架与数据集**
+SecJS is the first systematic benchmark that combines a large-scale JavaScript vulnerability dataset (ArenaJS) with two automation frameworks:
+- **ForgeJS** – fully automated data generation and augmentation
+- **JudgeJS** – standardized LLM-based vulnerability evaluation
 
-SecJS提供了完整的JavaScript漏洞检测评估框架和高质量数据集，包含ForgeJS数据生成框架和JudgeJS评估框架，支持多模型、多数据集的全面评估。
+The project targets reproducible research on JavaScript security analysis, LLM robustness, and benchmark-driven tool comparison.
 
-## 🚀 快速开始
-
-### 安装
+## 🚀 Quick Start
 
 ```bash
-# 克隆仓库
-git clone https://github.com/SecJS/js-vuln-benchmark.git
-cd js-vuln-benchmark
+# Clone the repository
+git clone https://github.com/SecJS-Vuln-Benchmark/SecJS-Benchmark.git
+cd SecJS-Benchmark
 
-# 安装依赖
+# Install dependencies (example)
 pip install -r requirements.txt
 ```
 
-### 使用JudgeJS进行评估
-
+### Run JudgeJS evaluations
 ```bash
-# 运行评估
 python main.py --model gpt-4 --dataset original
-
-# 查看评估结果
 python analyze_stats.py
 ```
 
-### 使用ForgeJS生成数据
-
+### Run ForgeJS data generation
 ```bash
-# 生成数据集
 python generate_dataset.py --strategy noise
-
-# 应用多种增强策略
 python generate_dataset.py --strategy all
 ```
 
-## 📊 数据集
+## 📊 ArenaJS Dataset
+- **1,852** original OSS projects (vulnerable + fixed pairs)
+- **9,188** total project instances after augmentation
+- **5** dataset variants: Original, Noise, Obfuscated, Noise+Obfuscated, Prompt-Injection
+- **30+** CWE categories spanning injection, auth/z, crypto, code execution, and web security
 
-**ArenaJS数据集**包含：
-- **1,852** 个原始项目
-- **9,188** 个总项目实例
-- **5** 种数据集变体（Original, Noise, Obfuscated, Noise+Obfuscation, Prompt Injection）
-- **30+** 种CWE漏洞类型
+## 🏗 Core Components
+- **ForgeJS**: Converts real-world CVEs into reproducible projects, applies four augmentation strategies, and emits function-level ground truth in ~7 hours for the full corpus (≈13.6s/project).
+- **JudgeJS**: Normalizes LLM prompts, enforces JSON outputs, matches predictions at project/function granularity, and reports Precision, Recall, F1, VD-S, Macro/Weighted F1.
+- **ArenaJS**: Curated benchmark bundle with metadata, code snapshots, and vulnerability annotations ready for downstream research.
 
-## 🏗️ 核心组件
+## 📈 Efficiency Highlights
+- **JudgeJS throughput**: 35.55 seconds per project on average; end-to-end evaluation of 10 models × 5 datasets ≈ 43 days.
+- **Token footprint**: ~6,085 tokens/project (5,491 input + 594 output); 317.2M tokens for the full evaluation campaign.
+- **ForgeJS generation**: 7 hours for the entire corpus, 5–10× faster than manual triage with function-level ground truth precision.
 
-### ForgeJS - 数据生成框架
-全自动化数据生成框架，支持多种数据增强策略，7小时完成1,852个项目的生成，效率提升5-10倍。
+## 📚 Documentation
+- [Live demo (GitHub Pages)](https://secjs-vuln-benchmark.github.io/SecJS-Benchmark/)
+- [GitHub setup guide](GITHUB_SETUP.md)
+- [Evaluation framework (SecJS-Eval)](评测框架SecJS-Eval.md)
 
-### JudgeJS - 评估框架
-标准化评估框架，支持项目级和函数级评估，提供Precision、Recall、F1、VD-S等多项指标。
+## 🤝 Contributing
+Issues and pull requests are welcome. Please describe the motivation, dataset slice, and evaluation setting for every contribution.
 
-### ArenaJS - 数据集
-大规模数据集，包含1,852个原始项目和4种增强变体，总计9,188个项目实例。
+## 📄 License
+Released under the MIT License – see [`LICENSE`](LICENSE).
 
-## 📈 性能统计
-
-- **JudgeJS评估效率**：单项目评估平均35.55秒，总评估时间约43天（10模型×5数据集）
-- **ForgeJS生成效率**：7小时完成1,852个项目的完整生成流程，平均13.6秒/项目
-- **Token消耗**：单项目约6,085 tokens，总评估消耗317.2M tokens
-
-## 📚 文档
-
-- [在线演示网站](https://secjs.github.io/js-vuln-benchmark/)
-- [GitHub设置指南](GITHUB_SETUP.md)
-- [评估框架文档](评测框架SecJS-Eval.md)
-
-## 🤝 贡献
-
-欢迎提交Issue和Pull Request！
-
-## 📄 许可证
-
-本项目采用MIT许可证 - 详见 [LICENSE](LICENSE) 文件
-
-## 🙏 致谢
-
-感谢所有为本项目做出贡献的研究者和开发者。
-
----
-
-**注意**：代码和数据集正在准备中，将陆续发布。
-
+## 📌 Project Status
+The repository currently hosts documentation and the public landing page. Data dumps and code artifacts will be uploaded in phases.

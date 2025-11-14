@@ -1,114 +1,51 @@
-# GitHub 设置指南
+# GitHub Setup Guide
 
-本指南将帮助你完成GitHub账号创建、仓库创建和GitHub Pages部署。
+Use this checklist to reproduce the public repository and GitHub Pages site.
 
-## 1. 创建GitHub账号
+## 1. Create / Sign in to GitHub
+1. Visit https://github.com/signup
+2. Register the account `SecJS-Vuln-Benchmark` (or another name if already taken)
+3. Verify your email address
 
-1. 访问 [GitHub注册页面](https://github.com/signup)
-2. 填写注册信息：
-   - Username: `SecJS`（如果已被占用，可以尝试 `SecJS-Project` 或其他变体）
-   - Email: 你的邮箱地址
-   - Password: 设置一个强密码
-3. 完成邮箱验证
-4. 完成人机验证（如果需要）
+## 2. Create the repository
+1. Go to https://github.com/new
+2. Repository name: `SecJS-Benchmark`
+3. Description: `The first JavaScript vulnerability detection benchmark framework and dataset`
+4. Visibility: **Public**
+5. Do *not* initialize with a README (we already have one locally)
+6. Click **Create repository**
 
-## 2. 创建新仓库
-
-1. 登录GitHub后，点击右上角的 **+** 号，选择 **New repository**
-2. 填写仓库信息：
-   - Repository name: `js-vuln-benchmark` 或 `SecJS`
-   - Description: `JavaScript漏洞检测基准测试框架与数据集 - The First Systematic Benchmark for JavaScript Vulnerability Detection`
-   - Visibility: 选择 **Public**（开源项目）
-   - 勾选 **Add a README file**
-   - 可以选择添加 `.gitignore`（选择 Python）
-   - License: 建议选择 MIT 或 Apache 2.0
-3. 点击 **Create repository**
-
-## 3. 上传演示网站文件
-
-### 方法一：使用Git命令行
-
+## 3. Push local content
 ```bash
-# 克隆仓库（替换为你的实际仓库地址）
-git clone https://github.com/SecJS/js-vuln-benchmark.git
-cd js-vuln-benchmark
-
-# 将docs文件夹添加到仓库
-git add docs/
-git commit -m "Add GitHub Pages demo website"
-git push origin main
+# From the project root
+git remote set-url origin https://github.com/SecJS-Vuln-Benchmark/SecJS-Benchmark.git
+# or: git remote add origin ... (if the remote does not exist)
+git push -u origin master
 ```
 
-### 方法二：使用GitHub网页界面
+## 4. Enable GitHub Pages
+1. Open `Settings → Pages`
+2. Source: **Deploy from a branch**
+3. Branch: `master` (or `main`), Folder: `/docs`
+4. Click **Save**
+5. Wait 5–10 minutes for the first build to finish
 
-1. 在仓库页面，点击 **Add file** → **Upload files**
-2. 将 `docs/index.html` 文件拖拽到上传区域
-3. 在提交信息中输入 "Add GitHub Pages demo website"
-4. 点击 **Commit changes**
-
-## 4. 启用GitHub Pages
-
-1. 进入仓库的 **Settings** 页面
-2. 在左侧菜单中找到 **Pages**
-3. 在 **Source** 部分：
-   - 选择 **Deploy from a branch**
-   - Branch 选择 `main`（或 `master`）
-   - Folder 选择 `/docs`
-4. 点击 **Save**
-5. 等待几分钟，GitHub会自动构建和部署网站
-
-## 5. 访问你的网站
-
-部署完成后，你的网站地址将是：
-- `https://secjs.github.io/js-vuln-benchmark/`（如果仓库名是 js-vuln-benchmark）
-- 或者 `https://[你的用户名].github.io/[仓库名]/`
-
-你可以在仓库的 Settings → Pages 页面看到确切的URL。
-
-## 6. 后续更新
-
-每次更新 `docs/index.html` 文件并推送到GitHub后，网站会自动更新（通常需要1-2分钟）。
-
-```bash
-# 更新文件后
-git add docs/index.html
-git commit -m "Update website content"
-git push origin main
+The site will be available at:
+```
+https://secjs-vuln-benchmark.github.io/SecJS-Benchmark/
 ```
 
-## 注意事项
+## 5. Optional automation via API
+If you prefer scripting, call the GitHub REST API:
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  https://api.github.com/repos/SecJS-Vuln-Benchmark/SecJS-Benchmark/pages \
+  -d '{"source":{"branch":"master","path":"/docs"}}'
+```
 
-1. **首次部署可能需要5-10分钟**，请耐心等待
-2. **确保仓库是Public**，否则GitHub Pages可能无法正常工作
-3. **检查文件路径**，确保 `docs/index.html` 文件存在
-4. **自定义域名**（可选）：如果你有自己的域名，可以在Settings → Pages中配置
-
-## 故障排除
-
-### 网站显示404
-- 检查仓库是否为Public
-- 确认 `docs/index.html` 文件已上传
-- 确认GitHub Pages设置正确（Source选择 `/docs` 文件夹）
-
-### 网站内容未更新
-- 等待几分钟，GitHub Pages有缓存
-- 检查文件是否已正确提交和推送
-- 清除浏览器缓存后重新访问
-
-### 样式或链接不工作
-- 检查HTML中的相对路径是否正确
-- 确保所有资源文件都已上传
-- 检查浏览器控制台是否有错误信息
-
-## 下一步
-
-1. ✅ 创建GitHub账号
-2. ✅ 创建仓库
-3. ✅ 上传演示网站
-4. ⏳ 上传代码和数据集（稍后完成）
-5. ⏳ 更新README.md文件
-6. ⏳ 添加LICENSE文件
-7. ⏳ 创建发布版本（Release）
-
-祝你开源顺利！🎉
-
+## 6. Next steps
+- Upload dataset archives and code as they become public
+- Tag releases once milestones are ready
+- Update `docs/index.html` whenever stats or instructions change
