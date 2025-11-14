@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecJS - JavaScript漏洞检测基准测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --accent-color: #3b82f6;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-light: #f9fafb;
+            --bg-white: #ffffff;
+            --border-color: #e5e7eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--bg-light);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* Navigation */
+        nav {
+            background: var(--bg-white);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+            padding: 1rem 0;
+        }
+
+        nav a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--primary-color);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: var(--bg-white);
+            padding: 4rem 0;
+            text-align: center;
+        }
+
+        .hero h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-white);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* Sections */
+        section {
+            padding: 4rem 0;
+        }
+
+        section:nth-child(even) {
+            background: var(--bg-white);
+        }
+
+        section h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        section h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: var(--bg-white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-card h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            font-size: 1.3rem;
+        }
+
+        .feature-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            margin: 2rem 0;
+            background: var(--bg-white);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-light);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        tr:hover {
+            background: var(--bg-light);
+        }
+
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--text-primary);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+
+        footer a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+
+            nav ul {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .features-grid,
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin: 0.25rem;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🔒 SecJS</h1>
+            <p>JavaScript漏洞检测基准测试框架与数据集</p>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="#overview">概览</a></li>
+                <li><a href="#features">特性</a></li>
+                <li><a href="#dataset">数据集</a></li>
+                <li><a href="#framework">框架</a></li>
+                <li><a href="#stats">统计</a></li>
+                <li><a href="#getting-started">快速开始</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <h2>首个系统化的JavaScript漏洞检测基准测试</h2>
+            <p>
+                SecJS提供了完整的JavaScript漏洞检测评估框架和高质量数据集，
+                包含ForgeJS数据生成框架和JudgeJS评估框架，支持多模型、多数据集的全面评估。
+            </p>
+            <div class="cta-buttons">
+                <a href="#getting-started" class="btn btn-primary">快速开始</a>
+                <a href="https://github.com/SecJS" class="btn btn-secondary" target="_blank">查看代码</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="overview">
+        <div class="container">
+            <h2>项目概览</h2>
+            <p style="text-align: center; color: var(--text-secondary); max-width: 900px; margin: 0 auto 2rem;">
+                SecJS是一个全面的JavaScript漏洞检测基准测试系统，旨在为研究社区提供标准化的评估平台。
+                项目包含大规模数据集ArenaJS和两个核心框架：ForgeJS（数据生成）和JudgeJS（评估框架）。
+            </p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon">🏗️</div>
+                    <h3>ForgeJS</h3>
+                    <p>全自动化数据生成框架，支持多种数据增强策略，7小时完成1,852个项目的生成，效率提升5-10倍。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">⚖️</div>
+                    <h3>JudgeJS</h3>
+                    <p>标准化评估框架，支持项目级和函数级评估，提供Precision、Recall、F1、VD-S等多项指标。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📊</div>
+                    <h3>ArenaJS</h3>
+                    <p>大规模数据集，包含1,852个原始项目和4种增强变体，总计9,188个项目实例，覆盖30+漏洞类型。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features">
+        <div class="container">
+            <h2>核心特性</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>🎯 全面覆盖</h3>
+                    <p>覆盖30+种CWE漏洞类型，包括注入类、认证授权、加密管理、代码执行、Web安全等。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔍 多粒度评估</h3>
+                    <p>支持项目级和函数级两个粒度的评估，提供函数级Ground Truth标注。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔄 数据增强</h3>
+                    <p>提供4种数据增强策略：Noise、Obfuscated、Noise+Obfuscation、Prompt Injection。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🤖 多模型支持</h3>
+                    <p>支持GPT-4、Claude-3.5-Sonnet、DeepSeek-V3等主流大语言模型。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📈 标准化指标</h3>
+                    <p>提供Precision、Recall、F1、VD-S、Macro-F1、Weighted-F1等标准化评估指标。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ 高效评估</h3>
+                    <p>单项目评估平均35.55秒，支持大规模并行评估，总评估时间约43天（10模型×5数据集）。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="dataset">
+        <div class="container">
+            <h2>数据集详情</h2>
+            <h3>ArenaJS数据集</h3>
+            <p>ArenaJS是首个系统化的JavaScript漏洞检测基准测试数据集，包含以下内容：</p>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="number">1,852</div>
+                    <div class="label">原始项目</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">9,188</div>
+                    <div class="label">总项目实例</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">5</div>
+                    <div class="label">数据集变体</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">30+</div>
+                    <div class="label">漏洞类型</div>
+                </div>
+            </div>
+
+            <h3>数据集变体</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>数据集类型</th>
+                            <th>项目数</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-info">Original</span></td>
+                            <td>1,852</td>
+                            <td>原始项目，未经任何增强处理</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">Noise</span></td>
+                            <td>~1,834</td>
+                            <td>添加噪声干扰，测试模型鲁棒性</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">Obfuscated</span></td>
+                            <td>~1,834</td>
+                            <td>代码混淆处理，测试模型对混淆代码的检测能力</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">Noise+Obfuscation</span></td>
+                            <td>~1,834</td>
+                            <td>同时应用噪声和混淆，综合测试</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-success">Prompt Injection</span></td>
+                            <td>~1,834</td>
+                            <td>提示注入攻击测试，评估模型安全性</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section id="framework">
+        <div class="container">
+            <h2>评估框架</h2>
+            
+            <h3>JudgeJS评估框架</h3>
+            <p>JudgeJS提供标准化的漏洞检测评估流程，支持多模型、多数据集的全面评估。</p>
+            
+            <h4>评估指标</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Precision</strong></td>
+                            <td>精确率：TP / (TP + FP)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Recall</strong></td>
+                            <td>召回率：TP / (TP + FN)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>F1 Score</strong></td>
+                            <td>F1分数：2 × Precision × Recall / (Precision + Recall)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>VD-S</strong></td>
+                            <td>漏洞检测分数：在固定假阳性率（FPR ≤ 0.5%）下的假阴性率</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Macro-F1</strong></td>
+                            <td>宏平均F1：所有类别F1的平均值</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Weighted-F1</strong></td>
+                            <td>加权F1：按样本数加权的F1平均值</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>ForgeJS数据生成框架</h3>
+            <p>ForgeJS实现全自动化数据生成，相比传统人工标注方法效率提升5-10倍。</p>
+            
+            <div class="code-block">
+# ForgeJS数据生成流程
+1. 漏洞信息收集：从CVE、安全报告等来源收集漏洞信息
+2. 项目分析：分析项目结构，识别漏洞位置
+3. 数据增强：应用4种增强策略生成变体
+4. Ground Truth生成：自动生成函数级标注
+            </div>
+        </div>
+    </section>
+
+    <section id="stats">
+        <div class="container">
+            <h2>性能统计</h2>
+            
+            <h3>JudgeJS评估效率</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>数值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>评估规模</td>
+                            <td>52,137个项目（104,274条评估记录）</td>
+                        </tr>
+                        <tr>
+                            <td>单项目评估时间</td>
+                            <td>35.55秒/项目（中位数23.65秒）</td>
+                        </tr>
+                        <tr>
+                            <td>时间范围</td>
+                            <td>4.92-284.23秒</td>
+                        </tr>
+                        <tr>
+                            <td>单项目Token消耗</td>
+                            <td>6,085 tokens（输入5,491 + 输出594）</td>
+                        </tr>
+                        <tr>
+                            <td>总评估时间</td>
+                            <td>1,029小时（约43天）</td>
+                        </tr>
+                        <tr>
+                            <td>总Token消耗</td>
+                            <td>317.2M tokens（输入286.3M + 输出31.0M）</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>ForgeJS数据生成效率</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>数值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>原始项目数</td>
+                            <td>1,852</td>
+                        </tr>
+                        <tr>
+                            <td>增强变体数</td>
+                            <td>4个（每个1,834项目）</td>
+                        </tr>
+                        <tr>
+                            <td>总项目实例</td>
+                            <td>9,188</td>
+                        </tr>
+                        <tr>
+                            <td>实际生成时间</td>
+                            <td>7小时</td>
+                        </tr>
+                        <tr>
+                            <td>平均生成时间</td>
+                            <td>13.6秒/项目（0.23分钟/项目）</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section id="getting-started">
+        <div class="container">
+            <h2>快速开始</h2>
+            
+            <h3>安装</h3>
+            <div class="code-block">
+# 克隆仓库
+git clone https://github.com/SecJS/js-vuln-benchmark.git
+cd js-vuln-benchmark
+
+# 安装依赖
+pip install -r requirements.txt
+            </div>
+
+            <h3>使用JudgeJS进行评估</h3>
+            <div class="code-block">
+# 运行评估
+python main.py --model gpt-4 --dataset original
+
+# 查看评估结果
+python analyze_stats.py
+            </div>
+
+            <h3>使用ForgeJS生成数据</h3>
+            <div class="code-block">
+# 生成数据集
+python generate_dataset.py --strategy noise
+
+# 应用多种增强策略
+python generate_dataset.py --strategy all
+            </div>
+
+            <h3>数据集下载</h3>
+            <p>数据集将在GitHub仓库发布后提供下载链接。数据集包含：</p>
+            <ul style="margin-left: 2rem; margin-top: 1rem; color: var(--text-secondary);">
+                <li>原始项目代码</li>
+                <li>增强变体代码</li>
+                <li>Ground Truth标注文件</li>
+                <li>项目元信息</li>
+            </ul>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>
+                © 2024 SecJS Project | 
+                <a href="https://github.com/SecJS">GitHub</a> | 
+                <a href="https://github.com/SecJS/js-vuln-benchmark">Repository</a>
+            </p>
+            <p style="margin-top: 1rem; opacity: 0.8; font-size: 0.9rem;">
+                首个系统化的JavaScript漏洞检测基准测试框架与数据集
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add scroll effect to header
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+            const currentScroll = window.pageYOffset;
+            const header = document.querySelector('header');
+            if (currentScroll > lastScroll && currentScroll > 100) {
+                header.style.transform = 'translateY(-100%)';
+            } else {
+                header.style.transform = 'translateY(0)';
+            }
+            lastScroll = currentScroll;
+        });
+    </script>
+</body>
+</html>
+
