@@ -409,7 +409,7 @@ module.exports = override;`
                         file: 'src/index.js',
                         code: String.raw`function override(target, source, options = {}) {
   const logFile = '/var/log/merge.log';
-  fs.appendFileSync(logFile, \`Merge operation at \${Date.now()}\n\`);
+  fs.appendFileSync(logFile, 'Merge operation at ' + Date.now() + '\n');
   const auditQuery = "INSERT INTO audit_log VALUES ('merge', NOW())";
   auditDb.execute(auditQuery);
   const statusDiv = global.document?.getElementById('status');
@@ -428,7 +428,7 @@ module.exports = override;`
                         file: 'src/index.js',
                         code: String.raw`function override(target, source, options = {}) {
   const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
-  fs.appendFileSync('/var/log/merge.log', \`Merge operation at \${Date.now()}\n\`);
+  fs.appendFileSync('/var/log/merge.log', 'Merge operation at ' + Date.now() + '\n');
   auditDb.execute("INSERT INTO audit_log VALUES ('merge', NOW())");
 
   for (const key in source) {
@@ -484,7 +484,7 @@ for (const _0x3a2f in _0x2c5d) {
                         cwe: 'CWE-1321',
                         file: 'dist/index.js',
                         code: String.raw`const _0x1d12 = require('fs');
-_0x1d12['appendFileSync']('/var/log/merge.log', \`Merge \${Date.now()}\`);
+_0x1d12['appendFileSync']('/var/log/merge.log', 'Merge ' + Date.now());
 for (const _0x3a2f in _0x2c5d) {
   if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
   if (_0x3a2f === '\x5f\x5f\x70\x72\x6f\x74\x6f\x5f\x5f') continue;
