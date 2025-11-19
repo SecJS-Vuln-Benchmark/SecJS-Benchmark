@@ -352,6 +352,41 @@
         </div>
     </section>
 
+    <section id="results">
+        <div class="container">
+            <h2 class="section-title">D. LLM Evaluation Results</h2>
+            <p style="text-align:center; max-width:900px; margin:0 auto 20px; color: var(--muted);">
+                Project-level F1 scores (Full split, %) reproduced from Table&nbsp;RQ1 of the paper. Each column shows how the same model behaves on a different dataset variant.
+            </p>
+            <div class="table-scroll">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Original</th>
+                            <th>Noise</th>
+                            <th>Obfuscated</th>
+                            <th>Noise+Obf</th>
+                            <th>Prompt Injection</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>GPT-5</td><td>32.1</td><td>17.2</td><td>22.9</td><td>17.8</td><td>25.7</td></tr>
+                        <tr><td>GPT-5-Mini</td><td>29.8</td><td>13.1</td><td>25.6</td><td>10.9</td><td>25.4</td></tr>
+                        <tr><td>GPT-5-Codex</td><td>34.7</td><td>15.2</td><td>26.7</td><td>9.8</td><td>27.2</td></tr>
+                        <tr><td>DeepSeek-v3.1</td><td>26.3</td><td>5.8</td><td>22.4</td><td>4.2</td><td>27.5</td></tr>
+                        <tr><td>Gemini-2.5-Pro</td><td>36.6</td><td>20.0</td><td>33.5</td><td>17.0</td><td>34.9</td></tr>
+                        <tr><td>Gemini-Flash</td><td>30.1</td><td>17.3</td><td>26.1</td><td>13.1</td><td>30.2</td></tr>
+                        <tr><td>Claude-4.5</td><td>35.9</td><td>4.2</td><td>17.2</td><td>3.9</td><td>27.1</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p style="text-align:center; max-width:900px; margin:16px auto 0; color: var(--muted); font-size:0.9rem;">
+                Scores illustrate how robustness drops once noise, obfuscation, or prompt injection is applied—highlighting the need for all three SecJS principles.
+            </p>
+        </div>
+    </section>
+
     <footer>
         SecJS Benchmark · GitHub: <a href="https://github.com/SecJS-Vuln-Benchmark/SecJS-Benchmark" target="_blank">SecJS-Benchmark</a>
     </footer>
