@@ -1,5 +1,7 @@
 # SecJS – JavaScript Vulnerability Benchmark
 
+> Live demo: [SecJS Benchmark Site](https://secjs-vuln-benchmark.github.io/SecJS-Benchmark/)
+
 SecJS is a modular benchmark for large-scale JavaScript vulnerability research. It ships with three tightly coupled components:
 
 - **ForgeJS** – automated data collection, labeling, and augmentation
