@@ -42,6 +42,20 @@
             grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
             gap: 20px;
         }
+        .variant-explainer {
+            margin-top: 24px;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px 24px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(15, 23, 42, 0.05);
+        }
+        .variant-explainer ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
         .card {
             background: var(--card);
             border-radius: 16px;
@@ -128,6 +142,26 @@
             border-radius: 14px;
         }
         .pill strong { display: block; margin-bottom: 6px; color: var(--accent); }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .results-table th,
+        .results-table td {
+            padding: 8px;
+            border: 1px solid var(--border);
+            text-align: center;
+            white-space: nowrap;
+        }
+        .results-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+        }
+        .table-scroll {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
         footer { text-align: center; padding: 30px 0 60px; color: var(--muted); font-size: 0.9rem; }
         @media (max-width: 768px) {
             .code-meta { flex-direction: column; }
@@ -139,7 +173,7 @@
     <header>
         <div class="container">
             <h1>SecJS Benchmark</h1>
-            <p class="lead"><em>Large Language Models Cannot Reliably Detect Vulnerabilities in JavaScript: The First Systematic Benchmark</em></p>
+            <p class="lead"><em>Large Language Models Cannot Reliably Detect Vulnerabilities in JavaScript:<br>The First Systematic Benchmark and Evaluation</em></p>
         </div>
     </header>
 
@@ -168,6 +202,16 @@
                     <p>Average 6,085 tokens per project (5,491 input + 594 output), adding up to 286.3M input and 31.0M output tokens.</p>
                 </div>
             </div>
+            <div class="variant-explainer">
+                <h3 style="margin-top:0;">Dataset variants</h3>
+                <ul>
+                    <li><strong>Original:</strong> untouched GitHub code with the exact vulnerable and fixed commits.</li>
+                    <li><strong>Noise:</strong> inserts harmless file writes, database logs, or DOM updates before the vulnerable merge logic to test false positives.</li>
+                    <li><strong>Obfuscated:</strong> runs javascript-obfuscator so identifiers and literals become unreadable while semantics stay the same.</li>
+                    <li><strong>Noise + Obf:</strong> applies the noise edits first, then obfuscates the file to combine both stressors.</li>
+                    <li><strong>Prompt Injection:</strong> adds misleading audit comments (“security approved”) ahead of the guard to see whether LLMs trust text over code.</li>
+                </ul>
+            </div>
 
         </div>
     </section>
@@ -176,7 +220,7 @@
         <div class="container">
             <h2 class="section-title">B. Demo</h2>
             <p style="text-align:center; max-width:800px; margin:0 auto 32px; color: var(--muted);">
-                This demo shows CVE-2021-25941 (project <code>ASaiAnudeep/deep-override</code>, commit <code>2aced176</code>) in every dataset variant so you can switch between vulnerable and fixed code.
+                Watch how CVE-2021-25941 (project <code>ASaiAnudeep/deep-override</code>, commit <code>2aced176</code>) changes across every dataset variant. Click a variant button to load its code, then use the toggle to compare the vulnerable and fixed revisions.
             </p>
 
             <div class="demo-controls" id="datasetControls"></div>
@@ -192,6 +236,7 @@
 
     <section id="case-study">
         <div class="container">
+            <h2 class="section-title">C. Case Study</h2>
             <div class="case-study">
                 <h3>CVE-2021-25941 Case Study (deep-override)</h3>
                 <p>
@@ -203,28 +248,106 @@
                     <div class="pill">
                         <strong>Principle 1 · Comprehensiveness</strong>
                         <ul>
-                            <li><em>(P1-1) CWE coverage:</em> SecJS-Gen pulls CVEs from NVD and Mend.io so the dataset covers older CWEs (SQLi-89, XSS-79, command injection-78, auth bypass-287, hard-coded creds-798) plus newer CWEs (prototype pollution-1321, ReDoS-1333, XXE-611).</li>
-                            <li><em>(P1-2) Result and reasoning:</em> JudgeJS checks both project-level ⟨has_vulnerability, CWE⟩ pairs and function-level ⟨has_vulnerability, CWE, file, function⟩ pairs, so the model must point to `src/index.js::override()` instead of giving a one-line verdict.</li>
-                            <li><em>(P1-3) Real GitHub projects:</em> Every sample keeps the full repo (15 files here) plus a frontend/backend/full-stack tag, so the Node.js dependency path (express-session → body-parser → deep-override) stays in context.</li>
+                            <li><em>Principle I-1 · CWE coverage:</em> SecJS-Gen pulls CVEs from NVD and Mend.io so the dataset covers older CWEs (SQLi-89, XSS-79, command injection-78, auth bypass-287, hard-coded creds-798) plus newer CWEs (prototype pollution-1321, ReDoS-1333, XXE-611).</li>
+                            <li><em>Principle I-2 · Result and reasoning:</em> JudgeJS checks both project-level ⟨has_vulnerability, CWE⟩ pairs and function-level ⟨has_vulnerability, CWE, file, function⟩ pairs, so the model must point to `src/index.js::override()` instead of giving a one-line verdict.</li>
+                            <li><em>Principle I-3 · Real GitHub projects:</em> Every sample keeps the full repo (15 files here) plus a frontend/backend/full-stack tag, so the Node.js dependency path (express-session → body-parser → deep-override) stays in context.</li>
                         </ul>
                     </div>
                     <div class="pill">
                         <strong>Principle 2 · Avoid Underestimation</strong>
                         <ul>
-                            <li><em>(P2-1) CWE equivalence classes:</em> MITRE CAPEC groups (for example XSS ⇒ CWE-79/80/83, prototype pollution ⇒ CWE-1321/915) mean predictions inside the same group are counted as correct.</li>
-                            <li><em>(P2-2) Denoised controls:</em> Samples carry ONEFUNC / NVDCHECK / SUSPICIOUS flags so experiments can focus on the high-confidence part (ONEFUNC+NVDCHECK) and skip noisy commits.</li>
-                            <li><em>(P2-3) Strong prompting:</em> The claude-code-security-review prompt guides the model through three steps: list known safe libraries, compare code with those patterns, then trace the taint path from source to sink.</li>
+                            <li><em>Principle II-1 · CWE equivalence:</em> MITRE CAPEC groups (for example XSS ⇒ CWE-79/80/83, prototype pollution ⇒ CWE-1321/915) mean predictions inside the same group are counted as correct.</li>
+                            <li><em>Principle II-2 · Denoised controls:</em> Samples carry ONEFUNC / NVDCHECK / SUSPICIOUS flags so experiments can focus on the high-confidence part (ONEFUNC+NVDCHECK) and skip noisy commits.</li>
+                            <li><em>Principle II-3 · Strong prompting:</em> The claude-code-security-review prompt guides the model through three steps: list known safe libraries, compare code with those patterns, then trace the taint path from source to sink.</li>
                         </ul>
                     </div>
                     <div class="pill">
                         <strong>Principle 3 · Avoid Overestimation</strong>
                         <ul>
-                            <li><em>(P3-1) Full-project inputs:</em> JudgeJS always feeds the entire repo (package files, helpers, tests), so the model has to find the vulnerable `override` function itself.</li>
-                            <li><em>(P3-2) Vulnerable/fixed pairs:</em> Every CVE provides both versions; for this case the fixed build blocks `['__proto__','constructor','prototype']`, exposing detectors that flag strings instead of reasoning.</li>
-                            <li><em>(P3-3) Four augmentation tracks:</em> Noise (safe sinks), Obfuscation (renamed identifiers), Noise+Obf, and Prompt Injection (misleading comments) check whether the model still works after simple transformations.</li>
+                            <li><em>Principle III-1 · Full-project inputs:</em> JudgeJS always feeds the entire repo (package files, helpers, tests), so the model has to find the vulnerable `override` function itself.</li>
+                            <li><em>Principle III-2 · Vulnerable/fixed pairs:</em> Every CVE provides both versions; for this case the fixed build blocks `['__proto__','constructor','prototype']`, exposing detectors that flag strings instead of reasoning.</li>
+                            <li><em>Principle III-3 · Four augmentation tracks:</em> Noise (safe sinks), Obfuscation (renamed identifiers), Noise+Obf, and Prompt Injection (misleading comments) check whether the model still works after simple transformations.</li>
                         </ul>
                     </div>
                 </div>
+            </div>
+            <div class="card" style="margin-top:32px;">
+                <h3 style="margin-top:0;">What the five variants mean</h3>
+                <ul style="margin-left:20px;">
+                    <li><strong>Original:</strong> Raw GitHub projects with paired vulnerable and fixed commits.</li>
+                    <li><strong>Noise:</strong> Adds harmless file/DB/DOM statements so we can see whether models overreact to unrelated APIs.</li>
+                    <li><strong>Obfuscated:</strong> Runs javascript-obfuscator to rename identifiers and encode literals while keeping semantics.</li>
+                    <li><strong>Noise + Obf:</strong> Applies the noise injections first and then obfuscates the entire file for a tougher stress test.</li>
+                    <li><strong>Prompt Injection:</strong> Inserts misleading audit comments (for example “Security audit passed”) to test textual prompt attacks.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section id="results">
+        <div class="container">
+            <h2 class="section-title">C. LLM Evaluation Results</h2>
+            <p style="text-align:center; color: var(--muted); max-width:900px; margin:0 auto 24px;">
+                Table reproduced from the SecJS paper (Table RQ1). It reports Precision, Recall, F1, and VD-S (\%) for seven LLMs on each dataset variant.
+                “Full” is the complete split, “DN” is the denoised split.
+            </p>
+            <div class="table-scroll">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">LLM</th>
+                            <th rowspan="2">Metric</th>
+                            <th colspan="2">Original</th>
+                            <th colspan="2">Noise</th>
+                            <th colspan="2">Obfuscated</th>
+                            <th colspan="2">Noise+Obf</th>
+                            <th colspan="2">Prompt</th>
+                        </tr>
+                        <tr>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td rowspan="4">GPT-5</td><td>Precision</td><td>37.3</td><td>37.8</td><td>20.0</td><td>20.2</td><td>33.3</td><td>33.0</td><td>23.6</td><td>23.6</td><td>32.0</td><td>32.4</td></tr>
+                        <tr><td>Recall</td><td>28.1</td><td>27.5</td><td>15.0</td><td>14.7</td><td>17.4</td><td>16.6</td><td>14.3</td><td>13.9</td><td>21.5</td><td>20.8</td></tr>
+                        <tr><td>F1</td><td>32.1</td><td>31.8</td><td>17.2</td><td>17.0</td><td>22.9</td><td>22.1</td><td>17.8</td><td>17.5</td><td>25.7</td><td>25.3</td></tr>
+                        <tr><td>VD-S</td><td>57.2</td><td>58.1</td><td>61.9</td><td>62.5</td><td>77.2</td><td>77.8</td><td>76.6</td><td>77.2</td><td>78.5</td><td>79.2</td></tr>
+
+                        <tr><td rowspan="4">GPT-5-Mini</td><td>Precision</td><td>34.1</td><td>34.1</td><td>13.8</td><td>13.3</td><td>34.7</td><td>35.7</td><td>12.0</td><td>11.9</td><td>26.9</td><td>26.6</td></tr>
+                        <tr><td>Recall</td><td>26.4</td><td>25.7</td><td>12.5</td><td>11.7</td><td>20.2</td><td>20.2</td><td>10.1</td><td>10.0</td><td>24.1</td><td>23.2</td></tr>
+                        <tr><td>F1</td><td>29.8</td><td>29.3</td><td>13.1</td><td>12.5</td><td>25.6</td><td>25.8</td><td>10.9</td><td>10.9</td><td>25.4</td><td>24.8</td></tr>
+                        <tr><td>VD-S</td><td>73.6</td><td>74.3</td><td>56.2</td><td>57.0</td><td>79.8</td><td>79.8</td><td>59.4</td><td>60.0</td><td>75.9</td><td>76.8</td></tr>
+
+                        <tr><td rowspan="4">GPT-5-Codex</td><td>Precision</td><td>43.0</td><td>43.7</td><td>18.8</td><td>18.0</td><td>43.4</td><td>44.8</td><td>12.4</td><td>11.8</td><td>38.1</td><td>39.2</td></tr>
+                        <tr><td>Recall</td><td>29.1</td><td>28.9</td><td>12.8</td><td>12.0</td><td>19.3</td><td>19.3</td><td>8.1</td><td>7.7</td><td>21.2</td><td>20.9</td></tr>
+                        <tr><td>F1</td><td>34.7</td><td>34.8</td><td>15.2</td><td>14.4</td><td>26.7</td><td>27.0</td><td>9.8</td><td>9.3</td><td>27.2</td><td>27.2</td></tr>
+                        <tr><td>VD-S</td><td>70.9</td><td>71.1</td><td>62.7</td><td>63.5</td><td>80.7</td><td>80.7</td><td>59.0</td><td>59.8</td><td>78.8</td><td>79.1</td></tr>
+
+                        <tr><td rowspan="4">DeepSeek-v3.1</td><td>Precision</td><td>31.0</td><td>30.6</td><td>6.3</td><td>5.9</td><td>32.7</td><td>32.4</td><td>4.7</td><td>4.6</td><td>27.9</td><td>28.2</td></tr>
+                        <tr><td>Recall</td><td>22.8</td><td>21.6</td><td>5.4</td><td>5.0</td><td>17.0</td><td>16.9</td><td>3.8</td><td>3.6</td><td>27.2</td><td>27.1</td></tr>
+                        <tr><td>F1</td><td>26.3</td><td>25.3</td><td>5.8</td><td>5.4</td><td>22.4</td><td>22.2</td><td>4.2</td><td>4.0</td><td>27.5</td><td>27.7</td></tr>
+                        <tr><td>VD-S</td><td>77.0</td><td>78.4</td><td>64.8</td><td>65.5</td><td>83.0</td><td>83.1</td><td>50.0</td><td>50.8</td><td>72.7</td><td>72.9</td></tr>
+
+                        <tr><td rowspan="4">Gemini-2.5-Pro</td><td>Precision</td><td>34.9</td><td>35.2</td><td>19.7</td><td>20.0</td><td>34.1</td><td>34.1</td><td>16.2</td><td>15.6</td><td>33.7</td><td>34.0</td></tr>
+                        <tr><td>Recall</td><td>38.4</td><td>38.2</td><td>20.4</td><td>20.3</td><td>32.9</td><td>33.2</td><td>17.8</td><td>17.2</td><td>36.2</td><td>36.0</td></tr>
+                        <tr><td>F1</td><td>36.6</td><td>36.6</td><td>20.0</td><td>20.1</td><td>33.5</td><td>33.7</td><td>17.0</td><td>16.4</td><td>34.9</td><td>35.0</td></tr>
+                        <tr><td>VD-S</td><td>61.6</td><td>61.8</td><td>51.0</td><td>51.2</td><td>67.1</td><td>66.8</td><td>39.5</td><td>40.3</td><td>63.8</td><td>64.0</td></tr>
+
+                        <tr><td rowspan="4">Gemini-Flash</td><td>Precision</td><td>28.8</td><td>28.7</td><td>16.9</td><td>16.5</td><td>27.2</td><td>27.0</td><td>14.4</td><td>12.8</td><td>28.8</td><td>29.0</td></tr>
+                        <tr><td>Recall</td><td>31.4</td><td>31.2</td><td>17.7</td><td>17.4</td><td>25.0</td><td>25.0</td><td>12.0</td><td>10.8</td><td>31.8</td><td>31.5</td></tr>
+                        <tr><td>F1</td><td>30.1</td><td>29.9</td><td>17.3</td><td>17.0</td><td>26.1</td><td>25.9</td><td>13.1</td><td>11.7</td><td>30.2</td><td>30.2</td></tr>
+                        <tr><td>VD-S</td><td>68.6</td><td>68.8</td><td>54.2</td><td>54.5</td><td>75.0</td><td>75.0</td><td>63.4</td><td>64.7</td><td>68.2</td><td>68.5</td></tr>
+
+                        <tr><td rowspan="4">Claude-4.5</td><td>Precision</td><td>37.2</td><td>37.7</td><td>4.4</td><td>4.2</td><td>17.8</td><td>16.9</td><td>4.0</td><td>3.9</td><td>28.8</td><td>29.1</td></tr>
+                        <tr><td>Recall</td><td>34.8</td><td>34.3</td><td>4.0</td><td>3.8</td><td>16.5</td><td>15.5</td><td>3.8</td><td>3.6</td><td>25.5</td><td>24.8</td></tr>
+                        <tr><td>F1</td><td>35.9</td><td>35.9</td><td>4.2</td><td>4.0</td><td>17.2</td><td>16.2</td><td>3.9</td><td>3.7</td><td>27.1</td><td>26.8</td></tr>
+                        <tr><td>VD-S</td><td>65.2</td><td>65.7</td><td>58.6</td><td>59.0</td><td>83.5</td><td>84.5</td><td>48.7</td><td>49.2</td><td>74.5</td><td>75.2</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </section>
