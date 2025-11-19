@@ -1,0 +1,7 @@
+{
+  "name": "js-obfuscator-workspace",
+  "version": "1.0.0",
+  "dependencies": {
+    "javascript-obfuscator": "^4.1.1"
+  }
+}
