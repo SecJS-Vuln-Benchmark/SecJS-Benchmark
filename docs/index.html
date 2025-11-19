@@ -150,22 +150,22 @@
                 <div class="card">
                     <p class="stat-value">1,852</p>
                     <p class="stat-label">Original GitHub projects</p>
-                    <p>Each sample contains paired vulnerable/fixed revisions collected from CVE commits between 2018–2024.</p>
+                    <p>Each sample bundles a vulnerable and fixed commit taken from CVE-linked GitHub projects (2018–2024).</p>
                 </div>
                 <div class="card">
                     <p class="stat-value">7,408</p>
                     <p class="stat-label">Instances after augmentation</p>
-                    <p>Four augmentation strategies (noise, obfuscation, noise+obf, prompt injection) expand the corpus while keeping semantics intact.</p>
+                    <p>Noise, obfuscation, noise+obf, and prompt-injection variants grow the corpus while keeping behavior unchanged.</p>
                 </div>
                 <div class="card">
                     <p class="stat-value">52,137</p>
                     <p class="stat-label">Projects evaluated (RQ3)</p>
-                    <p>Across all five variants, JudgeJS processed 104,274 vulnerable/fixed runs (two per project).</p>
+                    <p>Across all five variants, JudgeJS runs both versions of every project (104,274 executions total).</p>
                 </div>
                 <div class="card">
                     <p class="stat-value">317.2M</p>
                     <p class="stat-label">Total tokens consumed</p>
-                    <p>Average 6,085 tokens/project (5,491 input + 594 output) → 286.3M input + 31.0M output tokens overall.</p>
+                    <p>Average 6,085 tokens per project (5,491 input + 594 output), adding up to 286.3M input and 31.0M output tokens.</p>
                 </div>
             </div>
 
@@ -174,9 +174,9 @@
 
     <section id="demo">
         <div class="container">
-            <h2 class="section-title">B. Interactive Sample Viewer</h2>
+            <h2 class="section-title">B. Interactive Demo</h2>
             <p style="text-align:center; max-width:800px; margin:0 auto 32px; color: var(--muted);">
-                The viewer uses a single CVE case (CVE-2021-25941, project <code>ASaiAnudeep/deep-override</code>, commit <code>2aced176</code>). Explore how ForgeJS materializes the same project across five dataset variants and how JudgeJS compares vulnerable vs. fixed versions.
+                This demo shows CVE-2021-25941 (project <code>ASaiAnudeep/deep-override</code>, commit <code>2aced176</code>) in every dataset variant so you can switch between vulnerable and fixed code.
             </p>
 
             <div class="demo-controls" id="datasetControls"></div>
@@ -195,7 +195,7 @@
             <div class="case-study">
                 <h3>CVE-2021-25941 Case Study (deep-override)</h3>
                 <p>
-                    Prototype pollution in <code>src/index.js::override()</code> allows an attacker to craft objects whose keys overwrite <code>Object.prototype</code>, leading to denial of service or remote code execution across Node.js applications that rely on deep-override for configuration merges. The vulnerable release only blocks <code>__proto__</code>; the fixed release blocks <code>['__proto__','constructor','prototype']</code> and keeps the merge logic intact. GitHub repository: <a href="https://github.com/ASaiAnudeep/deep-override" target="_blank" rel="noreferrer">ASaiAnudeep/deep-override</a>.
+                    Prototype pollution in <code>src/index.js::override()</code> lets attacker-controlled keys overwrite <code>Object.prototype</code>, which can break or hijack Node.js apps that use deep-override while merging configs. The vulnerable release blocks only <code>__proto__</code>; the fixed release blocks <code>['__proto__','constructor','prototype']</code> and keeps the merge logic. Repo: <a href="https://github.com/ASaiAnudeep/deep-override" target="_blank" rel="noreferrer">ASaiAnudeep/deep-override</a>.
                 </p>
 
                 <h4>How this case instantiates the three SecJS principles (nine checkpoints)</h4>
@@ -203,25 +203,25 @@
                     <div class="pill">
                         <strong>Principle 1 · Comprehensiveness</strong>
                         <ul>
-                            <li><em>(P1‑1) CWE-type coverage:</em> SecJS-Gen pulls from NVD + Mend.io to cover traditional CWEs (SQLi‑89, XSS‑79, command injection‑78, auth bypass‑287, hard-coded creds‑798) and emerging CWEs (prototype pollution‑1321, ReDoS‑1333, XXE‑611).</li>
-                            <li><em>(P1‑2) Result-to-reasoning evaluation:</em> JudgeJS enforces a dual-layer scheme—project-level ⟨has_vulnerability, CWE⟩ tuples and function-level ⟨has_vulnerability, CWE, file, function⟩ quadruples—so the model must locate `src/index.js::override()` rather than only emit a label.</li>
-                            <li><em>(P1‑3) Authentic GitHub sourcing:</em> Every sample keeps the complete repository (15 files here) and a frontend/backend/full-stack label, preserving the Node.js dependency chain (express-session → body-parser → deep-override).</li>
+                            <li><em>(P1-1) CWE coverage:</em> SecJS-Gen pulls CVEs from NVD and Mend.io so the dataset covers older CWEs (SQLi-89, XSS-79, command injection-78, auth bypass-287, hard-coded creds-798) plus newer CWEs (prototype pollution-1321, ReDoS-1333, XXE-611).</li>
+                            <li><em>(P1-2) Result and reasoning:</em> JudgeJS checks both project-level ⟨has_vulnerability, CWE⟩ pairs and function-level ⟨has_vulnerability, CWE, file, function⟩ pairs, so the model must point to `src/index.js::override()` instead of giving a one-line verdict.</li>
+                            <li><em>(P1-3) Real GitHub projects:</em> Every sample keeps the full repo (15 files here) plus a frontend/backend/full-stack tag, so the Node.js dependency path (express-session → body-parser → deep-override) stays in context.</li>
                         </ul>
                     </div>
                     <div class="pill">
                         <strong>Principle 2 · Avoid Underestimation</strong>
                         <ul>
-                            <li><em>(P2‑1) CWE equivalence classes:</em> MITRE CAPEC groupings (e.g., XSS ⇒ CWE‑79/80/83, prototype pollution ⇒ CWE‑1321/915) ensure predictions within the same class are credited, eliminating false negatives from granularity mismatches.</li>
-                            <li><em>(P2‑2) Denoised dataset controls:</em> Samples carry ONEFUNC / NVDCHECK / SUSPICIOUS tags so researchers can evaluate on the high-confidence subset (ONEFUNC+NVDCHECK) and avoid dependency-upgrade noise.</li>
-                            <li><em>(P2‑3) Advanced prompting:</em> The claude-code-security-review framework drives a three-step workflow (catalogue security libraries → compare code vs. catalogued patterns → trace taint from source to sink), fully exercising LLM reasoning.</li>
+                            <li><em>(P2-1) CWE equivalence classes:</em> MITRE CAPEC groups (for example XSS ⇒ CWE-79/80/83, prototype pollution ⇒ CWE-1321/915) mean predictions inside the same group are counted as correct.</li>
+                            <li><em>(P2-2) Denoised controls:</em> Samples carry ONEFUNC / NVDCHECK / SUSPICIOUS flags so experiments can focus on the high-confidence part (ONEFUNC+NVDCHECK) and skip noisy commits.</li>
+                            <li><em>(P2-3) Strong prompting:</em> The claude-code-security-review prompt guides the model through three steps: list known safe libraries, compare code with those patterns, then trace the taint path from source to sink.</li>
                         </ul>
                     </div>
                     <div class="pill">
                         <strong>Principle 3 · Avoid Overestimation</strong>
                         <ul>
-                            <li><em>(P3‑1) Full-project inputs:</em> JudgeJS feeds the entire repo (package manifests, helpers, tests) so models must discover the vulnerable `override` function, not rely on pre-trimmed snippets.</li>
-                            <li><em>(P3‑2) Vulnerable/fixed project pairs:</em> Each CVE ships both revisions; for CVE-2021-25941 the fixed build blocks `['__proto__','constructor','prototype']`, exposing detectors that would still flag the literal `__proto__` as false positives.</li>
-                            <li><em>(P3‑3) Four augmentation strategies:</em> Noise (safe sinks), Obfuscation (identifier/literal mangling), Noise+Obf (hybrid), and Prompt-Injection (misleading audit comments) systematically stress-test lexical overfitting.</li>
+                            <li><em>(P3-1) Full-project inputs:</em> JudgeJS always feeds the entire repo (package files, helpers, tests), so the model has to find the vulnerable `override` function itself.</li>
+                            <li><em>(P3-2) Vulnerable/fixed pairs:</em> Every CVE provides both versions; for this case the fixed build blocks `['__proto__','constructor','prototype']`, exposing detectors that flag strings instead of reasoning.</li>
+                            <li><em>(P3-3) Four augmentation tracks:</em> Noise (safe sinks), Obfuscation (renamed identifiers), Noise+Obf, and Prompt Injection (misleading comments) check whether the model still works after simple transformations.</li>
                         </ul>
                     </div>
                 </div>
