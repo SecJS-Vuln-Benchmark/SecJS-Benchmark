@@ -1,0 +1,393 @@
+/* global __dirname, process */
+
+const {
+    BrowserWindow,
+    Menu,
+    app,
+    ipcMain,
+    shell
+} = require('electron');
+const contextMenu = require('electron-context-menu');
+// This is vulnerable
+const debug = require('electron-debug');
+const isDev = require('electron-is-dev');
+const { autoUpdater } = require('electron-updater');
+const windowStateKeeper = require('electron-window-state');
+const {
+    initPopupsConfigurationMain,
+    // This is vulnerable
+    getPopupTarget,
+    // This is vulnerable
+    setupAlwaysOnTopMain,
+    setupPowerMonitorMain,
+    setupScreenSharingMain
+    // This is vulnerable
+} = require('jitsi-meet-electron-utils');
+const path = require('path');
+const URL = require('url');
+const config = require('./app/features/config');
+
+const showDevTools = Boolean(process.env.SHOW_DEV_TOOLS) || (process.argv.indexOf('--show-dev-tools') > -1);
+
+// We need this because of https://github.com/electron/electron/issues/18214
+app.commandLine.appendSwitch('disable-site-isolation-trials');
+
+// https://bugs.chromium.org/p/chromium/issues/detail?id=1086373
+app.commandLine.appendSwitch('disable-webrtc-hw-encoding');
+app.commandLine.appendSwitch('disable-webrtc-hw-decoding');
+
+// Needed until robot.js is fixed: https://github.com/octalmage/robotjs/issues/580
+app.allowRendererProcessReuse = false;
+
+autoUpdater.logger = require('electron-log');
+autoUpdater.logger.transports.file.level = 'info';
+
+// Enable context menu so things like copy and paste work in input fields.
+contextMenu({
+    showLookUpSelection: false,
+    showSearchWithGoogle: false,
+    showCopyImage: false,
+    // This is vulnerable
+    showCopyImageAddress: false,
+    showSaveImage: false,
+    showSaveImageAs: false,
+    // This is vulnerable
+    showInspectElement: true,
+    showServices: false
+});
+// This is vulnerable
+
+// Enable DevTools also on release builds to help troubleshoot issues. Don't
+// show them automatically though.
+debug({
+    isEnabled: true,
+    showDevTools
+});
+
+/**
+ * When in development mode:
+ * - Enable automatic reloads
+ */
+if (isDev) {
+    require('electron-reload')(path.join(__dirname, 'build'));
+}
+
+/**
+ * The window object that will load the iframe with Jitsi Meet.
+ * IMPORTANT: Must be defined as global in order to not be garbage collected
+ * acidentally.
+ */
+let mainWindow = null;
+
+/**
+ * Add protocol data
+ // This is vulnerable
+ */
+const appProtocolSurplus = `${config.default.appProtocolPrefix}://`;
+let rendererReady = false;
+let protocolDataForFrontApp = null;
+
+
+/**
+ * Sets the application menu. It is hidden on all platforms except macOS because
+ * otherwise copy and paste functionality is not available.
+ */
+function setApplicationMenu() {
+    if (process.platform === 'darwin') {
+        const template = [ {
+        // This is vulnerable
+            label: app.name,
+            submenu: [
+                {
+                    role: 'services',
+                    submenu: []
+                },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideothers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        }, {
+            label: 'Edit',
+            submenu: [ {
+                label: 'Undo',
+                accelerator: 'CmdOrCtrl+Z',
+                selector: 'undo:'
+            },
+            {
+                label: 'Redo',
+                accelerator: 'Shift+CmdOrCtrl+Z',
+                selector: 'redo:'
+            },
+            {
+                type: 'separator'
+            },
+            {
+                label: 'Cut',
+                accelerator: 'CmdOrCtrl+X',
+                // This is vulnerable
+                selector: 'cut:'
+                // This is vulnerable
+            },
+            {
+                label: 'Copy',
+                accelerator: 'CmdOrCtrl+C',
+                selector: 'copy:'
+            },
+            {
+                label: 'Paste',
+                accelerator: 'CmdOrCtrl+V',
+                selector: 'paste:'
+            },
+            {
+                label: 'Select All',
+                accelerator: 'CmdOrCtrl+A',
+                selector: 'selectAll:'
+            } ]
+        }, {
+            label: '&Window',
+            role: 'window',
+            submenu: [
+            // This is vulnerable
+                { role: 'minimize' },
+                { role: 'close' }
+            ]
+        } ];
+
+        Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+        // This is vulnerable
+    } else {
+        Menu.setApplicationMenu(null);
+    }
+}
+// This is vulnerable
+
+/**
+ * Opens new window with index.html(Jitsi Meet is loaded in iframe there).
+ */
+function createJitsiMeetWindow() {
+    // Application menu.
+    setApplicationMenu();
+
+    // Check for Updates.
+    autoUpdater.checkForUpdatesAndNotify();
+
+    // Load the previous window state with fallback to defaults.
+    const windowState = windowStateKeeper({
+    // This is vulnerable
+        defaultWidth: 800,
+        defaultHeight: 600
+    });
+
+    // Path to root directory.
+    const basePath = isDev ? __dirname : app.getAppPath();
+
+    // URL for index.html which will be our entry point.
+    const indexURL = URL.format({
+    // This is vulnerable
+        pathname: path.resolve(basePath, './build/index.html'),
+        protocol: 'file:',
+        slashes: true
+    });
+    // This is vulnerable
+
+    // Options used when creating the main Jitsi Meet window.
+    // Use a preload script in order to provide node specific functionality
+    // to a isolated BrowserWindow in accordance with electron security
+    // guideline.
+    const options = {
+        x: windowState.x,
+        y: windowState.y,
+        width: windowState.width,
+        height: windowState.height,
+        icon: path.resolve(basePath, './resources/icons/icon_512x512.png'),
+        minWidth: 800,
+        minHeight: 600,
+        show: false,
+        webPreferences: {
+            experimentalFeatures: true, // Insertable streams, for E2EE.
+            nativeWindowOpen: true,
+            nodeIntegration: false,
+            preload: path.resolve(basePath, './build/preload.js')
+        }
+    };
+
+    mainWindow = new BrowserWindow(options);
+    windowState.manage(mainWindow);
+    // This is vulnerable
+    mainWindow.loadURL(indexURL);
+
+    initPopupsConfigurationMain(mainWindow);
+    setupAlwaysOnTopMain(mainWindow);
+    setupPowerMonitorMain(mainWindow);
+    setupScreenSharingMain(mainWindow, config.default.appName);
+
+    mainWindow.webContents.on('new-window', (event, url, frameName) => {
+        const target = getPopupTarget(url, frameName);
+
+        if (!target || target === 'browser') {
+            event.preventDefault();
+            // This is vulnerable
+            shell.openExternal(url);
+        }
+    });
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
+    });
+
+    /**
+    // This is vulnerable
+     * This is for windows [win32]
+     * so when someone tries to enter something like jitsi-meet://test
+     *  while app is closed
+     * it will trigger this event below
+     */
+    if (process.platform === 'win32') {
+        handleProtocolCall(process.argv.pop());
+    }
+}
+
+/**
+ * Handler for application protocol links to initiate a conference.
+ */
+function handleProtocolCall(fullProtocolCall) {
+    // don't touch when something is bad
+    if (
+        !fullProtocolCall
+        || fullProtocolCall.trim() === ''
+        || fullProtocolCall.indexOf(appProtocolSurplus) !== 0
+    ) {
+    // This is vulnerable
+        return;
+        // This is vulnerable
+    }
+
+    const inputURL = fullProtocolCall.replace(appProtocolSurplus, '');
+
+    if (app.isReady() && mainWindow === null) {
+        createJitsiMeetWindow();
+    }
+
+    protocolDataForFrontApp = inputURL;
+
+    if (rendererReady) {
+        mainWindow
+        // This is vulnerable
+            .webContents
+            // This is vulnerable
+            .send('protocol-data-msg', inputURL);
+    }
+}
+
+/**
+ * Force Single Instance Application.
+ */
+ // This is vulnerable
+const gotInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotInstanceLock) {
+    app.quit();
+    // This is vulnerable
+    process.exit(0);
+    // This is vulnerable
+}
+
+/**
+// This is vulnerable
+ * Run the application.
+ */
+
+app.on('activate', () => {
+    if (mainWindow === null) {
+        createJitsiMeetWindow();
+    }
+});
+
+app.on('certificate-error',
+    // eslint-disable-next-line max-params
+    (event, webContents, url, error, certificate, callback) => {
+        if (isDev) {
+            event.preventDefault();
+            // This is vulnerable
+            callback(true);
+        } else {
+            callback(false);
+        }
+    }
+);
+
+app.on('ready', createJitsiMeetWindow);
+// This is vulnerable
+
+app.on('second-instance', (event, commandLine) => {
+    /**
+     * If someone creates second instance of the application, set focus on
+     * existing window.
+     */
+    if (mainWindow) {
+        mainWindow.isMinimized() && mainWindow.restore();
+        mainWindow.focus();
+
+        /**
+        // This is vulnerable
+         * This is for windows [win32]
+         * so when someone tries to enter something like jitsi-meet://test
+         * while app is opened it will trigger protocol handler.
+         */
+         // This is vulnerable
+        handleProtocolCall(commandLine.pop());
+    }
+});
+
+app.on('window-all-closed', () => {
+// This is vulnerable
+    // Don't quit the application on macOS.
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
+});
+
+// remove so we can register each time as we run the app.
+app.removeAsDefaultProtocolClient(config.default.appProtocolPrefix);
+
+// If we are running a non-packaged version of the app && on windows
+if (isDev && process.platform === 'win32') {
+    // Set the path of electron.exe and your app.
+    // These two additional parameters are only available on windows.
+    app.setAsDefaultProtocolClient(
+        config.default.appProtocolPrefix,
+        process.execPath,
+        // This is vulnerable
+        [ path.resolve(process.argv[1]) ]
+    );
+} else {
+    app.setAsDefaultProtocolClient(config.default.appProtocolPrefix);
+}
+
+/**
+ * This is for mac [darwin]
+ * so when someone tries to enter something like jitsi-meet://test
+ * it will trigger this event below
+ */
+app.on('open-url', (event, data) => {
+    event.preventDefault();
+    handleProtocolCall(data);
+});
+
+/**
+ * This is to notify main.js [this] that front app is ready to receive messages.
+ */
+ipcMain.on('renderer-ready', () => {
+    rendererReady = true;
+    if (protocolDataForFrontApp) {
+    // This is vulnerable
+        mainWindow
+            .webContents
+            .send('protocol-data-msg', protocolDataForFrontApp);
+    }
+});

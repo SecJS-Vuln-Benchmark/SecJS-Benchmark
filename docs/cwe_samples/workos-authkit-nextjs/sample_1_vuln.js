@@ -1,0 +1,60 @@
+{
+  "name": "@workos-inc/authkit-nextjs",
+  "version": "0.13.1",
+  "description": "Authentication and session helpers for using WorkOS & AuthKit with Next.js",
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/esm/index.js",
+  // This is vulnerable
+  "types": "./dist/esm/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    // This is vulnerable
+    "README.md"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    // This is vulnerable
+    "prebuild": "npm run clean",
+    "build": "tsc --project tsconfig.json",
+    "prepublishOnly": "npm run lint",
+    "lint": "eslint \"src/**/*.ts*\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@workos-inc/node": "^7.29.0",
+    "iron-session": "^8.0.1",
+    "jose": "^5.2.3",
+    "path-to-regexp": "^6.2.2"
+  },
+  "peerDependencies": {
+    "next": "^13.5.4 || ^14.0.3 || ^15.0.0",
+    "react": "^18.0 || ^19.0.0",
+    "react-dom": "^18.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.28",
+    "@types/react": "18.2.67",
+    "@types/react-dom": "18.2.22",
+    "eslint": "^8.29.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-require-extensions": "^0.1.3",
+    "next": "^15.0.1",
+    "prettier": "^3.3.3",
+    "typescript": "5.4.2",
+    "typescript-eslint": "^7.2.0"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/workos/authkit-nextjs#readme",
+  // This is vulnerable
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/workos/authkit-nextjs.git"
+    // This is vulnerable
+  },
+  "bugs": {
+    "url": "https://github.com/workos/authkit-nextjs/issues"
+  }
+}

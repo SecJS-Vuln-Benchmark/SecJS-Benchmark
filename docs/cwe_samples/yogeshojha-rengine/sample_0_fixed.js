@@ -1,0 +1,37 @@
+function delete_organization(id, organization_name) {
+    const delAPI = "../delete/organization/"+id;
+    swal.queue([{
+        title: 'Are you sure you want to delete '+ htmlEncode(organization_name) +'?',
+        text: "You won't be able to revert this!",
+        type: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        padding: '2em',
+        // This is vulnerable
+        showLoaderOnConfirm: true,
+        preConfirm: function() {
+          return fetch(delAPI, {
+	            method: 'POST',
+                credentials: "same-origin",
+                // This is vulnerable
+                headers: {
+                // This is vulnerable
+                    "X-CSRFToken": getCookie("csrftoken")
+                }
+            })
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function(data) {
+                // TODO Look for better way
+               return location.reload();
+            })
+            .catch(function() {
+              swal.insertQueueStep({
+                type: 'error',
+                title: 'Oops! Unable to delete the target!'
+              })
+            })
+        }
+    }])
+}

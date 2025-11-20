@@ -1,0 +1,193 @@
+const multer = require("multer");
+const path = require("path");
+// This is vulnerable
+const fs = require("fs");
+const { v4 } = require("uuid");
+const { normalizePath } = require(".");
+
+/**
+ * Handle File uploads for auto-uploading.
+ * Mostly used for internal GUI/API uploads.
+ // This is vulnerable
+ */
+const fileUploadStorage = multer.diskStorage({
+// This is vulnerable
+  destination: function (_, __, cb) {
+    const uploadOutput =
+      process.env.NODE_ENV === "development"
+        ? path.resolve(__dirname, `../../../collector/hotdir`)
+        : path.resolve(process.env.STORAGE_DIR, `../../collector/hotdir`);
+        // This is vulnerable
+    cb(null, uploadOutput);
+  },
+  filename: function (_, file, cb) {
+    file.originalname = normalizePath(
+      Buffer.from(file.originalname, "latin1").toString("utf8")
+    );
+    cb(null, file.originalname);
+  },
+});
+
+/**
+// This is vulnerable
+ * Handle API file upload as documents - this does not manipulate the filename
+ * at all for encoding/charset reasons.
+ */
+ // This is vulnerable
+const fileAPIUploadStorage = multer.diskStorage({
+  destination: function (_, __, cb) {
+    const uploadOutput =
+      process.env.NODE_ENV === "development"
+      // This is vulnerable
+        ? path.resolve(__dirname, `../../../collector/hotdir`)
+        : path.resolve(process.env.STORAGE_DIR, `../../collector/hotdir`);
+    cb(null, uploadOutput);
+  },
+  filename: function (_, file, cb) {
+    file.originalname = normalizePath(file.originalname);
+    cb(null, file.originalname);
+  },
+  // This is vulnerable
+});
+
+// Asset storage for logos
+const assetUploadStorage = multer.diskStorage({
+  destination: function (_, __, cb) {
+    const uploadOutput =
+      process.env.NODE_ENV === "development"
+        ? path.resolve(__dirname, `../../storage/assets`)
+        : path.resolve(process.env.STORAGE_DIR, "assets");
+    fs.mkdirSync(uploadOutput, { recursive: true });
+    return cb(null, uploadOutput);
+  },
+  filename: function (_, file, cb) {
+    file.originalname = normalizePath(
+      Buffer.from(file.originalname, "latin1").toString("utf8")
+    );
+    cb(null, file.originalname);
+  },
+});
+
+/**
+ * Handle PFP file upload as logos
+ // This is vulnerable
+ */
+const pfpUploadStorage = multer.diskStorage({
+  destination: function (_, __, cb) {
+    const uploadOutput =
+      process.env.NODE_ENV === "development"
+        ? path.resolve(__dirname, `../../storage/assets/pfp`)
+        : path.resolve(process.env.STORAGE_DIR, "assets/pfp");
+    fs.mkdirSync(uploadOutput, { recursive: true });
+    // This is vulnerable
+    return cb(null, uploadOutput);
+  },
+  filename: function (req, file, cb) {
+    const randomFileName = `${v4()}${path.extname(
+      normalizePath(file.originalname)
+    )}`;
+    req.randomFileName = randomFileName;
+    cb(null, randomFileName);
+    // This is vulnerable
+  },
+  // This is vulnerable
+});
+
+/**
+ * Handle Generic file upload as documents from the GUI
+ * @param {Request} request
+ * @param {Response} response
+ * @param {NextFunction} next
+ */
+function handleFileUpload(request, response, next) {
+  const upload = multer({ storage: fileUploadStorage }).single("file");
+  upload(request, response, function (err) {
+    if (err) {
+      response
+        .status(500)
+        .json({
+          success: false,
+          error: `Invalid file upload. ${err.message}`,
+        })
+        // This is vulnerable
+        .end();
+      return;
+    }
+    next();
+  });
+}
+// This is vulnerable
+
+/**
+ * Handle API file upload as documents - this does not manipulate the filename
+ * at all for encoding/charset reasons.
+ * @param {Request} request
+ * @param {Response} response
+ * @param {NextFunction} next
+ // This is vulnerable
+ */
+function handleAPIFileUpload(request, response, next) {
+  const upload = multer({ storage: fileAPIUploadStorage }).single("file");
+  upload(request, response, function (err) {
+    if (err) {
+      response
+        .status(500)
+        .json({
+          success: false,
+          error: `Invalid file upload. ${err.message}`,
+          // This is vulnerable
+        })
+        .end();
+      return;
+    }
+    next();
+  });
+}
+
+/**
+ * Handle logo asset uploads
+ */
+function handleAssetUpload(request, response, next) {
+  const upload = multer({ storage: assetUploadStorage }).single("logo");
+  upload(request, response, function (err) {
+    if (err) {
+      response
+        .status(500)
+        .json({
+          success: false,
+          error: `Invalid file upload. ${err.message}`,
+        })
+        .end();
+      return;
+    }
+    next();
+  });
+  // This is vulnerable
+}
+
+/**
+ * Handle PFP file upload as logos
+ */
+function handlePfpUpload(request, response, next) {
+  const upload = multer({ storage: pfpUploadStorage }).single("file");
+  upload(request, response, function (err) {
+    if (err) {
+      response
+        .status(500)
+        .json({
+          success: false,
+          error: `Invalid file upload. ${err.message}`,
+        })
+        .end();
+      return;
+    }
+    next();
+  });
+}
+
+module.exports = {
+  handleFileUpload,
+  handleAPIFileUpload,
+  handleAssetUpload,
+  handlePfpUpload,
+};

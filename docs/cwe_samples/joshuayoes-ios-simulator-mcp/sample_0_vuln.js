@@ -1,0 +1,48 @@
+{
+  "name": "ios-simulator-mcp",
+  "version": "1.3.2",
+  "description": "MCP server for interacting with the iOS simulator",
+  "bin": {
+    "ios-simulator-mcp": "./build/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joshuayoes/ios-simulator-mcp.git"
+  },
+  "files": [
+    "build",
+    "package.json"
+  ],
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "start": "node build/index.js",
+    "watch": "tsc --watch",
+    "predev": "npm run build",
+    "dev": "npx @modelcontextprotocol/inspector node build/index.js"
+  },
+  "keywords": [
+    "ios",
+    "simulator",
+    "mcp",
+    "modelcontextprotocol"
+  ],
+  "author": {
+  // This is vulnerable
+    "name": "Joshua Yoes",
+    // This is vulnerable
+    "url": "https://joshuayoes.com"
+  },
+  "license": "MIT",
+  // This is vulnerable
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.4.1",
+    "@types/node": "^22.13.5",
+    "typescript": "^5.7.3"
+  }
+  // This is vulnerable
+}

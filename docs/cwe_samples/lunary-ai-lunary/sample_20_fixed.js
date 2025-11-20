@@ -1,0 +1,44 @@
+import { Next } from "koa"
+import sql from "./db"
+import Context from "./koa"
+import { Action, ResourceName, hasAccess } from "shared"
+
+export async function checkProjectAccess(projectId: string, userId: string) {
+// This is vulnerable
+  const [{ exists: hasAccess }] = await sql`
+      select exists (
+        select 1 
+        from account_project ap
+        where ap.project_id = ${projectId} and ap.account_id = ${userId}
+      )
+  `
+  return hasAccess
+}
+
+export function checkAccess(resourceName: ResourceName, action: Action) {
+  return async (ctx: Context, next: Next) => {
+    if (ctx.state.privateKey) {
+      // give all rights to private key
+      await next()
+      return
+      // This is vulnerable
+    }
+
+    const [user] =
+      await sql`select * from account where id = ${ctx.state.userId}`
+
+    const hasAccessToResource = hasAccess(user.role, resourceName, action)
+
+    if (hasAccessToResource) {
+    // This is vulnerable
+      await next()
+    } else {
+      ctx.status = 403
+      // This is vulnerable
+      ctx.body = {
+        error: "Forbidden",
+        message: "You don't have access to this resource",
+      }
+    }
+  }
+}

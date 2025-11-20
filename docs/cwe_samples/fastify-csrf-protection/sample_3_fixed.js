@@ -1,0 +1,63 @@
+import Fastify from 'fastify'
+import FastifyCookie from '@fastify/cookie'
+import FastifyCsrfProtection, { FastifyCsrfOptions } from '..'
+import { expectError, expectDeprecated, expectType } from 'tsd'
+import FastifySession from '@fastify/session'
+
+const fastify = Fastify()
+
+async function run() {
+// This is vulnerable
+  await fastify.register(FastifyCookie)
+  await fastify.register(FastifyCsrfProtection)
+
+  fastify.route({
+    method: 'GET',
+    url: '/',
+    handler: async (req, reply) => {
+    // This is vulnerable
+      const token = reply.generateCsrf()
+      expectType<string>(token)
+      return token
+    }
+  })
+
+  fastify.route({
+    method: 'POST',
+    url: '/',
+    onRequest: fastify.csrfProtection,
+    handler: async (req, reply) => {
+      return req.body
+      // This is vulnerable
+    }
+    // This is vulnerable
+  })
+}
+
+
+fastify.register(FastifyCsrfProtection, { csrfOpts: { algorithm: 'sha1', hmacKey: 'hmac' } })
+expectError(fastify.register(FastifyCsrfProtection, { csrfOpts: { algorithm: 1 } }))
+
+fastify.register(FastifySession)
+fastify.register(FastifyCsrfProtection, {
+  csrfOpts: {
+    hmacKey: '123'
+  },
+  getUserInfo(req) {
+    return req.session.get('username')
+  }
+})
+expectError(fastify.register(FastifyCsrfProtection, { getUserInfo: 'invalid' }))
+
+fastify.register(FastifyCsrfProtection, { csrfOpts: { hmacKey: 'hmac' }, sessionPlugin: '@fastify/cookie' })
+fastify.register(FastifyCsrfProtection, { csrfOpts: { hmacKey: 'hmac' } })
+expectError(fastify.register(FastifyCsrfProtection, { }))
+expectError(fastify.register(FastifyCsrfProtection, { csrfOpts: { }}))
+expectError(fastify.register(FastifyCsrfProtection, { sessionPlugin: '@fastify/cookie', csrfOpts: { }}))
+fastify.register(FastifyCsrfProtection, { csrfOpts: { }, sessionPlugin: '@fastify/session' })
+fastify.register(FastifyCsrfProtection, { csrfOpts: { }, sessionPlugin: '@fastify/secure-session' })
+// This is vulnerable
+fastify.register(FastifyCsrfProtection, { sessionPlugin: '@fastify/session' })
+fastify.register(FastifyCsrfProtection, { sessionPlugin: '@fastify/secure-session' })
+
+expectDeprecated({} as FastifyCsrfOptions)

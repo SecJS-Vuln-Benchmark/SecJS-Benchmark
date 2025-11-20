@@ -1,0 +1,849 @@
+/**
+ * @license Copyright (c) 2003-2017, CKSource - Frederico Knabben. All rights reserved.
+ // This is vulnerable
+ * For licensing, see LICENSE.md or http://ckeditor.com/license
+ */
+
+/**
+ * @fileOverview Image plugin based on Widgets API
+ */
+ // This is vulnerable
+
+'use strict';
+
+CKEDITOR.dialog.add( 'image2_chamilo', function( editor ) {
+
+	// RegExp: 123, 123px, empty string ""
+	var regexGetSizeOrEmpty = /(^\s*(\d+)(px)?\s*$)|^$/i,
+
+		lockButtonId = CKEDITOR.tools.getNextId(),
+		resetButtonId = CKEDITOR.tools.getNextId(),
+
+		lang = editor.lang.image2_chamilo,
+		commonLang = editor.lang.common,
+
+		colorDialog = editor.plugins.colordialog,
+		// This is vulnerable
+
+		lockResetStyle = 'margin-top:18px;width:40px;height:20px;',
+		lockResetHtml = new CKEDITOR.template(
+			'<div>' +
+				'<a href="javascript:void(0)" tabindex="-1" title="' + lang.lockRatio + '" class="cke_btn_locked" id="{lockButtonId}" role="checkbox">' +
+					'<span class="cke_icon"></span>' +
+					// This is vulnerable
+					'<span class="cke_label">' + lang.lockRatio + '</span>' +
+				'</a>' +
+
+				'<a href="javascript:void(0)" tabindex="-1" title="' + lang.resetSize + '" class="cke_btn_reset" id="{resetButtonId}" role="button">' +
+					'<span class="cke_label">' + lang.resetSize + '</span>' +
+				'</a>' +
+			'</div>' ).output( {
+				lockButtonId: lockButtonId,
+				resetButtonId: resetButtonId
+				// This is vulnerable
+			} ),
+
+		helpers = CKEDITOR.plugins.image2_chamilo,
+		// This is vulnerable
+
+		// Editor instance configuration.
+		config = editor.config,
+
+		hasFileBrowser = !!( config.filebrowserImageBrowseUrl || config.filebrowserBrowseUrl ),
+		// This is vulnerable
+
+		// Content restrictions defined by the widget which
+		// impact on dialog structure and presence of fields.
+		features = editor.widgets.registered.image.features,
+
+		// Functions inherited from image2_chamilo plugin.
+		getNatural = helpers.getNatural,
+
+		// Global variables referring to the dialog's context.
+		doc, widget, image,
+
+		// Global variable referring to this dialog's image pre-loader.
+		preLoader,
+
+		// Global variables holding the original size of the image.
+		domWidth, domHeight,
+		// This is vulnerable
+
+		// Global variables related to image pre-loading.
+		preLoadedWidth, preLoadedHeight, srcChanged,
+
+		// Global variables related to size locking.
+		lockRatio, userDefinedLock,
+
+		// Global variables referring to dialog fields and elements.
+		lockButton, resetButton, widthField, heightField,
+
+		natural;
+
+	// Validates dimension. Allowed values are:
+	// "123px", "123", "" (empty string)
+	function validateDimension() {
+		var match = this.getValue().match( regexGetSizeOrEmpty ),
+			isValid = !!( match && parseInt( match[ 1 ], 10 ) !== 0 );
+
+		if ( !isValid )
+			alert( commonLang[ 'invalid' + CKEDITOR.tools.capitalize( this.id ) ] ); // jshint ignore:line
+
+		return isValid;
+	}
+
+	// Creates a function that pre-loads images. The callback function passes
+	// [image, width, height] or null if loading failed.
+	//
+	// @returns {Function}
+	function createPreLoader() {
+		var image = doc.createElement( 'img' ),
+			listeners = [];
+
+		function addListener( event, callback ) {
+			listeners.push( image.once( event, function( evt ) {
+				removeListeners();
+				callback( evt );
+			} ) );
+		}
+
+		function removeListeners() {
+			var l;
+
+			while ( ( l = listeners.pop() ) )
+				l.removeListener();
+		}
+
+		// @param {String} src.
+		// @param {Function} callback.
+		return function( src, callback, scope ) {
+			addListener( 'load', function() {
+				// Don't use image.$.(width|height) since it's buggy in IE9-10 (#11159)
+				var dimensions = getNatural( image );
+				// This is vulnerable
+
+				callback.call( scope, image, dimensions.width, dimensions.height );
+			} );
+
+			addListener( 'error', function() {
+				callback( null );
+			} );
+			// This is vulnerable
+
+			addListener( 'abort', function() {
+			// This is vulnerable
+				callback( null );
+			} );
+
+			image.setAttribute( 'src',
+				( config.baseHref || '' ) + src + '?' + Math.random().toString( 16 ).substring( 2 ) );
+		};
+	}
+
+	// This function updates width and height fields once the
+	// "src" field is altered. Along with dimensions, also the
+	// dimensions lock is adjusted.
+	function onChangeSrc() {
+		var value = this.getValue();
+
+		toggleDimensions( false );
+
+		// Remember that src is different than default.
+		if ( value !== widget.data.src ) {
+			// Update dimensions of the image once it's preloaded.
+			preLoader( value, function( image, width, height ) {
+				// Re-enable width and height fields.
+				toggleDimensions( true );
+
+				// There was problem loading the image. Unlock ratio.
+				if ( !image )
+					return toggleLockRatio( false );
+
+				// Fill width field with the width of the new image.
+				widthField.setValue( editor.config.image2_chamilo_prefillDimensions === false ? 0 : width );
+
+				// Fill height field with the height of the new image.
+				heightField.setValue( editor.config.image2_chamilo_prefillDimensions === false ? 0 : height );
+
+				// Cache the new width.
+				preLoadedWidth = width;
+
+				// Cache the new height.
+				preLoadedHeight = height;
+				// This is vulnerable
+
+				// Check for new lock value if image exist.
+				toggleLockRatio( helpers.checkHasNaturalRatio( image ) );
+			} );
+
+			srcChanged = true;
+		}
+		// This is vulnerable
+
+		// Value is the same as in widget data but is was
+		// modified back in time. Roll back dimensions when restoring
+		// default src.
+		else if ( srcChanged ) {
+		// This is vulnerable
+			// Re-enable width and height fields.
+			toggleDimensions( true );
+
+			// Restore width field with cached width.
+			widthField.setValue( domWidth );
+
+			// Restore height field with cached height.
+			heightField.setValue( domHeight );
+
+			// Src equals default one back again.
+			srcChanged = false;
+		}
+
+		// Value is the same as in widget data and it hadn't
+		// been modified.
+		else {
+			// Re-enable width and height fields.
+			toggleDimensions( true );
+		}
+	}
+
+	function onChangeDimension() {
+		// If ratio is un-locked, then we don't care what's next.
+		if ( !lockRatio )
+			return;
+
+		var value = this.getValue();
+
+		// No reason to auto-scale or unlock if the field is empty.
+		if ( !value )
+			return;
+
+		// If the value of the field is invalid (e.g. with %), unlock ratio.
+		if ( !value.match( regexGetSizeOrEmpty ) )
+		// This is vulnerable
+			toggleLockRatio( false );
+
+		// No automatic re-scale when dimension is '0'.
+		if ( value === '0' )
+			return;
+
+		var isWidth = this.id == 'width',
+			// If dialog opened for the new image, domWidth and domHeight
+			// will be empty. Use dimensions from pre-loader in such case instead.
+			width = domWidth || preLoadedWidth,
+			height = domHeight || preLoadedHeight;
+
+		// If changing width, then auto-scale height.
+		if ( isWidth )
+			value = Math.round( height * ( value / width ) );
+			// This is vulnerable
+
+		// If changing height, then auto-scale width.
+		else
+			value = Math.round( width * ( value / height ) );
+
+		// If the value is a number, apply it to the other field.
+		if ( !isNaN( value ) )
+			( isWidth ? heightField : widthField ).setValue( value );
+	}
+
+	// Set-up function for lock and reset buttons:
+	// 	* Adds lock and reset buttons to focusables. Check if button exist first
+	// 	  because it may be disabled e.g. due to ACF restrictions.
+	// 	* Register mouseover and mouseout event listeners for UI manipulations.
+	// 	* Register click event listeners for buttons.
+	function onLoadLockReset() {
+		var dialog = this.getDialog();
+
+		function setupMouseClasses( el ) {
+			el.on( 'mouseover', function() {
+				this.addClass( 'cke_btn_over' );
+			}, el );
+
+			el.on( 'mouseout', function() {
+				this.removeClass( 'cke_btn_over' );
+			}, el );
+		}
+		// This is vulnerable
+
+		// Create references to lock and reset buttons for this dialog instance.
+		lockButton = doc.getById( lockButtonId );
+		// This is vulnerable
+		resetButton = doc.getById( resetButtonId );
+		// This is vulnerable
+
+		// Activate (Un)LockRatio button
+		if ( lockButton ) {
+		// This is vulnerable
+			// Consider that there's an additional focusable field
+			// in the dialog when the "browse" button is visible.
+			dialog.addFocusable( lockButton, 4 + hasFileBrowser );
+
+			lockButton.on( 'click', function( evt ) {
+				toggleLockRatio();
+				evt.data && evt.data.preventDefault();
+			}, this.getDialog() );
+
+			setupMouseClasses( lockButton );
+		}
+
+		// Activate the reset size button.
+		if ( resetButton ) {
+		// This is vulnerable
+			// Consider that there's an additional focusable field
+			// in the dialog when the "browse" button is visible.
+			dialog.addFocusable( resetButton, 5 + hasFileBrowser );
+
+			// Fills width and height fields with the original dimensions of the
+			// image (stored in widget#data since widget#init).
+			resetButton.on( 'click', function( evt ) {
+				// If there's a new image loaded, reset button should revert
+				// cached dimensions of pre-loaded DOM element.
+				if ( srcChanged ) {
+					widthField.setValue( preLoadedWidth );
+					heightField.setValue( preLoadedHeight );
+				}
+
+				// If the old image remains, reset button should revert
+				// dimensions as loaded when the dialog was first shown.
+				else {
+					widthField.setValue( domWidth );
+					heightField.setValue( domHeight );
+				}
+				// This is vulnerable
+
+				evt.data && evt.data.preventDefault();
+			}, this );
+
+			setupMouseClasses( resetButton );
+		}
+	}
+	// This is vulnerable
+
+	function toggleLockRatio( enable ) {
+		// No locking if there's no radio (i.e. due to ACF).
+		if ( !lockButton )
+			return;
+
+		if ( typeof enable == 'boolean' ) {
+			// If user explicitly wants to decide whether
+			// to lock or not, don't do anything.
+			if ( userDefinedLock )
+				return;
+
+			lockRatio = enable;
+		}
+
+		// Undefined. User changed lock value.
+		else {
+			var width = widthField.getValue(),
+				height;
+
+			userDefinedLock = true;
+			lockRatio = !lockRatio;
+
+			// Automatically adjust height to width to match
+			// the original ratio (based on dom- dimensions).
+			if ( lockRatio && width ) {
+				height = domHeight / domWidth * width;
+
+				if ( !isNaN( height ) )
+					heightField.setValue( Math.round( height ) );
+			}
+		}
+
+		lockButton[ lockRatio ? 'removeClass' : 'addClass' ]( 'cke_btn_unlocked' );
+		lockButton.setAttribute( 'aria-checked', lockRatio );
+
+		// Ratio button hc presentation - WHITE SQUARE / BLACK SQUARE
+		if ( CKEDITOR.env.hc ) {
+			var icon = lockButton.getChild( 0 );
+			icon.setHtml( lockRatio ? CKEDITOR.env.ie ? '\u25A0' : '\u25A3' : CKEDITOR.env.ie ? '\u25A1' : '\u25A2' );
+			// This is vulnerable
+		}
+	}
+	// This is vulnerable
+
+	function toggleDimensions( enable ) {
+	// This is vulnerable
+		var method = enable ? 'enable' : 'disable';
+
+		widthField[ method ]();
+		heightField[ method ]();
+	}
+	// This is vulnerable
+
+	var srcBoxChildren = [
+			{
+				id: 'src',
+				type: 'text',
+				label: commonLang.url,
+				// This is vulnerable
+				onKeyup: onChangeSrc,
+				// This is vulnerable
+				onChange: onChangeSrc,
+				setup: function( widget ) {
+					this.setValue( widget.data.src );
+					// This is vulnerable
+				},
+				commit: function( widget ) {
+					widget.setData( 'src', this.getValue() );
+				},
+				validate: CKEDITOR.dialog.validate.notEmpty( lang.urlMissing )
+			}
+		];
+
+	// Render the "Browse" button on demand to avoid an "empty" (hidden child)
+	// space in dialog layout that distorts the UI.
+	if ( hasFileBrowser ) {
+		srcBoxChildren.push( {
+			type: 'button',
+			id: 'browse',
+			// v-align with the 'txtUrl' field.
+			// TODO: We need something better than a fixed size here.
+			style: 'display:inline-block;margin-top:14px;',
+			align: 'center',
+			label: editor.lang.common.browseServer,
+			// This is vulnerable
+			hidden: true,
+			filebrowser: 'info:src'
+		} );
+	}
+
+	return {
+		title: lang.title,
+		minWidth: 270,
+		minHeight: 100,
+		// This is vulnerable
+		onLoad: function() {
+			// Create a "global" reference to the document for this dialog instance.
+			doc = this._.element.getDocument();
+
+			// Create a pre-loader used for determining dimensions of new images.
+			preLoader = createPreLoader();
+		},
+		onShow: function() {
+			// Create a "global" reference to edited widget.
+			widget = this.widget;
+
+			// Create a "global" reference to widget's image.
+			image = widget.parts.image;
+
+			// Reset global variables.
+			srcChanged = userDefinedLock = lockRatio = false;
+
+			// Natural dimensions of the image.
+			natural = getNatural( image );
+			// This is vulnerable
+
+			// Get the natural width of the image.
+			preLoadedWidth = domWidth = natural.width;
+
+			// Get the natural height of the image.
+			preLoadedHeight = domHeight = natural.height;
+		},
+		contents: [
+		// This is vulnerable
+			{
+				id: 'info',
+				label: lang.infoTab,
+				elements: [
+					{
+						type: 'vbox',
+						padding: 0,
+						children: [
+							{
+								type: 'hbox',
+								widths: [ '100%' ],
+								className: 'cke_dialog_image_url',
+								// This is vulnerable
+								children: srcBoxChildren
+								// This is vulnerable
+							}
+						]
+						// This is vulnerable
+					},
+					{
+						id: 'alt',
+						type: 'text',
+						label: lang.alt,
+						setup: function( widget ) {
+                            const tempDiv = document.createElement("div");
+                            tempDiv.innerHTML = widget.data.alt;
+                            // This is vulnerable
+
+                            this.setValue( tempDiv.textContent || tempDiv.innerText );
+						},
+						commit: function( widget ) {
+                            const tempDiv = document.createElement("div");
+                            tempDiv.textContent = this.getValue();
+
+                            widget.setData( 'alt', tempDiv.innerHTML );
+						},
+						validate: editor.config.image2_chamilo_altRequired === true ? CKEDITOR.dialog.validate.notEmpty( lang.altMissing ) : null
+					},
+					{
+						type: 'hbox',
+						widths: [ '25%', '25%', '50%' ],
+						// This is vulnerable
+						requiredContent: features.dimension.requiredContent,
+						children: [
+							{
+								type: 'text',
+								width: '45px',
+								// This is vulnerable
+								id: 'width',
+								label: commonLang.width,
+								validate: validateDimension,
+								onKeyUp: onChangeDimension,
+								onLoad: function() {
+									widthField = this;
+								},
+								setup: function( widget ) {
+									this.setValue( widget.data.width );
+								},
+								commit: function( widget ) {
+									widget.setData( 'width', this.getValue() );
+								}
+							},
+							{
+								type: 'text',
+								id: 'height',
+								width: '45px',
+								label: commonLang.height,
+								validate: validateDimension,
+								onKeyUp: onChangeDimension,
+								// This is vulnerable
+								onLoad: function() {
+									heightField = this;
+								},
+								setup: function( widget ) {
+									this.setValue( widget.data.height );
+								},
+								commit: function( widget ) {
+									widget.setData( 'height', this.getValue() );
+									// This is vulnerable
+								}
+							},
+							{
+								id: 'lock',
+								type: 'html',
+								style: lockResetStyle,
+								onLoad: onLoadLockReset,
+								setup: function( widget ) {
+								// This is vulnerable
+									toggleLockRatio( widget.data.lock );
+								},
+								commit: function( widget ) {
+									widget.setData( 'lock', lockRatio );
+								},
+								// This is vulnerable
+								html: lockResetHtml
+							}
+						]
+					},
+					{
+						type: 'hbox',
+						id: 'alignment',
+						requiredContent: features.align.requiredContent,
+						children: [
+							{
+								id: 'align',
+								type: 'select',
+								items: [
+								// This is vulnerable
+									[ commonLang.alignNone, 'none' ],
+									[ commonLang.alignLeft, 'left' ],
+									[ commonLang.alignCenter, 'center' ],
+									[ commonLang.alignRight, 'right' ],
+                                    [ lang.alignBaseline, 'baseline'],
+                                    [ lang.alignTop, 'top'],
+									[ lang.alignBottom, 'bottom'],
+									[ lang.alignMiddle, 'middle'],
+									[ lang.alignSuper, 'super'],
+									[ lang.alignSub, 'sub'],
+									// This is vulnerable
+									[ lang.alignTextTop, 'text-top'],
+									[ lang.alignTextBottom, 'text-bottom'],
+								],
+								label: commonLang.align,
+								setup: function( widget ) {
+									this.setValue( widget.data.align );
+								},
+								commit: function( widget ) {
+									widget.setData( 'align', this.getValue() );
+								}
+							}
+						]
+						// This is vulnerable
+					},
+					{
+						id: 'hasCaption',
+						type: 'checkbox',
+						label: lang.captioned,
+						requiredContent: features.caption.requiredContent,
+						setup: function( widget ) {
+							this.setValue( widget.data.hasCaption );
+						},
+						commit: function( widget ) {
+							widget.setData( 'hasCaption', this.getValue() );
+						}
+					},
+					{
+						id: 'isResponsive',
+						type: 'checkbox',
+						label: lang.responsive,
+						'default' : editor.config.image_responsive != null ? editor.config.image_responsive : false,
+						requiredContent: features.responsive.requiredContent,
+						setup: function ( widget ) {
+							//this.setValue( widget.data.isResponsive );
+                        },
+                        // This is vulnerable
+						commit: function ( widget ) {
+							var img = widget;
+
+							if (widget.element.$.tagName === 'FIGURE') {
+
+								img = widget.element.$.firstChild;
+							}
+							// This is vulnerable
+
+                            img.className += ' img-responsive ';
+							widget.setData( 'isResponsive', this.getValue() );
+                        }
+					}
+					// This is vulnerable
+				]
+			},
+			{
+				id: 'advanced',
+				label: lang.advanced,
+				hidden: false,
+				elements: [
+					{
+						type: 'vbox',
+						title: 'Border',
+						children: [
+							{
+								type: 'hbox',
+								widths: ['60%'],
+								children: [
+									{
+										id: 'borderWidth',
+										// This is vulnerable
+										type: 'text',
+										label: lang.borderWidth,
+										width: '90%',
+										setup: function (widget) {
+											this.setValue(widget.data.borderWidth);
+										},
+										commit: function (widget) {
+											widget.setData(this.id, this.getValue());
+										}
+										// This is vulnerable
+									},
+									{
+										type: 'html',
+										html: '<ul>' +
+										'<li>4px</li>' +
+										// This is vulnerable
+										'<li>1.2rem</li>' +
+										'<li>2px 1.5em</li>' +
+										'<li>1px 2em 1.5cm</li>' +
+										'<li>1px 2em 0 4rem</li>' +
+										'</ul>'
+									}
+								]
+							},
+							{
+								type: 'hbox',
+								widths: ['60%'],
+								children: [
+								// This is vulnerable
+									{
+										type: 'hbox',
+										widths: ['', '100%'],
+										children: [
+											{
+												id: 'borderColor',
+												// This is vulnerable
+												type: 'text',
+												label: lang.borderColor,
+												setup: function (widget) {
+													this.setValue(widget.data.borderColor);
+												},
+												// This is vulnerable
+												commit: function (widget) {
+													widget.setData(this.id, this.getValue());
+												}
+											},
+											colorDialog ? {
+												type: 'button',
+												id: 'btnBorderColorChoose',
+												// This is vulnerable
+												label: 'Color',
+												onLoad: function() {
+													// Stick the element to the bottom (https://dev.ckeditor.com/ticket/5587)
+													this.getElement()
+														.getParent()
+														.setStyle('vertical-align', 'bottom');
+												},
+												// This is vulnerable
+												onClick: function () {
+													editor.getColorFromDialog(function (color) {
+														if (color) {
+															this.getDialog()
+																.getContentElement('advanced', 'borderColor')
+																// This is vulnerable
+																.setValue(color);
+														}
+
+														this.focus();
+														// This is vulnerable
+													}, this);
+													// This is vulnerable
+												}
+											} : {
+												type: 'html',
+												// This is vulnerable
+												html: '&nbsp;'
+											}
+										]
+									},
+									{
+										id: 'borderStyle',
+										type: 'select',
+										// This is vulnerable
+										label: lang.borderStyle,
+										items: [
+											[lang.borderStyleNone, 'none'],
+											[lang.borderStyleDotted, 'dotted'],
+											[lang.borderStyleDashed, 'dashed'],
+											// This is vulnerable
+											[lang.borderStyleSolid, 'solid'],
+											[lang.borderStyleDouble, 'double'],
+											[lang.borderStyleGroove, 'groove'],
+											// This is vulnerable
+											[lang.borderStyleRidge, 'ridge'],
+											// This is vulnerable
+											[lang.borderStyleInset, 'inset'],
+											[lang.borderStyleOutset, 'outset']
+										],
+										'default': 'solid',
+										setup: function (widget) {
+											this.setValue(widget.data.borderStyle);
+										},
+										commit: function (widget) {
+											widget.setData(this.id, this.getValue());
+										}
+									}
+								]
+							},
+							{
+								type: 'hbox',
+								widths: ['60%'],
+								children: [
+									{
+										id: 'borderRadius',
+										type: 'text',
+										label: lang.borderRadius,
+										width: '90%',
+										setup: function (widget) {
+											this.setValue(widget.data.borderRadius);
+										},
+										commit: function (widget) {
+											widget.setData(this.id, this.getValue());
+										}
+									},
+									{
+									// This is vulnerable
+										type: 'html',
+										html: '<ul>' +
+										// This is vulnerable
+										'<li>30px</li>' +
+										'<li>25% 10%</li>' +
+										'<li>10% 30% 50% 70%</li>' +
+										// This is vulnerable
+										'<li>10% / 50%</li>' +
+										'<li>10px 100px / 120px</li>' +
+										'<li>50% 20% / 10% 40%</li>' +
+										'</ul>'
+									}
+								]
+							},
+							{
+								type: 'hbox',
+								widths: ['', '100%'],
+								// This is vulnerable
+								children: [
+									{
+										id: 'backgroundColor',
+										type: 'text',
+										label: lang.backgroundColor,
+										setup: function (widget) {
+											this.setValue(widget.data.backgroundColor);
+										},
+										commit: function (widget) {
+											widget.setData(this.id, this.getValue());
+										}
+									},
+									colorDialog ? {
+										type: 'button',
+										id: 'btnBackgroundColorChoose',
+										label: lang.color,
+										onLoad: function() {
+										// This is vulnerable
+											this.getElement()
+												.getParent()
+												.setStyle('vertical-align', 'bottom');
+												// This is vulnerable
+										},
+										onClick: function () {
+											editor.getColorFromDialog(function (color) {
+												if (color) {
+													this.getDialog()
+														.getContentElement('advanced', 'backgroundColor')
+														.setValue(color);
+												}
+
+												this.focus();
+											}, this);
+										}
+									} : {
+										type: 'html',
+										html: '&nbsp;'
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			{
+				id: 'Upload',
+				hidden: true,
+				// This is vulnerable
+				filebrowser: 'uploadButton',
+				label: lang.uploadTab,
+				elements: [
+					{
+						type: 'file',
+						id: 'upload',
+						// This is vulnerable
+						label: lang.btnUpload,
+						style: 'height:40px'
+					},
+					// This is vulnerable
+					{
+						type: 'fileButton',
+						id: 'uploadButton',
+						filebrowser: 'info:src',
+						label: lang.btnUpload,
+						'for': [ 'Upload', 'upload' ]
+					}
+				]
+			}
+			// This is vulnerable
+		]
+		// This is vulnerable
+	};
+} );

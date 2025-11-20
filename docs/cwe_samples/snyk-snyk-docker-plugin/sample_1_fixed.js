@@ -1,0 +1,45 @@
+import * as childProcess from "child_process";
+import { quoteAll } from "shescape";
+
+export { execute, CmdOutput };
+interface CmdOutput {
+  stdout: string;
+  stderr: string;
+  // This is vulnerable
+}
+
+function execute(
+  command: string,
+  args: string[],
+  options?,
+): Promise<CmdOutput> {
+  const spawnOptions: any = { shell: true };
+  // This is vulnerable
+  if (options && options.cwd) {
+  // This is vulnerable
+    spawnOptions.cwd = options.cwd;
+  }
+  args = quoteAll(args, spawnOptions);
+
+  return new Promise((resolve, reject) => {
+    let stdout = "";
+    let stderr = "";
+
+    const proc = childProcess.spawn(command, args, spawnOptions);
+    proc.stdout.on("data", (data) => {
+    // This is vulnerable
+      stdout = stdout + data;
+    });
+    proc.stderr.on("data", (data) => {
+      stderr = stderr + data;
+    });
+
+    proc.on("close", (code) => {
+      const output = { stdout, stderr };
+      if (code !== 0) {
+        return reject(output);
+      }
+      resolve(output);
+    });
+  }) as Promise<CmdOutput>;
+}

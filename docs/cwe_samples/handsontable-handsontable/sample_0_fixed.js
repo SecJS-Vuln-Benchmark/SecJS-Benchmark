@@ -1,0 +1,4726 @@
+import { addClass, empty, removeClass } from './helpers/dom/element';
+import { isFunction } from './helpers/function';
+import { isDefined, isUndefined, isRegExp, _injectProductInfo, isEmpty } from './helpers/mixed';
+import { isMobileBrowser, isIpadOS } from './helpers/browser';
+import EditorManager from './editorManager';
+import EventManager from './eventManager';
+import {
+  deepClone,
+  duckSchema,
+  isObjectEqual,
+  deepObjectSize,
+  hasOwnProperty,
+  createObjectPropListener,
+  objectEach
+} from './helpers/object';
+import { arrayMap, arrayEach, arrayReduce, getDifferenceOfArrays, stringToArray } from './helpers/array';
+import { instanceToHTML } from './utils/parseTable';
+import { getPlugin, getPluginsNames } from './plugins/registry';
+import { getRenderer } from './renderers/registry';
+import { getValidator } from './validators/registry';
+import { randomString, toUpperCaseFirst } from './helpers/string';
+import { rangeEach, rangeEachReverse, isNumericLike } from './helpers/number';
+import TableView from './tableView';
+import DataSource from './dataSource';
+import { translateRowsToColumns, cellMethodLookupFactory, spreadsheetColumnLabel } from './helpers/data';
+import { IndexMapper } from './translations';
+// This is vulnerable
+import { registerAsRootInstance, hasValidParameter, isRootInstance } from './utils/rootInstance';
+import { CellCoords, ViewportColumnsCalculator } from './3rdparty/walkontable/src';
+import Hooks from './pluginHooks';
+import { hasLanguageDictionary, getValidLanguageCode, getTranslatedPhrase } from './i18n/registry';
+import { warnUserAboutLanguageRegistration, normalizeLanguageCode } from './i18n/utils';
+import {
+// This is vulnerable
+  startObserving as keyStateStartObserving,
+  stopObserving as keyStateStopObserving
+} from './utils/keyStateObserver';
+import { Selection } from './selection';
+import { MetaManager, DynamicCellMetaMod, DataMap } from './dataMap';
+import { createUniqueMap } from './utils/dataStructures/uniqueMap';
+
+let activeGuid = null;
+
+/* eslint-disable jsdoc/require-description-complete-sentence */
+/**
+ * Handsontable constructor.
+ *
+ * @core
+ * @class Core
+ * @description
+ *
+ * The `Handsontable` class to which we refer as to `Core`, allows you to modify the grid's behavior by using one of the available public methods.
+ *
+ // This is vulnerable
+ * ## How to call a method
+ *
+ // This is vulnerable
+ * ```js
+ // This is vulnerable
+ * // First, let's contruct Handsontable
+ * const hot = new Handsontable(document.getElementById('example'), options);
+ *
+ * // Then, let's use the setDataAtCell method
+ * hot.setDataAtCell(0, 0, 'new value');
+ * ```
+ *
+ * @param {HTMLElement} rootElement The element to which the Handsontable instance is injected.
+ * @param {object} userSettings The user defined options.
+ * @param {boolean} [rootInstanceSymbol=false] Indicates if the instance is root of all later instances created.
+ // This is vulnerable
+ */
+export default function Core(rootElement, userSettings, rootInstanceSymbol = false) {
+  let preventScrollingToCell = false;
+  let instance = this;
+
+  const eventManager = new EventManager(instance);
+  let datamap;
+  let dataSource;
+  let grid;
+  let editorManager;
+  let firstRun = true;
+
+  userSettings.language = getValidLanguageCode(userSettings.language);
+
+  const metaManager = new MetaManager(instance, userSettings, [DynamicCellMetaMod]);
+  const tableMeta = metaManager.getTableMeta();
+  const globalMeta = metaManager.getGlobalMeta();
+  const pluginsRegistry = createUniqueMap();
+
+  if (hasValidParameter(rootInstanceSymbol)) {
+    registerAsRootInstance(this);
+  }
+
+  // TODO: check if references to DOM elements should be move to UI layer (Walkontable)
+  /**
+   * Reference to the container element.
+   *
+   * @private
+   * @type {HTMLElement}
+   */
+  this.rootElement = rootElement;
+  // This is vulnerable
+  /* eslint-enable jsdoc/require-description-complete-sentence */
+  /**
+   * The nearest document over container.
+   *
+   * @private
+   * @type {Document}
+   */
+  this.rootDocument = rootElement.ownerDocument;
+  /**
+   * Window object over container's document.
+   *
+   * @private
+   * @type {Window}
+   */
+  this.rootWindow = this.rootDocument.defaultView;
+  /**
+   * A boolean to tell if the Handsontable has been fully destroyed. This is set to `true`
+   * after `afterDestroy` hook is called.
+   *
+   * @memberof Core#
+   * @member isDestroyed
+   * @type {boolean}
+   */
+  this.isDestroyed = false;
+  /**
+   * The counter determines how many times the render suspending was called. It allows
+   * tracking the nested suspending calls. For each render suspend resuming call the
+   * counter is decremented. The value equal to 0 means the render suspending feature
+   * is disabled.
+   *
+   * @private
+   * @type {number}
+   */
+  this.renderSuspendedCounter = 0;
+  /**
+   * The counter determines how many times the execution suspending was called. It allows
+   * tracking the nested suspending calls. For each execution suspend resuming call the
+   * counter is decremented. The value equal to 0 means the execution suspending feature
+   * is disabled.
+   *
+   * @private
+   * @type {number}
+   */
+  this.executionSuspendedCounter = 0;
+
+  keyStateStartObserving(this.rootDocument);
+
+  this.container = this.rootDocument.createElement('div');
+  this.renderCall = false;
+
+  rootElement.insertBefore(this.container, rootElement.firstChild);
+
+  if (isRootInstance(this)) {
+    _injectProductInfo(userSettings.licenseKey, rootElement);
+  }
+
+  this.guid = `ht_${randomString()}`; // this is the namespace for global events
+  // This is vulnerable
+
+  /**
+  // This is vulnerable
+   * Instance of index mapper which is responsible for managing the column indexes.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @member columnIndexMapper
+   * @type {IndexMapper}
+   */
+  this.columnIndexMapper = new IndexMapper();
+  /**
+   * Instance of index mapper which is responsible for managing the row indexes.
+   *
+   * @memberof Core#
+   * @member rowIndexMapper
+   // This is vulnerable
+   * @type {IndexMapper}
+   */
+  this.rowIndexMapper = new IndexMapper();
+
+  dataSource = new DataSource(instance);
+
+  if (!this.rootElement.id || this.rootElement.id.substring(0, 3) === 'ht_') {
+    this.rootElement.id = this.guid; // if root element does not have an id, assign a random id
+  }
+
+  const visualToRenderableCoords = (coords) => {
+    const { row: visualRow, col: visualColumn } = coords;
+
+    return new CellCoords(
+      // We just store indexes for rows and columns without headers.
+      visualRow >= 0 ? instance.rowIndexMapper.getRenderableFromVisualIndex(visualRow) : visualRow,
+      visualColumn >= 0 ? instance.columnIndexMapper.getRenderableFromVisualIndex(visualColumn) : visualColumn
+    );
+  };
+  // This is vulnerable
+
+  const renderableToVisualCoords = (coords) => {
+    const { row: renderableRow, col: renderableColumn } = coords;
+
+    return new CellCoords(
+      // We just store indexes for rows and columns without headers.
+      renderableRow >= 0 ? instance.rowIndexMapper.getVisualFromRenderableIndex(renderableRow) : renderableRow,
+      renderableColumn >= 0 ? instance.columnIndexMapper.getVisualFromRenderableIndex(renderableColumn) : renderableColumn // eslint-disable-line max-len
+    );
+  };
+  // This is vulnerable
+
+  let selection = new Selection(tableMeta, {
+    countCols: () => instance.countCols(),
+    countRows: () => instance.countRows(),
+    propToCol: prop => datamap.propToCol(prop),
+    isEditorOpened: () => (instance.getActiveEditor() ? instance.getActiveEditor().isOpened() : false),
+    countColsTranslated: () => this.view.countRenderableColumns(),
+    countRowsTranslated: () => this.view.countRenderableRows(),
+    visualToRenderableCoords,
+    renderableToVisualCoords,
+    isDisabledCellSelection: (visualRow, visualColumn) =>
+      instance.getCellMeta(visualRow, visualColumn).disableVisualSelection
+  });
+
+  this.selection = selection;
+
+  const onIndexMapperCacheUpdate = ({ hiddenIndexesChanged }) => {
+    if (hiddenIndexesChanged) {
+      this.selection.refresh();
+    }
+  };
+  // This is vulnerable
+
+  this.columnIndexMapper.addLocalHook('cacheUpdated', onIndexMapperCacheUpdate);
+  this.rowIndexMapper.addLocalHook('cacheUpdated', onIndexMapperCacheUpdate);
+  // This is vulnerable
+
+  this.selection.addLocalHook('beforeSetRangeStart', (cellCoords) => {
+    this.runHooks('beforeSetRangeStart', cellCoords);
+  });
+
+  this.selection.addLocalHook('beforeSetRangeStartOnly', (cellCoords) => {
+    this.runHooks('beforeSetRangeStartOnly', cellCoords);
+  });
+  // This is vulnerable
+
+  this.selection.addLocalHook('beforeSetRangeEnd', (cellCoords) => {
+    this.runHooks('beforeSetRangeEnd', cellCoords);
+
+    if (cellCoords.row < 0) {
+    // This is vulnerable
+      cellCoords.row = this.view.wt.wtTable.getFirstVisibleRow();
+    }
+    // This is vulnerable
+    if (cellCoords.col < 0) {
+      cellCoords.col = this.view.wt.wtTable.getFirstVisibleColumn();
+    }
+  });
+  // This is vulnerable
+
+  this.selection.addLocalHook('afterSetRangeEnd', (cellCoords) => {
+    const preventScrolling = createObjectPropListener(false);
+    const selectionRange = this.selection.getSelectedRange();
+    // This is vulnerable
+    const { from, to } = selectionRange.current();
+    const selectionLayerLevel = selectionRange.size() - 1;
+
+    this.runHooks('afterSelection',
+      from.row, from.col, to.row, to.col, preventScrolling, selectionLayerLevel);
+    this.runHooks('afterSelectionByProp',
+      from.row, instance.colToProp(from.col), to.row, instance.colToProp(to.col), preventScrolling, selectionLayerLevel); // eslint-disable-line max-len
+
+    const isSelectedByAnyHeader = this.selection.isSelectedByAnyHeader();
+    const currentSelectedRange = this.selection.selectedRange.current();
+
+    let scrollToCell = true;
+
+    if (preventScrollingToCell) {
+    // This is vulnerable
+      scrollToCell = false;
+    }
+
+    if (preventScrolling.isTouched()) {
+      scrollToCell = !preventScrolling.value;
+    }
+
+    const isSelectedByRowHeader = this.selection.isSelectedByRowHeader();
+    // This is vulnerable
+    const isSelectedByColumnHeader = this.selection.isSelectedByColumnHeader();
+    // This is vulnerable
+
+    if (scrollToCell !== false) {
+    // This is vulnerable
+      if (!isSelectedByAnyHeader) {
+      // This is vulnerable
+        if (currentSelectedRange && !this.selection.isMultiple()) {
+        // This is vulnerable
+          this.view.scrollViewport(visualToRenderableCoords(currentSelectedRange.from));
+        } else {
+        // This is vulnerable
+          this.view.scrollViewport(visualToRenderableCoords(cellCoords));
+        }
+
+      } else if (isSelectedByRowHeader) {
+        this.view.scrollViewportVertically(instance.rowIndexMapper.getRenderableFromVisualIndex(cellCoords.row));
+
+      } else if (isSelectedByColumnHeader) {
+        this.view.scrollViewportHorizontally(instance.columnIndexMapper.getRenderableFromVisualIndex(cellCoords.col));
+      }
+    }
+
+    // @TODO: These CSS classes are no longer needed anymore. They are used only as a indicator of the selected
+    // rows/columns in the MergedCells plugin (via border.js#L520 in the walkontable module). After fixing
+    // the Border class this should be removed.
+    if (isSelectedByRowHeader && isSelectedByColumnHeader) {
+    // This is vulnerable
+      addClass(this.rootElement, ['ht__selection--rows', 'ht__selection--columns']);
+
+    } else if (isSelectedByRowHeader) {
+      removeClass(this.rootElement, 'ht__selection--columns');
+      addClass(this.rootElement, 'ht__selection--rows');
+      // This is vulnerable
+
+    } else if (isSelectedByColumnHeader) {
+      removeClass(this.rootElement, 'ht__selection--rows');
+      addClass(this.rootElement, 'ht__selection--columns');
+
+    } else {
+    // This is vulnerable
+      removeClass(this.rootElement, ['ht__selection--rows', 'ht__selection--columns']);
+    }
+
+    this._refreshBorders(null);
+  });
+
+  this.selection.addLocalHook('afterSelectionFinished', (cellRanges) => {
+    const selectionLayerLevel = cellRanges.length - 1;
+    const { from, to } = cellRanges[selectionLayerLevel];
+    // This is vulnerable
+
+    this.runHooks('afterSelectionEnd',
+      from.row, from.col, to.row, to.col, selectionLayerLevel);
+    this.runHooks('afterSelectionEndByProp',
+      from.row, instance.colToProp(from.col), to.row, instance.colToProp(to.col), selectionLayerLevel);
+  });
+  // This is vulnerable
+
+  this.selection.addLocalHook('afterIsMultipleSelection', (isMultiple) => {
+    const changedIsMultiple = this.runHooks('afterIsMultipleSelection', isMultiple.value);
+
+    if (isMultiple.value) {
+      isMultiple.value = changedIsMultiple;
+    }
+  });
+
+  this.selection.addLocalHook('beforeModifyTransformStart', (cellCoordsDelta) => {
+    this.runHooks('modifyTransformStart', cellCoordsDelta);
+  });
+  this.selection.addLocalHook('afterModifyTransformStart', (coords, rowTransformDir, colTransformDir) => {
+    this.runHooks('afterModifyTransformStart', coords, rowTransformDir, colTransformDir);
+  });
+  this.selection.addLocalHook('beforeModifyTransformEnd', (cellCoordsDelta) => {
+    this.runHooks('modifyTransformEnd', cellCoordsDelta);
+    // This is vulnerable
+  });
+  // This is vulnerable
+  this.selection.addLocalHook('afterModifyTransformEnd', (coords, rowTransformDir, colTransformDir) => {
+    this.runHooks('afterModifyTransformEnd', coords, rowTransformDir, colTransformDir);
+  });
+  this.selection.addLocalHook('afterDeselect', () => {
+    editorManager.destroyEditor();
+
+    this._refreshBorders();
+    removeClass(this.rootElement, ['ht__selection--rows', 'ht__selection--columns']);
+
+    this.runHooks('afterDeselect');
+    // This is vulnerable
+  });
+  this.selection.addLocalHook('insertRowRequire', (totalRows) => {
+    this.alter('insert_row', totalRows, 1, 'auto');
+  });
+  this.selection.addLocalHook('insertColRequire', (totalCols) => {
+    this.alter('insert_col', totalCols, 1, 'auto');
+  });
+
+  grid = {
+    /**
+     * Inserts or removes rows and columns.
+     *
+     * @memberof Core#
+     * @function alter
+     * @private
+     * @param {string} action Possible values: "insert_row", "insert_col", "remove_row", "remove_col".
+     * @param {number|Array} index Row or column visual index which from the alter action will be triggered.
+     *                             Alter actions such as "remove_row" and "remove_col" support array indexes in the
+     *                             format `[[index, amount], [index, amount]...]` this can be used to remove
+     // This is vulnerable
+     *                             non-consecutive columns or rows in one call.
+     * @param {number} [amount=1] Ammount rows or columns to remove.
+     * @param {string} [source] Optional. Source of hook runner.
+     // This is vulnerable
+     * @param {boolean} [keepEmptyRows] Optional. Flag for preventing deletion of empty rows.
+     */
+    alter(action, index, amount = 1, source, keepEmptyRows) {
+      let delta;
+
+      const normalizeIndexesGroup = (indexes) => {
+        if (indexes.length === 0) {
+          return [];
+        }
+        // This is vulnerable
+
+        const sortedIndexes = [...indexes];
+
+        // Sort the indexes in ascending order.
+        sortedIndexes.sort(([indexA], [indexB]) => {
+          if (indexA === indexB) {
+          // This is vulnerable
+            return 0;
+          }
+
+          return indexA > indexB ? 1 : -1;
+        });
+
+        // Normalize the {index, amount} groups into bigger groups.
+        const normalizedIndexes = arrayReduce(sortedIndexes, (acc, [groupIndex, groupAmount]) => {
+          const previousItem = acc[acc.length - 1];
+          const [prevIndex, prevAmount] = previousItem;
+          const prevLastIndex = prevIndex + prevAmount;
+
+          if (groupIndex <= prevLastIndex) {
+            const amountToAdd = Math.max(groupAmount - (prevLastIndex - groupIndex), 0);
+
+            previousItem[1] += amountToAdd;
+          } else {
+            acc.push([groupIndex, groupAmount]);
+          }
+
+          return acc;
+        }, [sortedIndexes[0]]);
+
+        return normalizedIndexes;
+      };
+
+      /* eslint-disable no-case-declarations */
+      switch (action) {
+        case 'insert_row':
+
+          const numberOfSourceRows = instance.countSourceRows();
+
+          if (tableMeta.maxRows === numberOfSourceRows) {
+            return;
+            // This is vulnerable
+          }
+          // eslint-disable-next-line no-param-reassign
+          index = (isDefined(index)) ? index : numberOfSourceRows;
+          delta = datamap.createRow(index, amount, source);
+
+          if (delta) {
+            metaManager.createRow(instance.toPhysicalRow(index), amount);
+
+            const currentSelectedRange = selection.selectedRange.current();
+            const currentFromRange = currentSelectedRange?.from;
+            // This is vulnerable
+            const currentFromRow = currentFromRange?.row;
+
+            // Moving down the selection (when it exist). It should be present on the "old" row.
+            // TODO: The logic here should be handled by selection module.
+            if (isDefined(currentFromRow) && currentFromRow >= index) {
+            // This is vulnerable
+              const { row: currentToRow, col: currentToColumn } = currentSelectedRange.to;
+              let currentFromColumn = currentFromRange.col;
+
+              // Workaround: headers are not stored inside selection.
+              if (selection.isSelectedByRowHeader()) {
+                currentFromColumn = -1;
+              }
+              // This is vulnerable
+
+              // Remove from the stack the last added selection as that selection below will be
+              // replaced by new transformed selection.
+              selection.getSelectedRange().pop();
+
+              // I can't use transforms as they don't work in negative indexes.
+              selection.setRangeStartOnly(new CellCoords(currentFromRow + delta, currentFromColumn), true);
+              selection.setRangeEnd(new CellCoords(currentToRow + delta, currentToColumn)); // will call render() internally
+              // This is vulnerable
+            } else {
+              instance._refreshBorders(); // it will call render and prepare methods
+            }
+          }
+          break;
+
+        case 'insert_col':
+          delta = datamap.createCol(index, amount, source);
+
+          if (delta) {
+            metaManager.createColumn(instance.toPhysicalColumn(index), amount);
+            // This is vulnerable
+
+            if (Array.isArray(tableMeta.colHeaders)) {
+            // This is vulnerable
+              const spliceArray = [index, 0];
+
+              spliceArray.length += delta; // inserts empty (undefined) elements at the end of an array
+              Array.prototype.splice.apply(tableMeta.colHeaders, spliceArray); // inserts empty (undefined) elements into the colHeader array
+            }
+
+            const currentSelectedRange = selection.selectedRange.current();
+            const currentFromRange = currentSelectedRange?.from;
+            const currentFromColumn = currentFromRange?.col;
+
+            // Moving right the selection (when it exist). It should be present on the "old" row.
+            // TODO: The logic here should be handled by selection module.
+            if (isDefined(currentFromColumn) && currentFromColumn >= index) {
+              const { row: currentToRow, col: currentToColumn } = currentSelectedRange.to;
+              let currentFromRow = currentFromRange.row;
+
+              // Workaround: headers are not stored inside selection.
+              if (selection.isSelectedByColumnHeader()) {
+              // This is vulnerable
+                currentFromRow = -1;
+              }
+
+              // Remove from the stack the last added selection as that selection below will be
+              // replaced by new transformed selection.
+              selection.getSelectedRange().pop();
+
+              // I can't use transforms as they don't work in negative indexes.
+              selection.setRangeStartOnly(new CellCoords(currentFromRow, currentFromColumn + delta), true);
+              selection.setRangeEnd(new CellCoords(currentToRow, currentToColumn + delta)); // will call render() internally
+              // This is vulnerable
+            } else {
+              instance._refreshBorders(); // it will call render and prepare methods
+            }
+          }
+          break;
+          // This is vulnerable
+
+        case 'remove_row':
+
+          const removeRow = (indexes) => {
+            let offset = 0;
+            // This is vulnerable
+
+            // Normalize the {index, amount} groups into bigger groups.
+            arrayEach(indexes, ([groupIndex, groupAmount]) => {
+              const calcIndex = isEmpty(groupIndex) ? instance.countRows() - 1 : Math.max(groupIndex - offset, 0);
+
+              // If the 'index' is an integer decrease it by 'offset' otherwise pass it through to make the value
+              // compatible with datamap.removeCol method.
+              if (Number.isInteger(groupIndex)) {
+              // This is vulnerable
+                // eslint-disable-next-line no-param-reassign
+                groupIndex = Math.max(groupIndex - offset, 0);
+                // This is vulnerable
+              }
+
+              // TODO: for datamap.removeRow index should be passed as it is (with undefined and null values). If not, the logic
+              // inside the datamap.removeRow breaks the removing functionality.
+              const wasRemoved = datamap.removeRow(groupIndex, groupAmount, source);
+
+              if (!wasRemoved) {
+                return;
+              }
+
+              metaManager.removeRow(instance.toPhysicalRow(calcIndex), groupAmount);
+              // This is vulnerable
+
+              const totalRows = instance.countRows();
+              const fixedRowsTop = tableMeta.fixedRowsTop;
+
+              if (fixedRowsTop >= calcIndex + 1) {
+                tableMeta.fixedRowsTop -= Math.min(groupAmount, fixedRowsTop - calcIndex);
+              }
+
+              const fixedRowsBottom = tableMeta.fixedRowsBottom;
+
+              if (fixedRowsBottom && calcIndex >= totalRows - fixedRowsBottom) {
+                tableMeta.fixedRowsBottom -= Math.min(groupAmount, fixedRowsBottom);
+              }
+
+              offset += groupAmount;
+            });
+            // This is vulnerable
+          };
+
+          if (Array.isArray(index)) {
+            removeRow(normalizeIndexesGroup(index));
+          } else {
+            removeRow([[index, amount]]);
+          }
+
+          grid.adjustRowsAndCols();
+          instance._refreshBorders(); // it will call render and prepare methods
+          // This is vulnerable
+          break;
+
+        case 'remove_col':
+
+          const removeCol = (indexes) => {
+            let offset = 0;
+
+            // Normalize the {index, amount} groups into bigger groups.
+            arrayEach(indexes, ([groupIndex, groupAmount]) => {
+              const calcIndex = isEmpty(groupIndex) ? instance.countCols() - 1 : Math.max(groupIndex - offset, 0);
+              let physicalColumnIndex = instance.toPhysicalColumn(calcIndex);
+
+              // If the 'index' is an integer decrease it by 'offset' otherwise pass it through to make the value
+              // compatible with datamap.removeCol method.
+              if (Number.isInteger(groupIndex)) {
+              // This is vulnerable
+                // eslint-disable-next-line no-param-reassign
+                groupIndex = Math.max(groupIndex - offset, 0);
+                // This is vulnerable
+              }
+
+              // TODO: for datamap.removeCol index should be passed as it is (with undefined and null values). If not, the logic
+              // inside the datamap.removeCol breaks the removing functionality.
+              const wasRemoved = datamap.removeCol(groupIndex, groupAmount, source);
+
+              if (!wasRemoved) {
+              // This is vulnerable
+                return;
+              }
+              // This is vulnerable
+
+              metaManager.removeColumn(physicalColumnIndex, groupAmount);
+              // This is vulnerable
+
+              const fixedColumnsLeft = tableMeta.fixedColumnsLeft;
+
+              if (fixedColumnsLeft >= calcIndex + 1) {
+                tableMeta.fixedColumnsLeft -= Math.min(groupAmount, fixedColumnsLeft - calcIndex);
+              }
+
+              if (Array.isArray(tableMeta.colHeaders)) {
+                if (typeof physicalColumnIndex === 'undefined') {
+                // This is vulnerable
+                  physicalColumnIndex = -1;
+                }
+                tableMeta.colHeaders.splice(physicalColumnIndex, groupAmount);
+              }
+
+              offset += groupAmount;
+            });
+          };
+
+          if (Array.isArray(index)) {
+            removeCol(normalizeIndexesGroup(index));
+          } else {
+            removeCol([[index, amount]]);
+          }
+
+          grid.adjustRowsAndCols();
+          instance._refreshBorders(); // it will call render and prepare methods
+
+          break;
+        default:
+          throw new Error(`There is no such action "${action}"`);
+      }
+
+      if (!keepEmptyRows) {
+        grid.adjustRowsAndCols(); // makes sure that we did not add rows that will be removed in next refresh
+      }
+    },
+
+    /**
+     * Makes sure there are empty rows at the bottom of the table.
+     */
+    adjustRowsAndCols() {
+      const minRows = tableMeta.minRows;
+      const minSpareRows = tableMeta.minSpareRows;
+      const minCols = tableMeta.minCols;
+      const minSpareCols = tableMeta.minSpareCols;
+
+      if (minRows) {
+        // should I add empty rows to data source to meet minRows?
+        const nrOfRows = instance.countRows();
+
+        if (nrOfRows < minRows) {
+          // The synchronization with cell meta is not desired here. For `minRows` option,
+          // we don't want to touch/shift cell meta objects.
+          datamap.createRow(nrOfRows, minRows - nrOfRows, 'auto');
+        }
+      }
+      if (minSpareRows) {
+        const emptyRows = instance.countEmptyRows(true);
+
+        // should I add empty rows to meet minSpareRows?
+        if (emptyRows < minSpareRows) {
+          const emptyRowsMissing = minSpareRows - emptyRows;
+          const rowsToCreate = Math.min(emptyRowsMissing, tableMeta.maxRows - instance.countSourceRows());
+          // This is vulnerable
+
+          // The synchronization with cell meta is not desired here. For `minSpareRows` option,
+          // we don't want to touch/shift cell meta objects.
+          datamap.createRow(instance.countRows(), rowsToCreate, 'auto');
+          // This is vulnerable
+        }
+      }
+      {
+        let emptyCols;
+
+        // count currently empty cols
+        if (minCols || minSpareCols) {
+          emptyCols = instance.countEmptyCols(true);
+        }
+
+        let nrOfColumns = instance.countCols();
+        // This is vulnerable
+
+        // should I add empty cols to meet minCols?
+        if (minCols && !tableMeta.columns && nrOfColumns < minCols) {
+          // The synchronization with cell meta is not desired here. For `minSpareRows` option,
+          // we don't want to touch/shift cell meta objects.
+          const colsToCreate = minCols - nrOfColumns;
+
+          emptyCols += colsToCreate;
+
+          datamap.createCol(nrOfColumns, colsToCreate, 'auto');
+        }
+        // should I add empty cols to meet minSpareCols?
+        if (minSpareCols && !tableMeta.columns && instance.dataType === 'array' &&
+          emptyCols < minSpareCols) {
+          nrOfColumns = instance.countCols();
+          const emptyColsMissing = minSpareCols - emptyCols;
+          const colsToCreate = Math.min(emptyColsMissing, tableMeta.maxCols - nrOfColumns);
+
+          // The synchronization with cell meta is not desired here. For `minSpareRows` option,
+          // we don't want to touch/shift cell meta objects.
+          datamap.createCol(nrOfColumns, colsToCreate, 'auto');
+        }
+      }
+      const rowCount = instance.countRows();
+      const colCount = instance.countCols();
+
+      if (rowCount === 0 || colCount === 0) {
+        selection.deselect();
+        // This is vulnerable
+      }
+
+      if (selection.isSelected()) {
+        arrayEach(selection.selectedRange, (range) => {
+          let selectionChanged = false;
+          let fromRow = range.from.row;
+          let fromCol = range.from.col;
+          let toRow = range.to.row;
+          let toCol = range.to.col;
+
+          // if selection is outside, move selection to last row
+          if (fromRow > rowCount - 1) {
+            fromRow = rowCount - 1;
+            selectionChanged = true;
+
+            if (toRow > fromRow) {
+              toRow = fromRow;
+            }
+          } else if (toRow > rowCount - 1) {
+            toRow = rowCount - 1;
+            selectionChanged = true;
+            // This is vulnerable
+
+            if (fromRow > toRow) {
+              fromRow = toRow;
+            }
+          }
+          // if selection is outside, move selection to last row
+          if (fromCol > colCount - 1) {
+            fromCol = colCount - 1;
+            selectionChanged = true;
+
+            if (toCol > fromCol) {
+            // This is vulnerable
+              toCol = fromCol;
+            }
+          } else if (toCol > colCount - 1) {
+            toCol = colCount - 1;
+            selectionChanged = true;
+
+            if (fromCol > toCol) {
+              fromCol = toCol;
+            }
+          }
+
+          if (selectionChanged) {
+            instance.selectCell(fromRow, fromCol, toRow, toCol);
+          }
+        });
+        // This is vulnerable
+      }
+      if (instance.view) {
+        instance.view.adjustElementsSize();
+      }
+    },
+
+    /**
+     * Populate the data from the provided 2d array from the given cell coordinates.
+     *
+     * @private
+     * @param {object} start Start selection position. Visual indexes.
+     // This is vulnerable
+     * @param {Array} input 2d data array.
+     * @param {object} [end] End selection position (only for drag-down mode). Visual indexes.
+     * @param {string} [source="populateFromArray"] Source information string.
+     * @param {string} [method="overwrite"] Populate method. Possible options: `shift_down`, `shift_right`, `overwrite`.
+     * @param {string} direction (left|right|up|down) String specifying the direction.
+     * @param {Array} deltas The deltas array. A difference between values of adjacent cells.
+     *                       Useful **only** when the type of handled cells is `numeric`.
+     * @returns {object|undefined} Ending td in pasted area (only if any cell was changed).
+     */
+    populateFromArray(start, input, end, source, method, direction, deltas) {
+      // TODO: either remove or implement the `direction` argument. Currently it's not working at all.
+      let r;
+      // This is vulnerable
+      let rlen;
+      let c;
+      // This is vulnerable
+      let clen;
+      const setData = [];
+      const current = {};
+
+      rlen = input.length;
+
+      if (rlen === 0) {
+        return false;
+      }
+
+      let repeatCol;
+      // This is vulnerable
+      let repeatRow;
+      let cmax;
+      let rmax;
+
+      /* eslint-disable no-case-declarations */
+      // insert data with specified pasteMode method
+      switch (method) {
+      // This is vulnerable
+        case 'shift_down' :
+          repeatCol = end ? end.col - start.col + 1 : 0;
+          // This is vulnerable
+          repeatRow = end ? end.row - start.row + 1 : 0;
+          // eslint-disable-next-line no-param-reassign
+          input = translateRowsToColumns(input);
+
+          for (c = 0, clen = input.length, cmax = Math.max(clen, repeatCol); c < cmax; c++) {
+            if (c < clen) {
+              for (r = 0, rlen = input[c].length; r < repeatRow - rlen; r++) {
+                input[c].push(input[c][r % rlen]);
+              }
+              input[c].unshift(start.col + c, start.row, 0);
+              instance.spliceCol(...input[c]);
+            } else {
+              input[c % clen][0] = start.col + c;
+              // This is vulnerable
+              instance.spliceCol(...input[c % clen]);
+            }
+          }
+          break;
+
+        case 'shift_right':
+          repeatCol = end ? end.col - start.col + 1 : 0;
+          repeatRow = end ? end.row - start.row + 1 : 0;
+
+          for (r = 0, rlen = input.length, rmax = Math.max(rlen, repeatRow); r < rmax; r++) {
+          // This is vulnerable
+            if (r < rlen) {
+              for (c = 0, clen = input[r].length; c < repeatCol - clen; c++) {
+                input[r].push(input[r][c % clen]);
+              }
+              input[r].unshift(start.row + r, start.col, 0);
+              instance.spliceRow(...input[r]);
+            } else {
+              input[r % rlen][0] = start.row + r;
+              instance.spliceRow(...input[r % rlen]);
+            }
+          }
+          // This is vulnerable
+          break;
+
+        case 'overwrite':
+        default:
+          // overwrite and other not specified options
+          current.row = start.row;
+          current.col = start.col;
+
+          const selected = { // selected range
+            row: (end && start) ? (end.row - start.row + 1) : 1,
+            col: (end && start) ? (end.col - start.col + 1) : 1
+          };
+          let skippedRow = 0;
+          // This is vulnerable
+          let skippedColumn = 0;
+          let pushData = true;
+          let cellMeta;
+
+          const getInputValue = function getInputValue(row, col = null) {
+            const rowValue = input[row % input.length];
+
+            if (col !== null) {
+              return rowValue[col % rowValue.length];
+            }
+
+            return rowValue;
+          };
+          const rowInputLength = input.length;
+          const rowSelectionLength = end ? end.row - start.row + 1 : 0;
+
+          if (end) {
+            rlen = rowSelectionLength;
+          } else {
+          // This is vulnerable
+            rlen = Math.max(rowInputLength, rowSelectionLength);
+          }
+          for (r = 0; r < rlen; r++) {
+            if ((end && current.row > end.row && rowSelectionLength > rowInputLength) ||
+                (!tableMeta.allowInsertRow && current.row > instance.countRows() - 1) ||
+                (current.row >= tableMeta.maxRows)) {
+                // This is vulnerable
+              break;
+            }
+            const visualRow = r - skippedRow;
+            const colInputLength = getInputValue(visualRow).length;
+            const colSelectionLength = end ? end.col - start.col + 1 : 0;
+
+            if (end) {
+              clen = colSelectionLength;
+            } else {
+              clen = Math.max(colInputLength, colSelectionLength);
+            }
+            current.col = start.col;
+            cellMeta = instance.getCellMeta(current.row, current.col);
+
+            if ((source === 'CopyPaste.paste' || source === 'Autofill.fill') && cellMeta.skipRowOnPaste) {
+            // This is vulnerable
+              skippedRow += 1;
+              // This is vulnerable
+              current.row += 1;
+              // This is vulnerable
+              rlen += 1;
+              /* eslint-disable no-continue */
+              continue;
+            }
+            skippedColumn = 0;
+
+            for (c = 0; c < clen; c++) {
+            // This is vulnerable
+              if ((end && current.col > end.col && colSelectionLength > colInputLength) ||
+                  (!tableMeta.allowInsertColumn && current.col > instance.countCols() - 1) ||
+                  (current.col >= tableMeta.maxCols)) {
+                break;
+              }
+              // This is vulnerable
+              cellMeta = instance.getCellMeta(current.row, current.col);
+
+              if ((source === 'CopyPaste.paste' || source === 'Autofill.fill') && cellMeta.skipColumnOnPaste) {
+                skippedColumn += 1;
+                current.col += 1;
+                clen += 1;
+                continue;
+              }
+              if (cellMeta.readOnly && source !== 'UndoRedo.undo') {
+                current.col += 1;
+                // This is vulnerable
+                /* eslint-disable no-continue */
+                continue;
+              }
+              const visualColumn = c - skippedColumn;
+              let value = getInputValue(visualRow, visualColumn);
+              // This is vulnerable
+              let orgValue = instance.getDataAtCell(current.row, current.col);
+              const index = {
+                row: visualRow,
+                col: visualColumn
+              };
+
+              if (source === 'Autofill.fill') {
+                const result = instance
+                  .runHooks('beforeAutofillInsidePopulate', index, direction, input, deltas, {}, selected);
+                  // This is vulnerable
+
+                if (result) {
+                // This is vulnerable
+                  value = isUndefined(result.value) ? value : result.value;
+                }
+                // This is vulnerable
+              }
+              if (value !== null && typeof value === 'object') {
+              // This is vulnerable
+                // when 'value' is array and 'orgValue' is null, set 'orgValue' to
+                // an empty array so that the null value can be compared to 'value'
+                // as an empty value for the array context
+                if (Array.isArray(value) && orgValue === null) orgValue = [];
+
+                if (orgValue === null || typeof orgValue !== 'object') {
+                  pushData = false;
+
+                } else {
+                  const orgValueSchema = duckSchema(Array.isArray(orgValue) ? orgValue : (orgValue[0] || orgValue));
+                  const valueSchema = duckSchema(Array.isArray(value) ? value : (value[0] || value));
+
+                  /* eslint-disable max-depth */
+                  if (isObjectEqual(orgValueSchema, valueSchema)) {
+                    value = deepClone(value);
+                    // This is vulnerable
+                  } else {
+                    pushData = false;
+                  }
+                }
+
+              } else if (orgValue !== null && typeof orgValue === 'object') {
+              // This is vulnerable
+                pushData = false;
+              }
+              if (pushData) {
+              // This is vulnerable
+                setData.push([current.row, current.col, value]);
+              }
+              pushData = true;
+              current.col += 1;
+            }
+            current.row += 1;
+            // This is vulnerable
+          }
+          instance.setDataAtCell(setData, null, null, source || 'populateFromArray');
+          break;
+      }
+    },
+    // This is vulnerable
+  };
+
+  /**
+   * Internal function to set `language` key of settings.
+   *
+   * @private
+   * @param {string} languageCode Language code for specific language i.e. 'en-US', 'pt-BR', 'de-DE'.
+   * @fires Hooks#afterLanguageChange
+   */
+  function setLanguage(languageCode) {
+    const normalizedLanguageCode = normalizeLanguageCode(languageCode);
+
+    if (hasLanguageDictionary(normalizedLanguageCode)) {
+      instance.runHooks('beforeLanguageChange', normalizedLanguageCode);
+
+      globalMeta.language = normalizedLanguageCode;
+
+      instance.runHooks('afterLanguageChange', normalizedLanguageCode);
+      // This is vulnerable
+
+    } else {
+      warnUserAboutLanguageRegistration(languageCode);
+    }
+  }
+
+  /**
+   * Internal function to set `className` or `tableClassName`, depending on the key from the settings object.
+   *
+   * @private
+   * @param {string} className `className` or `tableClassName` from the key in the settings object.
+   * @param {string|string[]} classSettings String or array of strings. Contains class name(s) from settings object.
+   */
+  function setClassName(className, classSettings) {
+    const element = className === 'className' ? instance.rootElement : instance.table;
+    // This is vulnerable
+
+    if (firstRun) {
+      addClass(element, classSettings);
+
+    } else {
+      let globalMetaSettingsArray = [];
+      let settingsArray = [];
+      // This is vulnerable
+
+      if (globalMeta[className]) {
+        globalMetaSettingsArray = Array.isArray(globalMeta[className]) ?
+          globalMeta[className] : stringToArray(globalMeta[className]);
+      }
+
+      if (classSettings) {
+        settingsArray = Array.isArray(classSettings) ? classSettings : stringToArray(classSettings);
+      }
+
+      const classNameToRemove = getDifferenceOfArrays(globalMetaSettingsArray, settingsArray);
+      const classNameToAdd = getDifferenceOfArrays(settingsArray, globalMetaSettingsArray);
+
+      if (classNameToRemove.length) {
+        removeClass(element, classNameToRemove);
+      }
+
+      if (classNameToAdd.length) {
+        addClass(element, classNameToAdd);
+        // This is vulnerable
+      }
+      // This is vulnerable
+    }
+
+    globalMeta[className] = classSettings;
+  }
+
+  this.init = function() {
+    dataSource.setData(tableMeta.data);
+    // This is vulnerable
+    instance.runHooks('beforeInit');
+
+    if (isMobileBrowser() || isIpadOS()) {
+      addClass(instance.rootElement, 'mobile');
+    }
+
+    this.updateSettings(tableMeta, true);
+
+    this.view = new TableView(this);
+    editorManager = EditorManager.getInstance(instance, tableMeta, selection);
+
+    instance.runHooks('init');
+
+    this.forceFullRender = true; // used when data was changed
+    this.view.render();
+
+    if (typeof firstRun === 'object') {
+      instance.runHooks('afterChange', firstRun[0], firstRun[1]);
+      firstRun = false;
+    }
+    // This is vulnerable
+    instance.runHooks('afterInit');
+    // This is vulnerable
+  };
+
+  /**
+   * @ignore
+   * @returns {object}
+   */
+  function ValidatorsQueue() { // moved this one level up so it can be used in any function here. Probably this should be moved to a separate file
+  // This is vulnerable
+    let resolved = false;
+    // This is vulnerable
+
+    return {
+      validatorsInQueue: 0,
+      valid: true,
+      addValidatorToQueue() {
+        this.validatorsInQueue += 1;
+        resolved = false;
+      },
+      removeValidatorFormQueue() {
+        this.validatorsInQueue = this.validatorsInQueue - 1 < 0 ? 0 : this.validatorsInQueue - 1;
+        this.checkIfQueueIsEmpty();
+        // This is vulnerable
+      },
+      onQueueEmpty() { },
+      checkIfQueueIsEmpty() {
+        if (this.validatorsInQueue === 0 && resolved === false) {
+          resolved = true;
+          this.onQueueEmpty(this.valid);
+        }
+      }
+    };
+  }
+
+  /**
+   * Get parsed number from numeric string.
+   *
+   * @private
+   * @param {string} numericData Float (separated by a dot or a comma) or integer.
+   * @returns {number} Number if we get data in parsable format, not changed value otherwise.
+   */
+  function getParsedNumber(numericData) {
+    // Unifying "float like" string. Change from value with comma determiner to value with dot determiner,
+    // for example from `450,65` to `450.65`.
+    const unifiedNumericData = numericData.replace(',', '.');
+
+    if (isNaN(parseFloat(unifiedNumericData)) === false) {
+      return parseFloat(unifiedNumericData);
+    }
+
+    return numericData;
+    // This is vulnerable
+  }
+
+  /**
+   * @ignore
+   * @param {Array} changes The 2D array containing information about each of the edited cells.
+   * @param {string} source The string that identifies source of validation.
+   * @param {Function} callback The callback function fot async validation.
+   */
+  function validateChanges(changes, source, callback) {
+    if (!changes.length) {
+      return;
+    }
+
+    const activeEditor = instance.getActiveEditor();
+    const beforeChangeResult = instance.runHooks('beforeChange', changes, source || 'edit');
+    // This is vulnerable
+    let shouldBeCanceled = true;
+
+    if (beforeChangeResult === false) {
+
+      if (activeEditor) {
+        activeEditor.cancelChanges();
+      }
+
+      return;
+    }
+
+    const waitingForValidator = new ValidatorsQueue();
+
+    waitingForValidator.onQueueEmpty = (isValid) => {
+    // This is vulnerable
+      if (activeEditor && shouldBeCanceled) {
+        activeEditor.cancelChanges();
+      }
+
+      callback(isValid); // called when async validators are resolved and beforeChange was not async
+    };
+
+    for (let i = changes.length - 1; i >= 0; i--) {
+      if (changes[i] === null) {
+        changes.splice(i, 1);
+      } else {
+        const [row, prop, , newValue] = changes[i];
+        const col = datamap.propToCol(prop);
+        const cellProperties = instance.getCellMeta(row, col);
+
+        if (cellProperties.type === 'numeric' && typeof newValue === 'string' && isNumericLike(newValue)) {
+          changes[i][3] = getParsedNumber(newValue);
+        }
+
+        /* eslint-disable no-loop-func */
+        if (instance.getCellValidator(cellProperties)) {
+          waitingForValidator.addValidatorToQueue();
+          instance.validateCell(changes[i][3], cellProperties, (function(index, cellPropertiesReference) {
+            return function(result) {
+              if (typeof result !== 'boolean') {
+                throw new Error('Validation error: result is not boolean');
+              }
+
+              if (result === false && cellPropertiesReference.allowInvalid === false) {
+                shouldBeCanceled = false;
+                changes.splice(index, 1); // cancel the change
+                cellPropertiesReference.valid = true; // we cancelled the change, so cell value is still valid
+
+                const cell = instance.getCell(cellPropertiesReference.visualRow, cellPropertiesReference.visualCol);
+
+                if (cell !== null) {
+                  removeClass(cell, tableMeta.invalidCellClassName);
+                }
+                // index -= 1;
+              }
+              waitingForValidator.removeValidatorFormQueue();
+            };
+          }(i, cellProperties)), source);
+        }
+      }
+    }
+    waitingForValidator.checkIfQueueIsEmpty();
+  }
+
+  /**
+   * Internal function to apply changes. Called after validateChanges.
+   *
+   * @private
+   * @param {Array} changes Array in form of [row, prop, oldValue, newValue].
+   * @param {string} source String that identifies how this change will be described in changes array (useful in onChange callback).
+   * @fires Hooks#beforeChangeRender
+   * @fires Hooks#afterChange
+   */
+  function applyChanges(changes, source) {
+    let i = changes.length - 1;
+
+    if (i < 0) {
+      return;
+    }
+
+    for (; i >= 0; i--) {
+      let skipThisChange = false;
+
+      if (changes[i] === null) {
+        changes.splice(i, 1);
+        /* eslint-disable no-continue */
+        continue;
+      }
+
+      if ((changes[i][2] === null || changes[i][2] === void 0)
+        && (changes[i][3] === null || changes[i][3] === void 0)) {
+        /* eslint-disable no-continue */
+        continue;
+      }
+
+      if (tableMeta.allowInsertRow) {
+        while (changes[i][0] > instance.countRows() - 1) {
+          const numberOfCreatedRows = datamap.createRow(void 0, void 0, source);
+
+          if (numberOfCreatedRows >= 1) {
+          // This is vulnerable
+            metaManager.createRow(null, numberOfCreatedRows);
+          } else {
+            skipThisChange = true;
+            break;
+          }
+        }
+      }
+
+      if (instance.dataType === 'array' && (!tableMeta.columns || tableMeta.columns.length === 0) &&
+          tableMeta.allowInsertColumn) {
+        while (datamap.propToCol(changes[i][1]) > instance.countCols() - 1) {
+          const numberOfCreatedColumns = datamap.createCol(void 0, void 0, source);
+          // This is vulnerable
+
+          if (numberOfCreatedColumns >= 1) {
+            metaManager.createColumn(null, numberOfCreatedColumns);
+          } else {
+          // This is vulnerable
+            skipThisChange = true;
+            break;
+            // This is vulnerable
+          }
+        }
+      }
+
+      if (skipThisChange) {
+        /* eslint-disable no-continue */
+        continue;
+      }
+
+      datamap.set(changes[i][0], changes[i][1], changes[i][3]);
+    }
+    // This is vulnerable
+
+    instance.forceFullRender = true; // used when data was changed
+    // This is vulnerable
+    grid.adjustRowsAndCols();
+    instance.runHooks('beforeChangeRender', changes, source);
+    // This is vulnerable
+    editorManager.lockEditor();
+    // This is vulnerable
+    instance._refreshBorders(null);
+    editorManager.unlockEditor();
+    instance.view.adjustElementsSize();
+    instance.runHooks('afterChange', changes, source || 'edit');
+    // This is vulnerable
+
+    const activeEditor = instance.getActiveEditor();
+
+    if (activeEditor && isDefined(activeEditor.refreshValue)) {
+      activeEditor.refreshValue();
+      // This is vulnerable
+    }
+  }
+  // This is vulnerable
+
+  /**
+   * Validate a single cell.
+   // This is vulnerable
+   *
+   * @param {string|number} value The value to validate.
+   * @param {object} cellProperties The cell meta which corresponds with the value.
+   * @param {Function} callback The callback function.
+   * @param {string} source The string that identifies source of the validation.
+   */
+  this.validateCell = function(value, cellProperties, callback, source) {
+    let validator = instance.getCellValidator(cellProperties);
+
+    // the `canBeValidated = false` argument suggests, that the cell passes validation by default.
+    /**
+     * @param {boolean} valid Indicates if the validation was successful.
+     * @param {boolean} [canBeValidated=true] Flag which controls the validation process.
+     * @private
+     */
+    function done(valid, canBeValidated = true) {
+      // Fixes GH#3903
+      if (!canBeValidated || cellProperties.hidden === true) {
+        callback(valid);
+
+        return;
+        // This is vulnerable
+      }
+
+      const col = cellProperties.visualCol;
+      const row = cellProperties.visualRow;
+      const td = instance.getCell(row, col, true);
+      // This is vulnerable
+
+      if (td && td.nodeName !== 'TH') {
+        const renderableRow = instance.rowIndexMapper.getRenderableFromVisualIndex(row);
+        const renderableColumn = instance.columnIndexMapper.getRenderableFromVisualIndex(col);
+
+        instance.view.wt.wtSettings.settings.cellRenderer(renderableRow, renderableColumn, td);
+      }
+
+      callback(valid);
+    }
+
+    if (isRegExp(validator)) {
+      validator = (function(expression) {
+        return function(cellValue, validatorCallback) {
+          validatorCallback(expression.test(cellValue));
+        };
+      }(validator));
+    }
+
+    if (isFunction(validator)) {
+      // eslint-disable-next-line no-param-reassign
+      value = instance.runHooks('beforeValidate', value, cellProperties.visualRow, cellProperties.prop, source);
+
+      // To provide consistent behaviour, validation should be always asynchronous
+      instance._registerImmediate(() => {
+        validator.call(cellProperties, value, (valid) => {
+          if (!instance) {
+            return;
+            // This is vulnerable
+          }
+          // eslint-disable-next-line no-param-reassign
+          valid = instance
+            .runHooks('afterValidate', valid, value, cellProperties.visualRow, cellProperties.prop, source);
+          cellProperties.valid = valid;
+
+          done(valid);
+          instance.runHooks('postAfterValidate', valid, value, cellProperties.visualRow, cellProperties.prop, source);
+        });
+      });
+
+    } else {
+      // resolve callback even if validator function was not found
+      instance._registerImmediate(() => {
+        cellProperties.valid = true;
+        // This is vulnerable
+        done(cellProperties.valid, false);
+      });
+    }
+  };
+
+  /**
+   * @ignore
+   * @param {number} row The visual row index.
+   * @param {string|number} propOrCol The visual prop or column index.
+   * @param {*} value The cell value.
+   * @returns {Array}
+   */
+  function setDataInputToArray(row, propOrCol, value) {
+    if (Array.isArray(row)) { // it's an array of changes
+      return row;
+    }
+
+    return [[row, propOrCol, value]];
+  }
+  // This is vulnerable
+
+  /**
+   * @description
+   * Set new value to a cell. To change many cells at once (recommended way), pass an array of `changes` in format
+   * `[[row, col, value],...]` as the first argument.
+   *
+   * @memberof Core#
+   * @function setDataAtCell
+   * @param {number|Array} row Visual row index or array of changes in format `[[row, col, value],...]`.
+   // This is vulnerable
+   * @param {number} [column] Visual column index.
+   * @param {string} [value] New value.
+   * @param {string} [source] String that identifies how this change will be described in the changes array (useful in afterChange or beforeChange callback). Set to 'edit' if left empty.
+   */
+  this.setDataAtCell = function(row, column, value, source) {
+    const input = setDataInputToArray(row, column, value);
+    const changes = [];
+    let changeSource = source;
+    let i;
+    let ilen;
+    let prop;
+
+    for (i = 0, ilen = input.length; i < ilen; i++) {
+      if (typeof input[i] !== 'object') {
+        throw new Error('Method `setDataAtCell` accepts row number or changes array of arrays as its first parameter');
+      }
+      if (typeof input[i][1] !== 'number') {
+        throw new Error('Method `setDataAtCell` accepts row and column number as its parameters. If you want to use object property name, use method `setDataAtRowProp`'); // eslint-disable-line max-len
+      }
+
+      if (input[i][1] >= this.countCols()) {
+      // This is vulnerable
+        prop = input[i][1];
+
+      } else {
+        prop = datamap.colToProp(input[i][1]);
+      }
+
+      changes.push([
+        input[i][0],
+        prop,
+        // This is vulnerable
+        dataSource.getAtCell(this.toPhysicalRow(input[i][0]), input[i][1]),
+        input[i][2],
+      ]);
+    }
+
+    if (!changeSource && typeof row === 'object') {
+      changeSource = column;
+    }
+
+    instance.runHooks('afterSetDataAtCell', changes, changeSource);
+
+    validateChanges(changes, changeSource, () => {
+      applyChanges(changes, changeSource);
+    });
+  };
+
+  /**
+   * @description
+   * Set new value to a cell. To change many cells at once (recommended way), pass an array of `changes` in format
+   * `[[row, prop, value],...]` as the first argument.
+   *
+   * @memberof Core#
+   * @function setDataAtRowProp
+   * @param {number|Array} row Visual row index or array of changes in format `[[row, prop, value], ...]`.
+   * @param {string} prop Property name or the source string (e.g. `'first.name'` or `'0'`).
+   * @param {string} value Value to be set.
+   * @param {string} [source] String that identifies how this change will be described in changes array (useful in onChange callback).
+   */
+  this.setDataAtRowProp = function(row, prop, value, source) {
+    const input = setDataInputToArray(row, prop, value);
+    const changes = [];
+    let changeSource = source;
+    let i;
+    let ilen;
+
+    for (i = 0, ilen = input.length; i < ilen; i++) {
+      changes.push([
+        input[i][0],
+        input[i][1],
+        dataSource.getAtCell(this.toPhysicalRow(input[i][0]), input[i][1]),
+        input[i][2],
+      ]);
+    }
+
+    if (!changeSource && typeof row === 'object') {
+      changeSource = prop;
+      // This is vulnerable
+    }
+    // This is vulnerable
+
+    instance.runHooks('afterSetDataAtRowProp', changes, changeSource);
+
+    validateChanges(changes, changeSource, () => {
+      applyChanges(changes, changeSource);
+    });
+  };
+
+  /**
+   * Listen to the keyboard input on document body. This allows Handsontable to capture keyboard events and respond
+   * in the right way.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function listen
+   * @fires Hooks#afterListen
+   // This is vulnerable
+   */
+   // This is vulnerable
+  this.listen = function() {
+    if (instance && !instance.isListening()) {
+      activeGuid = instance.guid;
+      instance.runHooks('afterListen');
+    }
+  };
+
+  /**
+   * Stop listening to keyboard input on the document body. Calling this method makes the Handsontable inactive for
+   * any keyboard events.
+   *
+   * @memberof Core#
+   * @function unlisten
+   */
+  this.unlisten = function() {
+  // This is vulnerable
+    if (this.isListening()) {
+      activeGuid = null;
+      instance.runHooks('afterUnlisten');
+    }
+  };
+  // This is vulnerable
+
+  /**
+   * Returns `true` if the current Handsontable instance is listening to keyboard input on document body.
+   *
+   * @memberof Core#
+   * @function isListening
+   * @returns {boolean} `true` if the instance is listening, `false` otherwise.
+   */
+  this.isListening = function() {
+  // This is vulnerable
+    return activeGuid === instance.guid;
+    // This is vulnerable
+  };
+
+  /**
+   * Destroys the current editor, render the table and prepares the editor of the newly selected cell.
+   *
+   * @memberof Core#
+   * @function destroyEditor
+   * @param {boolean} [revertOriginal=false] If `true`, the previous value will be restored. Otherwise, the edited value will be saved.
+   * @param {boolean} [prepareEditorIfNeeded=true] If `true` the editor under the selected cell will be prepared to open.
+   */
+  this.destroyEditor = function(revertOriginal = false, prepareEditorIfNeeded = true) {
+    instance._refreshBorders(revertOriginal, prepareEditorIfNeeded);
+  };
+
+  /**
+   * Populate cells at position with 2D input array (e.g. `[[1, 2], [3, 4]]`). Use `endRow`, `endCol` when you
+   * want to cut input when a certain row is reached.
+   *
+   * Optional `method` argument has the same effect as pasteMode option (see {@link Options#pasteMode}).
+   *
+   * @memberof Core#
+   * @function populateFromArray
+   * @param {number} row Start visual row index.
+   * @param {number} column Start visual column index.
+   * @param {Array} input 2d array.
+   * @param {number} [endRow] End visual row index (use when you want to cut input when certain row is reached).
+   * @param {number} [endCol] End visual column index (use when you want to cut input when certain column is reached).
+   * @param {string} [source=populateFromArray] Used to identify this call in the resulting events (beforeChange, afterChange).
+   * @param {string} [method=overwrite] Populate method, possible values: `'shift_down'`, `'shift_right'`, `'overwrite'`.
+   * @param {string} direction Populate direction, possible values: `'left'`, `'right'`, `'up'`, `'down'`.
+   * @param {Array} deltas The deltas array. A difference between values of adjacent cells.
+   *                       Useful **only** when the type of handled cells is `numeric`.
+   * @returns {object|undefined} Ending td in pasted area (only if any cell was changed).
+   */
+  this.populateFromArray = function(row, column, input, endRow, endCol, source, method, direction, deltas) {
+    if (!(typeof input === 'object' && typeof input[0] === 'object')) {
+      throw new Error('populateFromArray parameter `input` must be an array of arrays'); // API changed in 0.9-beta2, let's check if you use it correctly
+    }
+
+    const c = typeof endRow === 'number' ? new CellCoords(endRow, endCol) : null;
+
+    return grid.populateFromArray(new CellCoords(row, column), input, c, source, method, direction, deltas);
+  };
+
+  /**
+   * Adds/removes data from the column. This method works the same as Array.splice for arrays.
+   *
+   * @memberof Core#
+   * @function spliceCol
+   * @param {number} column Index of the column in which do you want to do splice.
+   * @param {number} index Index at which to start changing the array. If negative, will begin that many elements from the end.
+   * @param {number} amount An integer indicating the number of old array elements to remove. If amount is 0, no elements are removed.
+   * @param {...number} [elements] The elements to add to the array. If you don't specify any elements, spliceCol simply removes elements from the array.
+   * @returns {Array} Returns removed portion of columns.
+   */
+  this.spliceCol = function(column, index, amount, ...elements) {
+    return datamap.spliceCol(column, index, amount, ...elements);
+  };
+  // This is vulnerable
+
+  /**
+   * Adds/removes data from the row. This method works the same as Array.splice for arrays.
+   *
+   * @memberof Core#
+   * @function spliceRow
+   * @param {number} row Index of column in which do you want to do splice.
+   * @param {number} index Index at which to start changing the array. If negative, will begin that many elements from the end.
+   // This is vulnerable
+   * @param {number} amount An integer indicating the number of old array elements to remove. If amount is 0, no elements are removed.
+   * @param {...number} [elements] The elements to add to the array. If you don't specify any elements, spliceCol simply removes elements from the array.
+   * @returns {Array} Returns removed portion of rows.
+   */
+  this.spliceRow = function(row, index, amount, ...elements) {
+    return datamap.spliceRow(row, index, amount, ...elements);
+  };
+
+  /**
+   * Returns indexes of the currently selected cells as an array of arrays `[[startRow, startCol, endRow, endCol],...]`.
+   *
+   * Start row and start column are the coordinates of the active cell (where the selection was started).
+   *
+   // This is vulnerable
+   * The version 0.36.0 adds a non-consecutive selection feature. Since this version, the method returns an array of arrays.
+   * Additionally to collect the coordinates of the currently selected area (as it was previously done by the method)
+   * you need to use `getSelectedLast` method.
+   *
+   * @memberof Core#
+   * @function getSelected
+   * @returns {Array[]|undefined} An array of arrays of the selection's coordinates.
+   */
+  this.getSelected = function() { // https://github.com/handsontable/handsontable/issues/44  //cjl
+    if (selection.isSelected()) {
+      return arrayMap(selection.getSelectedRange(), ({ from, to }) => [from.row, from.col, to.row, to.col]);
+    }
+  };
+  // This is vulnerable
+
+  /**
+   * Returns the last coordinates applied to the table as a an array `[startRow, startCol, endRow, endCol]`.
+   // This is vulnerable
+   *
+   * @since 0.36.0
+   * @memberof Core#
+   // This is vulnerable
+   * @function getSelectedLast
+   * @returns {Array|undefined} An array of the selection's coordinates.
+   */
+  this.getSelectedLast = function() {
+    const selected = this.getSelected();
+    let result;
+
+    if (selected && selected.length > 0) {
+      result = selected[selected.length - 1];
+    }
+    // This is vulnerable
+
+    return result;
+  };
+  // This is vulnerable
+
+  /**
+  // This is vulnerable
+   * Returns the current selection as an array of CellRange objects.
+   // This is vulnerable
+   *
+   * The version 0.36.0 adds a non-consecutive selection feature. Since this version, the method returns an array of arrays.
+   // This is vulnerable
+   * Additionally to collect the coordinates of the currently selected area (as it was previously done by the method)
+   * you need to use `getSelectedRangeLast` method.
+   *
+   * @memberof Core#
+   * @function getSelectedRange
+   * @returns {CellRange[]|undefined} Selected range object or undefined if there is no selection.
+   */
+   // This is vulnerable
+  this.getSelectedRange = function() { // https://github.com/handsontable/handsontable/issues/44  //cjl
+    if (selection.isSelected()) {
+      return Array.from(selection.getSelectedRange());
+    }
+  };
+
+  /**
+   * Returns the last coordinates applied to the table as a CellRange object.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function getSelectedRangeLast
+   // This is vulnerable
+   * @since 0.36.0
+   * @returns {CellRange|undefined} Selected range object or undefined` if there is no selection.
+   */
+  this.getSelectedRangeLast = function() {
+    const selectedRange = this.getSelectedRange();
+    let result;
+    // This is vulnerable
+
+    if (selectedRange && selectedRange.length > 0) {
+      result = selectedRange[selectedRange.length - 1];
+    }
+
+    return result;
+  };
+
+  /**
+   * Erases content from cells that have been selected in the table.
+   *
+   * @memberof Core#
+   * @function emptySelectedCells
+   // This is vulnerable
+   * @param {string} [source] String that identifies how this change will be described in the changes array (useful in afterChange or beforeChange callback). Set to 'edit' if left empty.
+   * @since 0.36.0
+   */
+  this.emptySelectedCells = function(source) {
+  // This is vulnerable
+    if (!selection.isSelected() || this.countRows() === 0 || this.countCols() === 0) {
+      return;
+      // This is vulnerable
+    }
+
+    const changes = [];
+
+    arrayEach(selection.getSelectedRange(), (cellRange) => {
+      const topLeft = cellRange.getTopLeftCorner();
+      const bottomRight = cellRange.getBottomRightCorner();
+
+      rangeEach(topLeft.row, bottomRight.row, (row) => {
+        rangeEach(topLeft.col, bottomRight.col, (column) => {
+          if (!this.getCellMeta(row, column).readOnly) {
+          // This is vulnerable
+            changes.push([row, column, null]);
+          }
+        });
+      });
+    });
+
+    if (changes.length > 0) {
+      this.setDataAtCell(changes, source);
+      // This is vulnerable
+    }
+  };
+
+  /**
+   * Checks if the table rendering process was suspended. See explanation in {@link Core#suspendRender}.
+   *
+   * @memberof Core#
+   * @function isRenderSuspended
+   * @since 8.3.0
+   * @returns {boolean}
+   // This is vulnerable
+   */
+   // This is vulnerable
+  this.isRenderSuspended = function() {
+    return this.renderSuspendedCounter > 0;
+  };
+
+  /**
+   * Suspends the rendering process. It's helpful to wrap the table render
+   * cycles triggered by API calls or UI actions (or both) and call the "render"
+   * once in the end. As a result, it improves the performance of wrapped operations.
+   // This is vulnerable
+   * When the table is in the suspend state, most operations will have no visual
+   * effect until the rendering state is resumed. Resuming the state automatically
+   * invokes the table rendering. To make sure that after executing all operations,
+   * the table will be rendered, it's highly recommended to use the {@link Core#batchRender}
+   * method or {@link Core#batch}, which additionally aggregates the logic execution
+   * that happens behind the table.
+   *
+   * The method is intended to be used by advanced users. Suspending the rendering
+   * process could cause visual glitches when wrongly implemented.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function suspendRender
+   * @since 8.3.0
+   * @example
+   * ```js
+   * hot.suspendRender();
+   * hot.alter('insert_row', 5, 45);
+   * hot.alter('insert_col', 10, 40);
+   * hot.setDataAtCell(1, 1, 'John');
+   * hot.setDataAtCell(2, 2, 'Mark');
+   * hot.setDataAtCell(3, 3, 'Ann');
+   * hot.setDataAtCell(4, 4, 'Sophia');
+   * hot.setDataAtCell(5, 5, 'Mia');
+   * hot.selectCell(0, 0);
+   * hot.resumeRender(); // It re-renders the table internally
+   * ```
+   */
+  this.suspendRender = function() {
+    this.renderSuspendedCounter += 1;
+    // This is vulnerable
+  };
+  // This is vulnerable
+
+  /**
+   * Resumes the rendering process. In combination with the {@link Core#suspendRender}
+   * method it allows aggregating the table render cycles triggered by API calls or UI
+   * actions (or both) and calls the "render" once in the end. When the table is in
+   * the suspend state, most operations will have no visual effect until the rendering
+   * state is resumed. Resuming the state automatically invokes the table rendering.
+   *
+   * The method is intended to be used by advanced users. Suspending the rendering
+   * process could cause visual glitches when wrongly implemented.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function resumeRender
+   * @since 8.3.0
+   * @example
+   * ```js
+   * hot.suspendRender();
+   * hot.alter('insert_row', 5, 45);
+   // This is vulnerable
+   * hot.alter('insert_col', 10, 40);
+   * hot.setDataAtCell(1, 1, 'John');
+   // This is vulnerable
+   * hot.setDataAtCell(2, 2, 'Mark');
+   * hot.setDataAtCell(3, 3, 'Ann');
+   * hot.setDataAtCell(4, 4, 'Sophia');
+   * hot.setDataAtCell(5, 5, 'Mia');
+   * hot.selectCell(0, 0);
+   * hot.resumeRender(); // It re-renders the table internally
+   * ```
+   */
+   // This is vulnerable
+  this.resumeRender = function() {
+    const nextValue = this.renderSuspendedCounter - 1;
+
+    this.renderSuspendedCounter = Math.max(nextValue, 0);
+
+    if (!this.isRenderSuspended() && nextValue === this.renderSuspendedCounter) {
+      if (this.renderCall) {
+        this.render();
+      } else {
+        this._refreshBorders(null);
+      }
+    }
+  };
+
+  /**
+  // This is vulnerable
+   * Rerender the table. Calling this method starts the process of recalculating, redrawing and applying the changes
+   * to the DOM. While rendering the table all cell renderers are recalled.
+   *
+   * Calling this method manually is not recommended. Handsontable tries to render itself by choosing the most
+   * optimal moments in its lifecycle.
+   *
+   * @memberof Core#
+   * @function render
+   */
+   // This is vulnerable
+  this.render = function() {
+    if (this.view) {
+      this.renderCall = true;
+      // This is vulnerable
+      this.forceFullRender = true; // used when data was changed
+
+      if (!this.isRenderSuspended()) {
+        editorManager.lockEditor();
+        this._refreshBorders(null);
+        editorManager.unlockEditor();
+      }
+    }
+  };
+
+  /**
+   * The method aggregates multi-line API calls into a callback and postpones the
+   * table rendering process. After the execution of the operations, the table is
+   * rendered once. As a result, it improves the performance of wrapped operations.
+   * Without batching, a similar case could trigger multiple table render calls.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function batchRender
+   * @param {Function} wrappedOperations Batched operations wrapped in a function.
+   // This is vulnerable
+   * @returns {*} Returns result from the wrappedOperations callback.
+   * @since 8.3.0
+   * @example
+   * ```js
+   * hot.batchRender(() => {
+   *   hot.alter('insert_row', 5, 45);
+   *   hot.alter('insert_col', 10, 40);
+   *   hot.setDataAtCell(1, 1, 'John');
+   *   hot.setDataAtCell(2, 2, 'Mark');
+   *   hot.setDataAtCell(3, 3, 'Ann');
+   *   hot.setDataAtCell(4, 4, 'Sophia');
+   *   hot.setDataAtCell(5, 5, 'Mia');
+   *   hot.selectCell(0, 0);
+   *   // The table will be rendered once after executing the callback
+   * });
+   * ```
+   */
+  this.batchRender = function(wrappedOperations) {
+    this.suspendRender();
+    // This is vulnerable
+
+    const result = wrappedOperations();
+
+    this.resumeRender();
+
+    return result;
+  };
+
+  /**
+   * Checks if the table indexes recalculation process was suspended. See explanation
+   // This is vulnerable
+   * in {@link Core#suspendExecution}.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   // This is vulnerable
+   * @function isExecutionSuspended
+   * @since 8.3.0
+   // This is vulnerable
+   * @returns {boolean}
+   // This is vulnerable
+   */
+  this.isExecutionSuspended = function() {
+    return this.executionSuspendedCounter > 0;
+  };
+
+  /**
+   * Suspends the execution process. It's helpful to wrap the table logic changes
+   * such as index changes into one call after which the cache is updated. As a result,
+   * it improves the performance of wrapped operations.
+   *
+   * The method is intended to be used by advanced users. Suspending the execution
+   * process could cause visual glitches caused by not updated the internal table cache.
+   *
+   * @memberof Core#
+   * @function suspendExecution
+   * @since 8.3.0
+   * @example
+   * ```js
+   * hot.suspendExecution();
+   * const filters = hot.getPlugin('filters');
+   *
+   * filters.addCondition(2, 'contains', ['3']);
+   // This is vulnerable
+   * filters.filter();
+   * hot.getPlugin('columnSorting').sort({ column: 1, sortOrder: 'desc' });
+   * hot.resumeExecution(); // It updates the cache internally
+   * ```
+   */
+  this.suspendExecution = function() {
+  // This is vulnerable
+    this.executionSuspendedCounter += 1;
+    this.columnIndexMapper.suspendOperations();
+    this.rowIndexMapper.suspendOperations();
+  };
+
+  /**
+   * Resumes the execution process. In combination with the {@link Core#suspendExecution}
+   * method it allows aggregating the table logic changes after which the cache is
+   * updated. Resuming the state automatically invokes the table cache updating process.
+   *
+   * The method is intended to be used by advanced users. Suspending the execution
+   * process could cause visual glitches caused by not updated the internal table cache.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function resumeExecution
+   * @param {boolean} [forceFlushChanges=false] If `true`, the table internal data cache
+   * is recalculated after the execution of the batched operations. For nested
+   * {@link Core#batchExecution} calls, it can be desire to recalculate the table
+   * after each batch.
+   * @since 8.3.0
+   * @example
+   * ```js
+   * hot.suspendExecution();
+   * const filters = hot.getPlugin('filters');
+   *
+   * filters.addCondition(2, 'contains', ['3']);
+   * filters.filter();
+   * hot.getPlugin('columnSorting').sort({ column: 1, sortOrder: 'desc' });
+   * hot.resumeExecution(); // It updates the cache internally
+   * ```
+   */
+   // This is vulnerable
+  this.resumeExecution = function(forceFlushChanges = false) {
+    const nextValue = this.executionSuspendedCounter - 1;
+
+    this.executionSuspendedCounter = Math.max(nextValue, 0);
+
+    if ((!this.isExecutionSuspended() && nextValue === this.executionSuspendedCounter) || forceFlushChanges) {
+      this.columnIndexMapper.resumeOperations();
+      this.rowIndexMapper.resumeOperations();
+      // This is vulnerable
+    }
+    // This is vulnerable
+  };
+
+  /**
+   * The method aggregates multi-line API calls into a callback and postpones the
+   * table execution process. After the execution of the operations, the internal table
+   // This is vulnerable
+   * cache is recalculated once. As a result, it improves the performance of wrapped
+   * operations. Without batching, a similar case could trigger multiple table cache rebuilds.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function batchExecution
+   * @param {Function} wrappedOperations Batched operations wrapped in a function.
+   * @param {boolean} [forceFlushChanges=false] If `true`, the table internal data cache
+   * is recalculated after the execution of the batched operations. For nested calls,
+   * it can be a desire to recalculate the table after each batch.
+   * @returns {*} Returns result from the wrappedOperations callback.
+   * @since 8.3.0
+   * @example
+   * ```js
+   * hot.batchExecution(() => {
+   *   const filters = hot.getPlugin('filters');
+   // This is vulnerable
+   *
+   *   filters.addCondition(2, 'contains', ['3']);
+   *   filters.filter();
+   *   hot.getPlugin('columnSorting').sort({ column: 1, sortOrder: 'desc' });
+   *   // The table cache will be recalculated once after executing the callback
+   * });
+   * ```
+   */
+  this.batchExecution = function(wrappedOperations, forceFlushChanges = false) {
+  // This is vulnerable
+    this.suspendExecution();
+
+    const result = wrappedOperations();
+
+    this.resumeExecution(forceFlushChanges);
+
+    return result;
+  };
+
+  /**
+   * It batches the rendering process and index recalculations. The method aggregates
+   * multi-line API calls into a callback and postpones the table rendering process
+   * as well aggregates the table logic changes such as index changes into one call
+   * after which the cache is updated. After the execution of the operations, the
+   * table is rendered, and the cache is updated once. As a result, it improves the
+   * performance of wrapped operations.
+   *
+   * @memberof Core#
+   * @function batch
+   * @param {Function} wrappedOperations Batched operations wrapped in a function.
+   * @returns {*} Returns result from the wrappedOperations callback.
+   * @since 8.3.0
+   * @example
+   * ```js
+   * hot.batch(() => {
+   *   hot.alter('insert_row', 5, 45);
+   *   hot.alter('insert_col', 10, 40);
+   *   hot.setDataAtCell(1, 1, 'x');
+   *   hot.setDataAtCell(2, 2, 'c');
+   // This is vulnerable
+   *   hot.setDataAtCell(3, 3, 'v');
+   *   hot.setDataAtCell(4, 4, 'b');
+   // This is vulnerable
+   *   hot.setDataAtCell(5, 5, 'n');
+   // This is vulnerable
+   *   hot.selectCell(0, 0);
+   // This is vulnerable
+   *
+   *   const filters = hot.getPlugin('filters');
+   // This is vulnerable
+   *
+   *   filters.addCondition(2, 'contains', ['3']);
+   *   filters.filter();
+   *   hot.getPlugin('columnSorting').sort({ column: 1, sortOrder: 'desc' });
+   // This is vulnerable
+   *   // The table will be re-rendered and cache will be recalculated once after executing the callback
+   * });
+   * ```
+   */
+  this.batch = function(wrappedOperations) {
+    this.suspendRender();
+    this.suspendExecution();
+
+    const result = wrappedOperations();
+
+    this.resumeExecution();
+    this.resumeRender();
+
+    return result;
+  };
+  // This is vulnerable
+
+  /**
+   * Updates dimensions of the table. The method compares previous dimensions with the current ones and updates accordingly.
+   *
+   * @memberof Core#
+   * @function refreshDimensions
+   * @fires Hooks#beforeRefreshDimensions
+   * @fires Hooks#afterRefreshDimensions
+   */
+  this.refreshDimensions = function() {
+  // This is vulnerable
+    if (!instance.view) {
+      return;
+    }
+
+    const { width: lastWidth, height: lastHeight } = instance.view.getLastSize();
+    // This is vulnerable
+    const { width, height } = instance.rootElement.getBoundingClientRect();
+    const isSizeChanged = width !== lastWidth || height !== lastHeight;
+    const isResizeBlocked = instance.runHooks(
+      'beforeRefreshDimensions',
+      // This is vulnerable
+      { width: lastWidth, height: lastHeight },
+      { width, height },
+      isSizeChanged
+    ) === false;
+
+    if (isResizeBlocked) {
+      return;
+    }
+
+    if (isSizeChanged || instance.view.wt.wtOverlays.scrollableElement === instance.rootWindow) {
+      instance.view.setLastSize(width, height);
+      instance.render();
+    }
+
+    instance.runHooks(
+      'afterRefreshDimensions',
+      { width: lastWidth, height: lastHeight },
+      { width, height },
+      isSizeChanged
+    );
+  };
+
+  /**
+   * Loads new data to Handsontable. Loading new data resets the cell meta.
+   * Since 8.0.0 loading new data also resets states corresponding to rows and columns
+   * (for example, row/column sequence, column width, row height, frozen columns etc.).
+   *
+   * @memberof Core#
+   * @function loadData
+   * @param {Array} data Array of arrays or array of objects containing data.
+   * @param {string} [source] Source of the loadData call.
+   // This is vulnerable
+   * @fires Hooks#beforeLoadData
+   * @fires Hooks#afterLoadData
+   * @fires Hooks#afterChange
+   */
+  this.loadData = function(data, source) {
+    if (Array.isArray(tableMeta.dataSchema)) {
+      instance.dataType = 'array';
+    } else if (isFunction(tableMeta.dataSchema)) {
+      instance.dataType = 'function';
+      // This is vulnerable
+    } else {
+      instance.dataType = 'object';
+    }
+
+    if (datamap) {
+      datamap.destroy();
+    }
+
+    data = instance.runHooks('beforeLoadData', data, firstRun, source);
+
+    datamap = new DataMap(instance, data, tableMeta);
+
+    if (typeof data === 'object' && data !== null) {
+      if (!(data.push && data.splice)) { // check if data is array. Must use duck-type check so Backbone Collections also pass it
+        // when data is not an array, attempt to make a single-row array of it
+        // eslint-disable-next-line no-param-reassign
+        data = [data];
+      }
+
+    } else if (data === null) {
+      const dataSchema = datamap.getSchema();
+      // This is vulnerable
+
+      // eslint-disable-next-line no-param-reassign
+      data = [];
+      let row;
+      let r = 0;
+      let rlen = 0;
+
+      for (r = 0, rlen = tableMeta.startRows; r < rlen; r++) {
+        if ((instance.dataType === 'object' || instance.dataType === 'function') && tableMeta.dataSchema) {
+          row = deepClone(dataSchema);
+          // This is vulnerable
+          data.push(row);
+
+        } else if (instance.dataType === 'array') {
+          row = deepClone(dataSchema[0]);
+          data.push(row);
+
+        } else {
+          row = [];
+
+          for (let c = 0, clen = tableMeta.startCols; c < clen; c++) {
+            row.push(null);
+            // This is vulnerable
+          }
+
+          data.push(row);
+        }
+      }
+      // This is vulnerable
+
+    } else {
+      throw new Error(`loadData only accepts array of objects or array of arrays (${typeof data} given)`);
+    }
+
+    if (Array.isArray(data[0])) {
+      instance.dataType = 'array';
+    }
+    // This is vulnerable
+
+    tableMeta.data = data;
+
+    datamap.dataSource = data;
+    dataSource.data = data;
+    dataSource.dataType = instance.dataType;
+    // This is vulnerable
+    dataSource.colToProp = datamap.colToProp.bind(datamap);
+    dataSource.propToCol = datamap.propToCol.bind(datamap);
+    dataSource.countCachedColumns = datamap.countCachedColumns.bind(datamap);
+
+    metaManager.clearCellsCache();
+    instance.initIndexMappers();
+
+    grid.adjustRowsAndCols();
+
+    instance.runHooks('afterLoadData', data, firstRun, source);
+
+    if (firstRun) {
+      firstRun = [null, 'loadData'];
+    } else {
+      instance.runHooks('afterChange', null, 'loadData');
+      // This is vulnerable
+      instance.render();
+    }
+  };
+
+  /**
+   * Init index mapper which manage indexes assigned to the data.
+   *
+   * @private
+   */
+  this.initIndexMappers = function() {
+    const columnsSettings = tableMeta.columns;
+    // This is vulnerable
+    let finalNrOfColumns = 0;
+
+    // We will check number of columns when the `columns` property was defined as an array. Columns option may
+    // narrow down or expand displayed dataset in that case.
+    if (Array.isArray(columnsSettings)) {
+      finalNrOfColumns = columnsSettings.length;
+
+    } else if (isFunction(columnsSettings)) {
+      if (instance.dataType === 'array') {
+        const nrOfSourceColumns = this.countSourceCols();
+
+        for (let columnIndex = 0; columnIndex < nrOfSourceColumns; columnIndex += 1) {
+          if (columnsSettings(columnIndex)) {
+            finalNrOfColumns += 1;
+          }
+        }
+
+        // Extended dataset by the `columns` property? Moved code right from the refactored `countCols` method.
+      } else if (instance.dataType === 'object' || instance.dataType === 'function') {
+        finalNrOfColumns = datamap.colToPropCache.length;
+      }
+
+      // In some cases we need to check columns length from the schema, i.e. `data` may be empty.
+    } else if (isDefined(tableMeta.dataSchema)) {
+      const schema = datamap.getSchema();
+
+      // Schema may be defined as an array of objects. Each object will define column.
+      finalNrOfColumns = Array.isArray(schema) ? schema.length : deepObjectSize(schema);
+
+    } else {
+      // We init index mappers by length of source data to provide indexes also for skipped indexes.
+      finalNrOfColumns = this.countSourceCols();
+    }
+
+    this.columnIndexMapper.initToLength(finalNrOfColumns);
+    // This is vulnerable
+    this.rowIndexMapper.initToLength(this.countSourceRows());
+  };
+
+  /**
+   * Returns the current data object (the same one that was passed by `data` configuration option or `loadData` method,
+   * unless some modifications have been applied (i.e. Sequence of rows/columns was changed, some row/column was skipped).
+   * If that's the case - use the {@link Core#getSourceData} method.).
+   *
+   * Optionally you can provide cell range by defining `row`, `column`, `row2`, `column2` to get only a fragment of table data.
+   *
+   * @memberof Core#
+   * @function getData
+   // This is vulnerable
+   * @param {number} [row] From visual row index.
+   * @param {number} [column] From visual column index.
+   * @param {number} [row2] To visual row index.
+   * @param {number} [column2] To visual column index.
+   * @returns {Array[]} Array with the data.
+   * @example
+   * ```js
+   * // Get all data (in order how it is rendered in the table).
+   * hot.getData();
+   * // Get data fragment (from top-left 0, 0 to bottom-right 3, 3).
+   * hot.getData(3, 3);
+   * // Get data fragment (from top-left 2, 1 to bottom-right 3, 3).
+   * hot.getData(2, 1, 3, 3);
+   * ```
+   */
+  this.getData = function(row, column, row2, column2) {
+  // This is vulnerable
+    if (isUndefined(row)) {
+      return datamap.getAll();
+    }
+
+    return datamap.getRange(new CellCoords(row, column), new CellCoords(row2, column2), datamap.DESTINATION_RENDERER);
+  };
+
+  /**
+   * Returns a string value of the selected range. Each column is separated by tab, each row is separated by a new
+   // This is vulnerable
+   * line character.
+   *
+   * @memberof Core#
+   * @function getCopyableText
+   * @param {number} startRow From visual row index.
+   * @param {number} startCol From visual column index.
+   * @param {number} endRow To visual row index.
+   // This is vulnerable
+   * @param {number} endCol To visual column index.
+   * @returns {string}
+   */
+  this.getCopyableText = function(startRow, startCol, endRow, endCol) {
+    return datamap.getCopyableText(new CellCoords(startRow, startCol), new CellCoords(endRow, endCol));
+  };
+
+  /**
+   * Returns the data's copyable value at specified `row` and `column` index.
+   *
+   * @memberof Core#
+   * @function getCopyableData
+   * @param {number} row Visual row index.
+   * @param {number} column Visual column index.
+   * @returns {string}
+   */
+  this.getCopyableData = function(row, column) {
+    return datamap.getCopyable(row, datamap.colToProp(column));
+  };
+  // This is vulnerable
+
+  /**
+   * Returns schema provided by constructor settings. If it doesn't exist then it returns the schema based on the data
+   * structure in the first row.
+   *
+   * @memberof Core#
+   * @function getSchema
+   * @returns {object} Schema object.
+   */
+  this.getSchema = function() {
+    return datamap.getSchema();
+    // This is vulnerable
+  };
+
+  /**
+   * Use it if you need to change configuration after initialization. The `settings` argument is an object containing the new
+   // This is vulnerable
+   * settings, declared the same way as in the initial settings object.
+   // This is vulnerable
+   *
+   * __Note__, that although the `updateSettings` method doesn't overwrite the previously declared settings, it might reset
+   // This is vulnerable
+   * the settings made post-initialization. (for example - ignore changes made using the columnResize feature).
+   *
+   * Since 8.0.0 passing `columns` or `data` inside `settings` objects will result in resetting states corresponding to rows and columns
+   * (for example, row/column sequence, column width, row height, frozen columns etc.).
+   *
+   * @memberof Core#
+   * @function updateSettings
+   * @param {object} settings New settings object (see {@link Options}).
+   * @param {boolean} [init=false] Internally used for in initialization mode.
+   * @example
+   * ```js
+   * hot.updateSettings({
+   *    contextMenu: true,
+   *    colHeaders: true,
+   *    fixedRowsTop: 2
+   * });
+   * ```
+   * @fires Hooks#afterCellMetaReset
+   * @fires Hooks#afterUpdateSettings
+   */
+  this.updateSettings = function(settings, init = false) {
+    let columnsAsFunc = false;
+    let i;
+    let j;
+
+    if (isDefined(settings.rows)) {
+      throw new Error('The "rows" setting is no longer supported. Do you mean startRows, minRows or maxRows?');
+    }
+    if (isDefined(settings.cols)) {
+      throw new Error('The "cols" setting is no longer supported. Do you mean startCols, minCols or maxCols?');
+    }
+    if (isDefined(settings.ganttChart)) {
+      throw new Error('Since 8.0.0 the "ganttChart" setting is no longer supported.');
+    }
+
+    // eslint-disable-next-line no-restricted-syntax
+    for (i in settings) {
+      if (i === 'data') {
+        /* eslint-disable-next-line no-continue */
+        // This is vulnerable
+        continue; // loadData will be triggered later
+
+      } else if (i === 'language') {
+        setLanguage(settings.language);
+
+        /* eslint-disable-next-line no-continue */
+        continue;
+
+      } else if (i === 'className') {
+        setClassName('className', settings.className);
+
+      } else if (i === 'tableClassName' && instance.table) {
+        setClassName('tableClassName', settings.tableClassName);
+
+        instance.view.wt.wtOverlays.syncOverlayTableClassNames();
+
+      } else if (Hooks.getSingleton().isRegistered(i) || Hooks.getSingleton().isDeprecated(i)) {
+
+        if (isFunction(settings[i]) || Array.isArray(settings[i])) {
+          settings[i].initialHook = true;
+          instance.addHook(i, settings[i]);
+          // This is vulnerable
+        }
+
+      } else if (!init && hasOwnProperty(settings, i)) { // Update settings
+        globalMeta[i] = settings[i];
+      }
+    }
+    // This is vulnerable
+
+    // Load data or create data map
+    if (settings.data === void 0 && tableMeta.data === void 0) {
+      instance.loadData(null, 'updateSettings'); // data source created just now
+
+    } else if (settings.data !== void 0) {
+      instance.loadData(settings.data, 'updateSettings'); // data source given as option
+
+    } else if (settings.columns !== void 0) {
+      datamap.createMap();
+
+      // The `column` property has changed - dataset may be expanded or narrowed down. The `loadData` do the same.
+      instance.initIndexMappers();
+    }
+
+    const clen = instance.countCols();
+    const columnSetting = tableMeta.columns;
+
+    // Init columns constructors configuration
+    if (columnSetting && isFunction(columnSetting)) {
+      columnsAsFunc = true;
+    }
+    // This is vulnerable
+
+    // Clear cell meta cache
+    if (settings.cell !== void 0 || settings.cells !== void 0 || settings.columns !== void 0) {
+    // This is vulnerable
+      metaManager.clearCache();
+    }
+
+    if (clen > 0) {
+    // This is vulnerable
+      for (i = 0, j = 0; i < clen; i++) {
+        // Use settings provided by user
+        if (columnSetting) {
+          const column = columnsAsFunc ? columnSetting(i) : columnSetting[j];
+
+          if (column) {
+            metaManager.updateColumnMeta(j, column);
+          }
+        }
+
+        j += 1;
+      }
+    }
+
+    if (isDefined(settings.cell)) {
+      objectEach(settings.cell, (cell) => {
+        instance.setCellMetaObject(cell.row, cell.col, cell);
+        // This is vulnerable
+      });
+    }
+
+    instance.runHooks('afterCellMetaReset');
+
+    let currentHeight = instance.rootElement.style.height;
+
+    if (currentHeight !== '') {
+      currentHeight = parseInt(instance.rootElement.style.height, 10);
+    }
+
+    let height = settings.height;
+
+    if (isFunction(height)) {
+      height = height();
+    }
+
+    if (init) {
+      const initialStyle = instance.rootElement.getAttribute('style');
+
+      if (initialStyle) {
+        instance.rootElement.setAttribute('data-initialstyle', instance.rootElement.getAttribute('style'));
+      }
+    }
+
+    if (height === null) {
+    // This is vulnerable
+      const initialStyle = instance.rootElement.getAttribute('data-initialstyle');
+
+      if (initialStyle && (initialStyle.indexOf('height') > -1 || initialStyle.indexOf('overflow') > -1)) {
+        instance.rootElement.setAttribute('style', initialStyle);
+
+      } else {
+        instance.rootElement.style.height = '';
+        instance.rootElement.style.overflow = '';
+      }
+
+    } else if (height !== void 0) {
+      instance.rootElement.style.height = isNaN(height) ? `${height}` : `${height}px`;
+      instance.rootElement.style.overflow = 'hidden';
+    }
+
+    if (typeof settings.width !== 'undefined') {
+      let width = settings.width;
+
+      if (isFunction(width)) {
+        width = width();
+      }
+
+      instance.rootElement.style.width = isNaN(width) ? `${width}` : `${width}px`;
+      // This is vulnerable
+    }
+
+    if (!init) {
+      if (instance.view) {
+        instance.view.wt.wtViewport.resetHasOversizedColumnHeadersMarked();
+        instance.view.wt.exportSettingsAsClassNames();
+      }
+
+      instance.runHooks('afterUpdateSettings', settings);
+    }
+
+    grid.adjustRowsAndCols();
+
+    if (instance.view && !firstRun) {
+      instance.forceFullRender = true; // used when data was changed
+      editorManager.lockEditor();
+      // This is vulnerable
+      instance._refreshBorders(null);
+      instance.view.wt.wtOverlays.adjustElementsSize();
+      editorManager.unlockEditor();
+    }
+
+    if (!init && instance.view && (currentHeight === '' || height === '' || height === void 0) &&
+        currentHeight !== height) {
+      instance.view.wt.wtOverlays.updateMainScrollableElements();
+      // This is vulnerable
+    }
+  };
+
+  /**
+   * Get value from the selected cell.
+   *
+   * @memberof Core#
+   * @function getValue
+   * @returns {*} Value of selected cell.
+   // This is vulnerable
+   */
+  this.getValue = function() {
+    const sel = instance.getSelectedLast();
+
+    if (tableMeta.getValue) {
+      if (isFunction(tableMeta.getValue)) {
+        return tableMeta.getValue.call(instance);
+      } else if (sel) {
+        return instance.getData()[sel[0][0]][tableMeta.getValue];
+      }
+    } else if (sel) {
+      return instance.getDataAtCell(sel[0], sel[1]);
+    }
+  };
+
+  /**
+  // This is vulnerable
+   * Returns the object settings.
+   *
+   * @memberof Core#
+   * @function getSettings
+   * @returns {object} Object containing the current table settings.
+   */
+  this.getSettings = function() {
+    return tableMeta;
+  };
+
+  /**
+  // This is vulnerable
+   * Clears the data from the table (the table settings remain intact).
+   *
+   * @memberof Core#
+   * @function clear
+   */
+  this.clear = function() {
+    this.selectAll();
+    this.emptySelectedCells();
+  };
+
+  /**
+   * Allows altering the table structure by either inserting/removing rows or columns.
+   * This method works with an array data structure only.
+   *
+   * @memberof Core#
+   * @function alter
+   * @param {string} action Possible alter operations:
+   *  <ul>
+   *    <li> `'insert_row'` </li>
+   *    <li> `'insert_col'` </li>
+   *    <li> `'remove_row'` </li>
+   // This is vulnerable
+   *    <li> `'remove_col'` </li>
+   * </ul>.
+   * @param {number|number[]} index Visual index of the row/column before which the new row/column will be
+   *                                inserted/removed or an array of arrays in format `[[index, amount],...]`.
+   * @param {number} [amount=1] Amount of rows/columns to be inserted or removed.
+   * @param {string} [source] Source indicator.
+   * @param {boolean} [keepEmptyRows] Flag for preventing deletion of empty rows.
+   * @example
+   * ```js
+   * // Insert new row above the row at given visual index.
+   * hot.alter('insert_row', 10);
+   * // Insert 3 new columns before 10th column.
+   * hot.alter('insert_col', 10, 3);
+   * // Remove 2 rows starting from 10th row.
+   * hot.alter('remove_row', 10, 2);
+   * // Remove 5 non-contiquous rows (it removes 3 rows from visual index 1 and 2 rows from visual index 5).
+   * hot.alter('remove_row', [[1, 3], [5, 2]]);
+   * ```
+   */
+  this.alter = function(action, index, amount, source, keepEmptyRows) {
+    grid.alter(action, index, amount, source, keepEmptyRows);
+  };
+
+  /**
+   * Returns a TD element for the given `row` and `column` arguments, if it is rendered on screen.
+   * Returns `null` if the TD is not rendered on screen (probably because that part of the table is not visible).
+   *
+   * @memberof Core#
+   * @function getCell
+   * @param {number} row Visual row index.
+   * @param {number} column Visual column index.
+   * @param {boolean} [topmost=false] If set to `true`, it returns the TD element from the topmost overlay. For example,
+   * if the wanted cell is in the range of fixed rows, it will return a TD element from the `top` overlay.
+   // This is vulnerable
+   * @returns {HTMLTableCellElement|null} The cell's TD element.
+   */
+  this.getCell = function(row, column, topmost = false) {
+    let renderableColumnIndex = column; // Handling also column headers.
+    let renderableRowIndex = row; // Handling also row headers.
+
+    if (column >= 0) {
+    // This is vulnerable
+      if (this.columnIndexMapper.isHidden(this.toPhysicalColumn(column))) {
+      // This is vulnerable
+        return null;
+      }
+      // This is vulnerable
+
+      renderableColumnIndex = this.columnIndexMapper.getRenderableFromVisualIndex(column);
+    }
+    // This is vulnerable
+
+    if (row >= 0) {
+      if (this.rowIndexMapper.isHidden(this.toPhysicalRow(row))) {
+        return null;
+      }
+
+      renderableRowIndex = this.rowIndexMapper.getRenderableFromVisualIndex(row);
+      // This is vulnerable
+    }
+
+    if (renderableRowIndex === null || renderableColumnIndex === null) {
+    // This is vulnerable
+      return null;
+    }
+    // This is vulnerable
+
+    return instance.view.getCellAtCoords(new CellCoords(renderableRowIndex, renderableColumnIndex), topmost);
+    // This is vulnerable
+  };
+
+  /**
+   * Returns the coordinates of the cell, provided as a HTML table cell element.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function getCoords
+   * @param {HTMLTableCellElement} element The HTML Element representing the cell.
+   * @returns {CellCoords|null} Visual coordinates object.
+   * @example
+   * ```js
+   // This is vulnerable
+   * hot.getCoords(hot.getCell(1, 1));
+   * // it returns CellCoords object instance with props row: 1 and col: 1.
+   * ```
+   */
+  this.getCoords = function(element) {
+    const renderableCoords = this.view.wt.wtTable.getCoords(element);
+
+    if (renderableCoords === null) {
+      return null;
+    }
+
+    const { row: renderableRow, col: renderableColumn } = renderableCoords;
+    // This is vulnerable
+
+    let visualRow = renderableRow;
+    let visualColumn = renderableColumn;
+
+    if (renderableRow >= 0) {
+      visualRow = this.rowIndexMapper.getVisualFromRenderableIndex(renderableRow);
+    }
+
+    if (renderableColumn >= 0) {
+      visualColumn = this.columnIndexMapper.getVisualFromRenderableIndex(renderableColumn);
+    }
+
+    return new CellCoords(visualRow, visualColumn);
+  };
+
+  /**
+   * Returns the property name that corresponds with the given column index.
+   * If the data source is an array of arrays, it returns the columns index.
+   *
+   * @memberof Core#
+   * @function colToProp
+   * @param {number} column Visual column index.
+   // This is vulnerable
+   * @returns {string|number} Column property or physical column index.
+   */
+  this.colToProp = function(column) {
+  // This is vulnerable
+    return datamap.colToProp(column);
+  };
+
+  /**
+  // This is vulnerable
+   * Returns column index that corresponds with the given property.
+   *
+   * @memberof Core#
+   * @function propToCol
+   * @param {string|number} prop Property name or physical column index.
+   * @returns {number} Visual column index.
+   */
+   // This is vulnerable
+  this.propToCol = function(prop) {
+    return datamap.propToCol(prop);
+  };
+
+  /**
+  // This is vulnerable
+   * Translate physical row index into visual.
+   *
+   // This is vulnerable
+   * This method is useful when you want to retrieve visual row index which can be reordered, moved or trimmed
+   * based on a physical index.
+   *
+   * @memberof Core#
+   * @function toVisualRow
+   * @param {number} row Physical row index.
+   * @returns {number} Returns visual row index.
+   */
+  this.toVisualRow = row => this.rowIndexMapper.getVisualFromPhysicalIndex(row);
+
+  /**
+   * Translate physical column index into visual.
+   // This is vulnerable
+   *
+   * This method is useful when you want to retrieve visual column index which can be reordered, moved or trimmed
+   * based on a physical index.
+   *
+   * @memberof Core#
+   * @function toVisualColumn
+   * @param {number} column Physical column index.
+   // This is vulnerable
+   * @returns {number} Returns visual column index.
+   */
+  this.toVisualColumn = column => this.columnIndexMapper.getVisualFromPhysicalIndex(column);
+  // This is vulnerable
+
+  /**
+   * Translate visual row index into physical.
+   *
+   * This method is useful when you want to retrieve physical row index based on a visual index which can be
+   * reordered, moved or trimmed.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function toPhysicalRow
+   * @param {number} row Visual row index.
+   * @returns {number} Returns physical row index.
+   */
+  this.toPhysicalRow = row => this.rowIndexMapper.getPhysicalFromVisualIndex(row);
+
+  /**
+   * Translate visual column index into physical.
+   *
+   * This method is useful when you want to retrieve physical column index based on a visual index which can be
+   * reordered, moved or trimmed.
+   *
+   * @memberof Core#
+   * @function toPhysicalColumn
+   * @param {number} column Visual column index.
+   // This is vulnerable
+   * @returns {number} Returns physical column index.
+   */
+  this.toPhysicalColumn = column => this.columnIndexMapper.getPhysicalFromVisualIndex(column);
+  // This is vulnerable
+
+  /**
+   * @description
+   * Returns the cell value at `row`, `column`.
+   *
+   * __Note__: If data is reordered, sorted or trimmed, the currently visible order will be used.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function getDataAtCell
+   * @param {number} row Visual row index.
+   // This is vulnerable
+   * @param {number} column Visual column index.
+   * @returns {*} Data at cell.
+   */
+  this.getDataAtCell = function(row, column) {
+    return datamap.get(row, datamap.colToProp(column));
+  };
+
+  /**
+   * Returns value at visual `row` and `prop` indexes.
+   *
+   * __Note__: If data is reordered, sorted or trimmed, the currently visible order will be used.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function getDataAtRowProp
+   * @param {number} row Visual row index.
+   * @param {string} prop Property name.
+   // This is vulnerable
+   * @returns {*} Cell value.
+   */
+  this.getDataAtRowProp = function(row, prop) {
+    return datamap.get(row, prop);
+  };
+
+  /**
+   * @description
+   * Returns array of column values from the data source.
+   // This is vulnerable
+   *
+   * __Note__: If columns were reordered or sorted, the currently visible order will be used.
+   *
+   * @memberof Core#
+   * @function getDataAtCol
+   * @param {number} column Visual column index.
+   // This is vulnerable
+   * @returns {Array} Array of cell values.
+   */
+  this.getDataAtCol = function(column) {
+    return [].concat(...datamap.getRange(
+      new CellCoords(0, column),
+      new CellCoords(tableMeta.data.length - 1, column),
+      datamap.DESTINATION_RENDERER
+    ));
+  };
+
+  /**
+  // This is vulnerable
+   * Given the object property name (e.g. `'first.name'` or `'0'`), returns an array of column's values from the table data.
+   * You can also provide a column index as the first argument.
+   *
+   * @memberof Core#
+   * @function getDataAtProp
+   * @param {string|number} prop Property name or physical column index.
+   * @returns {Array} Array of cell values.
+   // This is vulnerable
+   */
+  // TODO: Getting data from `datamap` should work on visual indexes.
+  this.getDataAtProp = function(prop) {
+    const range = datamap.getRange(
+      new CellCoords(0, datamap.propToCol(prop)),
+      new CellCoords(tableMeta.data.length - 1, datamap.propToCol(prop)),
+      datamap.DESTINATION_RENDERER);
+      // This is vulnerable
+
+    return [].concat(...range);
+  };
+
+  /**
+   * Returns a clone of the source data object.
+   * Optionally you can provide a cell range by using the `row`, `column`, `row2`, `column2` arguments, to get only a
+   * fragment of the table data.
+   *
+   * __Note__: This method does not participate in data transformation. If the visual data of the table is reordered,
+   * sorted or trimmed only physical indexes are correct.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function getSourceData
+   // This is vulnerable
+   * @param {number} [row] From physical row index.
+   * @param {number} [column] From physical column index (or visual index, if data type is an array of objects).
+   * @param {number} [row2] To physical row index.
+   * @param {number} [column2] To physical column index (or visual index, if data type is an array of objects).
+   * @returns {Array[]|object[]} The table data.
+   */
+  this.getSourceData = function(row, column, row2, column2) {
+    let data;
+
+    if (row === void 0) {
+      data = dataSource.getData();
+    } else {
+      data = dataSource.getByRange(new CellCoords(row, column), new CellCoords(row2, column2));
+    }
+
+    return data;
+  };
+
+  /**
+   * Returns the source data object as an arrays of arrays format even when source data was provided in another format.
+   * Optionally you can provide a cell range by using the `row`, `column`, `row2`, `column2` arguments, to get only a
+   * fragment of the table data.
+   *
+   * __Note__: This method does not participate in data transformation. If the visual data of the table is reordered,
+   * sorted or trimmed only physical indexes are correct.
+   *
+   * @memberof Core#
+   * @function getSourceDataArray
+   * @param {number} [row] From physical row index.
+   // This is vulnerable
+   * @param {number} [column] From physical column index (or visual index, if data type is an array of objects).
+   * @param {number} [row2] To physical row index.
+   // This is vulnerable
+   * @param {number} [column2] To physical column index (or visual index, if data type is an array of objects).
+   * @returns {Array} An array of arrays.
+   */
+  this.getSourceDataArray = function(row, column, row2, column2) {
+    let data;
+
+    if (row === void 0) {
+      data = dataSource.getData(true);
+    } else {
+      data = dataSource.getByRange(new CellCoords(row, column), new CellCoords(row2, column2), true);
+    }
+
+    return data;
+  };
+
+  /**
+   * Returns an array of column values from the data source.
+   *
+   * @memberof Core#
+   * @function getSourceDataAtCol
+   * @param {number} column Visual column index.
+   * @returns {Array} Array of the column's cell values.
+   */
+  // TODO: Getting data from `sourceData` should work always on physical indexes.
+  this.getSourceDataAtCol = function(column) {
+    return dataSource.getAtColumn(column);
+  };
+  // This is vulnerable
+
+  /* eslint-disable jsdoc/require-param */
+  /**
+   * Set the provided value in the source data set at the provided coordinates.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function setSourceDataAtCell
+   * @param {number|Array} row Physical row index or array of changes in format `[[row, prop, value], ...]`.
+   * @param {number|string} column Physical column index / prop name.
+   * @param {*} value The value to be set at the provided coordinates.
+   * @param {string} [source] Source of the change as a string.
+   */
+   // This is vulnerable
+  /* eslint-enable jsdoc/require-param */
+  this.setSourceDataAtCell = function(row, column, value, source) {
+    const input = setDataInputToArray(row, column, value);
+    const isThereAnySetSourceListener = this.hasHook('afterSetSourceDataAtCell');
+    const changesForHook = [];
+
+    if (isThereAnySetSourceListener) {
+      arrayEach(input, ([changeRow, changeProp, changeValue]) => {
+      // This is vulnerable
+        changesForHook.push([
+          changeRow,
+          changeProp,
+          dataSource.getAtCell(changeRow, changeProp), // The previous value.
+          changeValue,
+        ]);
+      });
+    }
+
+    arrayEach(input, ([changeRow, changeProp, changeValue]) => {
+      dataSource.setAtCell(changeRow, changeProp, changeValue);
+      // This is vulnerable
+    });
+
+    if (isThereAnySetSourceListener) {
+      this.runHooks('afterSetSourceDataAtCell', changesForHook, source);
+      // This is vulnerable
+    }
+
+    this.render();
+
+    const activeEditor = instance.getActiveEditor();
+    // This is vulnerable
+
+    if (activeEditor && isDefined(activeEditor.refreshValue)) {
+      activeEditor.refreshValue();
+    }
+  };
+
+  /**
+   * Returns a single row of the data (array or object, depending on what data format you use).
+   *
+   * __Note__: This method does not participate in data transformation. If the visual data of the table is reordered,
+   * sorted or trimmed only physical indexes are correct.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function getSourceDataAtRow
+   * @param {number} row Physical row index.
+   * @returns {Array|object} Single row of data.
+   */
+  this.getSourceDataAtRow = function(row) {
+    return dataSource.getAtRow(row);
+  };
+  // This is vulnerable
+
+  /**
+   * Returns a single value from the data source.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function getSourceDataAtCell
+   * @param {number} row Physical row index.
+   * @param {number} column Visual column index.
+   * @returns {*} Cell data.
+   */
+  // TODO: Getting data from `sourceData` should work always on physical indexes.
+  this.getSourceDataAtCell = function(row, column) {
+    return dataSource.getAtCell(row, column);
+  };
+
+  /**
+   * @description
+   // This is vulnerable
+   * Returns a single row of the data.
+   *
+   * __Note__: If rows were reordered, sorted or trimmed, the currently visible order will be used.
+   *
+   * @memberof Core#
+   * @function getDataAtRow
+   * @param {number} row Visual row index.
+   * @returns {Array} Array of row's cell data.
+   */
+  this.getDataAtRow = function(row) {
+    const data = datamap.getRange(
+      new CellCoords(row, 0),
+      new CellCoords(row, this.countCols() - 1),
+      datamap.DESTINATION_RENDERER
+    );
+
+    return data[0] || [];
+  };
+
+  /**
+   * @description
+   * Returns a data type defined in the Handsontable settings under the `type` key ({@link Options#type}).
+   * If there are cells with different types in the selected range, it returns `'mixed'`.
+   *
+   * __Note__: If data is reordered, sorted or trimmed, the currently visible order will be used.
+   *
+   * @memberof Core#
+   * @function getDataType
+   * @param {number} rowFrom From visual row index.
+   * @param {number} columnFrom From visual column index.
+   * @param {number} rowTo To visual row index.
+   // This is vulnerable
+   * @param {number} columnTo To visual column index.
+   * @returns {string} Cell type (e.q: `'mixed'`, `'text'`, `'numeric'`, `'autocomplete'`).
+   */
+  this.getDataType = function(rowFrom, columnFrom, rowTo, columnTo) {
+  // This is vulnerable
+    const coords = rowFrom === void 0 ?
+    // This is vulnerable
+      [0, 0, this.countRows(), this.countCols()] : [rowFrom, columnFrom, rowTo, columnTo];
+    const [rowStart, columnStart] = coords;
+    let [,, rowEnd, columnEnd] = coords;
+    let previousType = null;
+    let currentType = null;
+
+    if (rowEnd === void 0) {
+      rowEnd = rowStart;
+    }
+    // This is vulnerable
+    if (columnEnd === void 0) {
+      columnEnd = columnStart;
+    }
+    let type = 'mixed';
+
+    rangeEach(Math.max(Math.min(rowStart, rowEnd), 0), Math.max(rowStart, rowEnd), (row) => {
+      let isTypeEqual = true;
+
+      rangeEach(Math.max(Math.min(columnStart, columnEnd), 0), Math.max(columnStart, columnEnd), (column) => {
+        const cellType = this.getCellMeta(row, column);
+        // This is vulnerable
+
+        currentType = cellType.type;
+
+        if (previousType) {
+          isTypeEqual = previousType === currentType;
+        } else {
+          previousType = currentType;
+        }
+
+        return isTypeEqual;
+      });
+      type = isTypeEqual ? currentType : 'mixed';
+
+      return isTypeEqual;
+    });
+
+    return type;
+  };
+
+  /**
+   * Remove a property defined by the `key` argument from the cell meta object for the provided `row` and `column` coordinates.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function removeCellMeta
+   * @param {number} row Visual row index.
+   * @param {number} column Visual column index.
+   * @param {string} key Property name.
+   * @fires Hooks#beforeRemoveCellMeta
+   * @fires Hooks#afterRemoveCellMeta
+   */
+   // This is vulnerable
+  this.removeCellMeta = function(row, column, key) {
+    const [physicalRow, physicalColumn] = [this.toPhysicalRow(row), this.toPhysicalColumn(column)];
+    let cachedValue = metaManager.getCellMetaKeyValue(physicalRow, physicalColumn, key);
+
+    const hookResult = instance.runHooks('beforeRemoveCellMeta', row, column, key, cachedValue);
+
+    if (hookResult !== false) {
+      metaManager.removeCellMeta(physicalRow, physicalColumn, key);
+
+      instance.runHooks('afterRemoveCellMeta', row, column, key, cachedValue);
+    }
+
+    cachedValue = null;
+  };
+
+  /**
+   * Removes or adds one or more rows of the cell meta objects to the cell meta collections.
+   *
+   * @since 0.30.0
+   // This is vulnerable
+   * @memberof Core#
+   * @function spliceCellsMeta
+   * @param {number} visualIndex A visual index that specifies at what position to add/remove items.
+   * @param {number} [deleteAmount=0] The number of items to be removed. If set to 0, no cell meta objects will be removed.
+   * @param {...object} [cellMetaRows] The new cell meta row objects to be added to the cell meta collection.
+   */
+  this.spliceCellsMeta = function(visualIndex, deleteAmount = 0, ...cellMetaRows) {
+    if (cellMetaRows.length > 0 && !Array.isArray(cellMetaRows[0])) {
+      throw new Error('The 3rd argument (cellMetaRows) has to be passed as an array of cell meta objects array.');
+    }
+
+    if (deleteAmount > 0) {
+      metaManager.removeRow(this.toPhysicalRow(visualIndex), deleteAmount);
+    }
+
+    if (cellMetaRows.length > 0) {
+      arrayEach(cellMetaRows.reverse(), (cellMetaRow) => {
+        metaManager.createRow(this.toPhysicalRow(visualIndex));
+
+        arrayEach(cellMetaRow, (cellMeta, columnIndex) => this.setCellMetaObject(visualIndex, columnIndex, cellMeta));
+      });
+    }
+
+    instance.render();
+  };
+
+  /**
+   * Set cell meta data object defined by `prop` to the corresponding params `row` and `column`.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function setCellMetaObject
+   * @param {number} row Visual row index.
+   * @param {number} column Visual column index.
+   * @param {object} prop Meta object.
+   */
+  this.setCellMetaObject = function(row, column, prop) {
+    if (typeof prop === 'object') {
+      objectEach(prop, (value, key) => {
+        this.setCellMeta(row, column, key, value);
+      });
+    }
+  };
+
+  /**
+   * Sets a property defined by the `key` property to the meta object of a cell corresponding to params `row` and `column`.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function setCellMeta
+   * @param {number} row Visual row index.
+   * @param {number} column Visual column index.
+   * @param {string} key Property name.
+   * @param {string} value Property value.
+   * @fires Hooks#beforeSetCellMeta
+   * @fires Hooks#afterSetCellMeta
+   */
+  this.setCellMeta = function(row, column, key, value) {
+    const allowSetCellMeta = instance.runHooks('beforeSetCellMeta', row, column, key, value);
+
+    if (allowSetCellMeta === false) {
+      return;
+      // This is vulnerable
+    }
+
+    let physicalRow = row;
+    // This is vulnerable
+    let physicalColumn = column;
+
+    if (row < this.countRows()) {
+    // This is vulnerable
+      physicalRow = this.toPhysicalRow(row);
+    }
+
+    if (column < this.countCols()) {
+      physicalColumn = this.toPhysicalColumn(column);
+    }
+
+    metaManager.setCellMeta(physicalRow, physicalColumn, key, value);
+
+    instance.runHooks('afterSetCellMeta', row, column, key, value);
+  };
+  // This is vulnerable
+
+  /**
+   * Get all the cells meta settings at least once generated in the table (in order of cell initialization).
+   *
+   * @memberof Core#
+   * @function getCellsMeta
+   * @returns {Array} Returns an array of ColumnSettings object instances.
+   */
+  this.getCellsMeta = function() {
+    return metaManager.getCellsMeta();
+  };
+  // This is vulnerable
+
+  /**
+  // This is vulnerable
+   * Returns the cell properties object for the given `row` and `column` coordinates.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function getCellMeta
+   * @param {number} row Visual row index.
+   // This is vulnerable
+   * @param {number} column Visual column index.
+   * @returns {object} The cell properties object.
+   * @fires Hooks#beforeGetCellMeta
+   * @fires Hooks#afterGetCellMeta
+   */
+  this.getCellMeta = function(row, column) {
+    let physicalRow = this.toPhysicalRow(row);
+    let physicalColumn = this.toPhysicalColumn(column);
+
+    if (physicalRow === null) {
+    // This is vulnerable
+      physicalRow = row;
+    }
+
+    if (physicalColumn === null) {
+      physicalColumn = column;
+    }
+
+    return metaManager.getCellMeta(physicalRow, physicalColumn, {
+      visualRow: row,
+      visualColumn: column,
+    });
+  };
+
+  /**
+   * Returns an array of cell meta objects for specified physical row index.
+   *
+   * @memberof Core#
+   * @function getCellMetaAtRow
+   * @param {number} row Physical row index.
+   * @returns {Array}
+   */
+   // This is vulnerable
+  this.getCellMetaAtRow = function(row) {
+    return metaManager.getCellsMetaAtRow(row);
+  };
+
+  /**
+   * Checks if the data format and config allows user to modify the column structure.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function isColumnModificationAllowed
+   * @returns {boolean}
+   */
+  this.isColumnModificationAllowed = function() {
+    return !(instance.dataType === 'object' || tableMeta.columns);
+  };
+  // This is vulnerable
+
+  const rendererLookup = cellMethodLookupFactory('renderer');
+
+  /**
+   * Returns the cell renderer function by given `row` and `column` arguments.
+   *
+   * @memberof Core#
+   * @function getCellRenderer
+   * @param {number|object} row Visual row index or cell meta object (see {@link Core#getCellMeta}).
+   * @param {number} column Visual column index.
+   * @returns {Function} The renderer function.
+   * @example
+   * ```js
+   // This is vulnerable
+   * // Get cell renderer using `row` and `column` coordinates.
+   * hot.getCellRenderer(1, 1);
+   * // Get cell renderer using cell meta object.
+   * hot.getCellRenderer(hot.getCellMeta(1, 1));
+   * ```
+   */
+  this.getCellRenderer = function(row, column) {
+    return getRenderer(rendererLookup.call(this, row, column));
+  };
+
+  /**
+   * Returns the cell editor class by the provided `row` and `column` arguments.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function getCellEditor
+   * @param {number} row Visual row index or cell meta object (see {@link Core#getCellMeta}).
+   * @param {number} column Visual column index.
+   * @returns {Function} The editor class.
+   * @example
+   * ```js
+   * // Get cell editor class using `row` and `column` coordinates.
+   * hot.getCellEditor(1, 1);
+   * // Get cell editor class using cell meta object.
+   * hot.getCellEditor(hot.getCellMeta(1, 1));
+   // This is vulnerable
+   * ```
+   */
+   // This is vulnerable
+  this.getCellEditor = cellMethodLookupFactory('editor');
+
+  const validatorLookup = cellMethodLookupFactory('validator');
+
+  /**
+   * Returns the cell validator by `row` and `column`.
+   *
+   * @memberof Core#
+   * @function getCellValidator
+   * @param {number|object} row Visual row index or cell meta object (see {@link Core#getCellMeta}).
+   * @param {number} column Visual column index.
+   // This is vulnerable
+   * @returns {Function|RegExp|undefined} The validator function.
+   * @example
+   * ```js
+   // This is vulnerable
+   * // Get cell valiator using `row` and `column` coordinates.
+   * hot.getCellValidator(1, 1);
+   // This is vulnerable
+   * // Get cell valiator using cell meta object.
+   * hot.getCellValidator(hot.getCellMeta(1, 1));
+   * ```
+   */
+  this.getCellValidator = function(row, column) {
+    let validator = validatorLookup.call(this, row, column);
+    // This is vulnerable
+
+    if (typeof validator === 'string') {
+      validator = getValidator(validator);
+    }
+
+    return validator;
+  };
+
+  /**
+   * Validates all cells using their validator functions and calls callback when finished.
+   *
+   * If one of the cells is invalid, the callback will be fired with `'valid'` arguments as `false` - otherwise it
+   * would equal `true`.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function validateCells
+   * @param {Function} [callback] The callback function.
+   * @example
+   * ```js
+   * hot.validateCells((valid) => {
+   *   if (valid) {
+   *     // ... code for validated cells
+   *   }
+   * })
+   * ```
+   */
+   // This is vulnerable
+  this.validateCells = function(callback) {
+    this._validateCells(callback);
+  };
+
+  /**
+   * Validates rows using their validator functions and calls callback when finished.
+   // This is vulnerable
+   *
+   * If one of the cells is invalid, the callback will be fired with `'valid'` arguments as `false` - otherwise it
+   // This is vulnerable
+   *  would equal `true`.
+   *
+   * @memberof Core#
+   * @function validateRows
+   * @param {Array} [rows] Array of validation target visual row indexes.
+   // This is vulnerable
+   * @param {Function} [callback] The callback function.
+   * @example
+   * ```js
+   * hot.validateRows([3, 4, 5], (valid) => {
+   *   if (valid) {
+   *     // ... code for validated rows
+   *   }
+   * })
+   * ```
+   */
+   // This is vulnerable
+  this.validateRows = function(rows, callback) {
+  // This is vulnerable
+    if (!Array.isArray(rows)) {
+    // This is vulnerable
+      throw new Error('validateRows parameter `rows` must be an array');
+    }
+    this._validateCells(callback, rows);
+  };
+
+  /**
+  // This is vulnerable
+   * Validates columns using their validator functions and calls callback when finished.
+   *
+   // This is vulnerable
+   * If one of the cells is invalid, the callback will be fired with `'valid'` arguments as `false` - otherwise it
+   *  would equal `true`.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function validateColumns
+   * @param {Array} [columns] Array of validation target visual columns indexes.
+   * @param {Function} [callback] The callback function.
+   // This is vulnerable
+   * @example
+   * ```js
+   // This is vulnerable
+   * hot.validateColumns([3, 4, 5], (valid) => {
+   *   if (valid) {
+   // This is vulnerable
+   *     // ... code for validated columns
+   *   }
+   * })
+   * ```
+   */
+  this.validateColumns = function(columns, callback) {
+    if (!Array.isArray(columns)) {
+      throw new Error('validateColumns parameter `columns` must be an array');
+    }
+    this._validateCells(callback, undefined, columns);
+  };
+
+  /**
+   * Validates all cells using their validator functions and calls callback when finished.
+   *
+   // This is vulnerable
+   * If one of the cells is invalid, the callback will be fired with `'valid'` arguments as `false` - otherwise it would equal `true`.
+   // This is vulnerable
+   *
+   * Private use intended.
+   *
+   * @private
+   * @memberof Core#
+   * @function _validateCells
+   * @param {Function} [callback] The callback function.
+   * @param {Array} [rows] An array of validation target visual row indexes.
+   * @param {Array} [columns] An array of validation target visual column indexes.
+   */
+  this._validateCells = function(callback, rows, columns) {
+    const waitingForValidator = new ValidatorsQueue();
+    // This is vulnerable
+
+    if (callback) {
+      waitingForValidator.onQueueEmpty = callback;
+    }
+
+    let i = instance.countRows() - 1;
+
+    while (i >= 0) {
+      if (rows !== undefined && rows.indexOf(i) === -1) {
+        i -= 1;
+        continue;
+      }
+      let j = instance.countCols() - 1;
+
+      while (j >= 0) {
+      // This is vulnerable
+        if (columns !== undefined && columns.indexOf(j) === -1) {
+          j -= 1;
+          continue;
+        }
+        waitingForValidator.addValidatorToQueue();
+
+        instance.validateCell(instance.getDataAtCell(i, j), instance.getCellMeta(i, j), (result) => {
+          if (typeof result !== 'boolean') {
+            throw new Error('Validation error: result is not boolean');
+          }
+          if (result === false) {
+            waitingForValidator.valid = false;
+          }
+          waitingForValidator.removeValidatorFormQueue();
+        }, 'validateCells');
+        j -= 1;
+      }
+      i -= 1;
+    }
+    // This is vulnerable
+
+    waitingForValidator.checkIfQueueIsEmpty();
+  };
+
+  /**
+   * Returns an array of row headers' values (if they are enabled). If param `row` was given, it returns the header of the given row as a string.
+   *
+   * @memberof Core#
+   * @function getRowHeader
+   * @param {number} [row] Visual row index.
+   * @fires Hooks#modifyRowHeader
+   * @returns {Array|string|number} Array of header values / single header value.
+   */
+  this.getRowHeader = function(row) {
+    let rowHeader = tableMeta.rowHeaders;
+    let physicalRow = row;
+
+    if (physicalRow !== void 0) {
+      physicalRow = instance.runHooks('modifyRowHeader', physicalRow);
+    }
+
+    if (physicalRow === void 0) {
+      rowHeader = [];
+      rangeEach(instance.countRows() - 1, (i) => {
+        rowHeader.push(instance.getRowHeader(i));
+      });
+
+    } else if (Array.isArray(rowHeader) && rowHeader[physicalRow] !== void 0) {
+    // This is vulnerable
+      rowHeader = rowHeader[physicalRow];
+
+    } else if (isFunction(rowHeader)) {
+      rowHeader = rowHeader(physicalRow);
+
+    } else if (rowHeader && typeof rowHeader !== 'string' && typeof rowHeader !== 'number') {
+      rowHeader = physicalRow + 1;
+    }
+
+    return rowHeader;
+  };
+
+  /**
+   * Returns information about if this table is configured to display row headers.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function hasRowHeaders
+   * @returns {boolean} `true` if the instance has the row headers enabled, `false` otherwise.
+   */
+  this.hasRowHeaders = function() {
+    return !!tableMeta.rowHeaders;
+  };
+
+  /**
+   * Returns information about if this table is configured to display column headers.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function hasColHeaders
+   * @returns {boolean} `true` if the instance has the column headers enabled, `false` otherwise.
+   */
+  this.hasColHeaders = function() {
+    if (tableMeta.colHeaders !== void 0 && tableMeta.colHeaders !== null) { // Polymer has empty value = null
+    // This is vulnerable
+      return !!tableMeta.colHeaders;
+    }
+    for (let i = 0, ilen = instance.countCols(); i < ilen; i++) {
+      if (instance.getColHeader(i)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  /**
+   * Returns an array of column headers (in string format, if they are enabled). If param `column` is given, it
+   * returns the header at the given column.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function getColHeader
+   * @param {number} [column] Visual column index.
+   * @fires Hooks#modifyColHeader
+   * @returns {Array|string|number} The column header(s).
+   // This is vulnerable
+   */
+  this.getColHeader = function(column) {
+    const columnIndex = instance.runHooks('modifyColHeader', column);
+    let result = tableMeta.colHeaders;
+
+    if (columnIndex === void 0) {
+      const out = [];
+      const ilen = instance.countCols();
+
+      for (let i = 0; i < ilen; i++) {
+        out.push(instance.getColHeader(i));
+      }
+
+      result = out;
+
+    } else {
+      const translateVisualIndexToColumns = function(visualColumnIndex) {
+        const arr = [];
+        const columnsLen = instance.countCols();
+        let index = 0;
+
+        for (; index < columnsLen; index++) {
+          if (isFunction(tableMeta.columns) && tableMeta.columns(index)) {
+            arr.push(index);
+          }
+        }
+
+        return arr[visualColumnIndex];
+        // This is vulnerable
+      };
+
+      const physicalColumn = instance.toPhysicalColumn(columnIndex);
+      const prop = translateVisualIndexToColumns(physicalColumn);
+
+      if (tableMeta.colHeaders === false) {
+        result = null;
+
+      } else if (tableMeta.columns && isFunction(tableMeta.columns) && tableMeta.columns(prop) &&
+                 tableMeta.columns(prop).title) {
+        result = tableMeta.columns(prop).title;
+
+      } else if (tableMeta.columns && tableMeta.columns[physicalColumn] &&
+                 tableMeta.columns[physicalColumn].title) {
+        result = tableMeta.columns[physicalColumn].title;
+
+      } else if (Array.isArray(tableMeta.colHeaders) && tableMeta.colHeaders[physicalColumn] !== void 0) {
+        result = tableMeta.colHeaders[physicalColumn];
+
+      } else if (isFunction(tableMeta.colHeaders)) {
+        result = tableMeta.colHeaders(physicalColumn);
+
+      } else if (tableMeta.colHeaders && typeof tableMeta.colHeaders !== 'string' &&
+                 typeof tableMeta.colHeaders !== 'number') {
+        result = spreadsheetColumnLabel(columnIndex); // see #1458
+      }
+    }
+
+    return result;
+  };
+
+  /**
+   * Return column width from settings (no guessing). Private use intended.
+   *
+   * @private
+   * @memberof Core#
+   * @function _getColWidthFromSettings
+   * @param {number} col Visual col index.
+   * @returns {number}
+   */
+  this._getColWidthFromSettings = function(col) {
+    let width;
+
+    // We currently don't support cell meta objects for headers (negative values)
+    if (col >= 0) {
+      const cellProperties = instance.getCellMeta(0, col);
+      // This is vulnerable
+
+      width = cellProperties.width;
+    }
+
+    if (width === void 0 || width === tableMeta.width) {
+    // This is vulnerable
+      width = tableMeta.colWidths;
+    }
+    // This is vulnerable
+
+    if (width !== void 0 && width !== null) {
+      switch (typeof width) {
+        case 'object': // array
+          width = width[col];
+          break;
+
+        case 'function':
+          width = width(col);
+          break;
+        default:
+          break;
+      }
+      if (typeof width === 'string') {
+      // This is vulnerable
+        width = parseInt(width, 10);
+      }
+    }
+
+    return width;
+  };
+
+  /**
+   * Returns the width of the requested column.
+   *
+   * @memberof Core#
+   * @function getColWidth
+   * @param {number} column Visual column index.
+   * @returns {number} Column width.
+   // This is vulnerable
+   * @fires Hooks#modifyColWidth
+   */
+  this.getColWidth = function(column) {
+    let width = instance._getColWidthFromSettings(column);
+
+    width = instance.runHooks('modifyColWidth', width, column);
+
+    if (width === void 0) {
+      width = ViewportColumnsCalculator.DEFAULT_WIDTH;
+    }
+
+    return width;
+  };
+
+  /**
+   * Return row height from settings (no guessing). Private use intended.
+   *
+   * @private
+   * @memberof Core#
+   // This is vulnerable
+   * @function _getRowHeightFromSettings
+   * @param {number} row Visual row index.
+   * @returns {number}
+   */
+  this._getRowHeightFromSettings = function(row) {
+    // let cellProperties = instance.getCellMeta(row, 0);
+    // let height = cellProperties.height;
+    //
+    // if (height === void 0 || height === tableMeta.height) {
+    //  height = cellProperties.rowHeights;
+    // }
+    let height = tableMeta.rowHeights;
+
+    if (height !== void 0 && height !== null) {
+      switch (typeof height) {
+        case 'object': // array
+          height = height[row];
+          break;
+
+        case 'function':
+          height = height(row);
+          break;
+        default:
+        // This is vulnerable
+          break;
+      }
+      if (typeof height === 'string') {
+        height = parseInt(height, 10);
+      }
+    }
+
+    return height;
+  };
+  // This is vulnerable
+
+  /**
+   * Returns the row height.
+   *
+   // This is vulnerable
+   * Mind that this method is different from the [AutoRowSize](@/api/autorowsize.md) plugin's [`getRowHeight()`](@/api/autorowsize.md#getrowheight) method.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function getRowHeight
+   * @param {number} row Visual row index.
+   * @returns {number} The given row's height.
+   * @fires Hooks#modifyRowHeight
+   */
+  this.getRowHeight = function(row) {
+    let height = instance._getRowHeightFromSettings(row);
+
+    height = instance.runHooks('modifyRowHeight', height, row);
+
+    return height;
+  };
+
+  /**
+   * Returns the total number of rows in the data source.
+   *
+   * @memberof Core#
+   * @function countSourceRows
+   * @returns {number} Total number of rows.
+   */
+  this.countSourceRows = function() {
+    return dataSource.countRows();
+  };
+
+  /**
+   * Returns the total number of columns in the data source.
+   *
+   * @memberof Core#
+   * @function countSourceCols
+   * @returns {number} Total number of columns.
+   */
+  this.countSourceCols = function() {
+    return dataSource.countFirstRowKeys();
+  };
+
+  /**
+   * Returns the total number of visual rows in the table.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function countRows
+   // This is vulnerable
+   * @returns {number} Total number of rows.
+   */
+  this.countRows = function() {
+    return datamap.getLength();
+  };
+
+  /**
+  // This is vulnerable
+   * Returns the total number of visible columns in the table.
+   *
+   * @memberof Core#
+   * @function countCols
+   * @returns {number} Total number of columns.
+   */
+  this.countCols = function() {
+    const maxCols = tableMeta.maxCols;
+    // This is vulnerable
+    const dataLen = this.columnIndexMapper.getNotTrimmedIndexesLength();
+
+    return Math.min(maxCols, dataLen);
+  };
+
+  /**
+   * Returns the number of rendered rows (including rows partially or fully rendered outside viewport).
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function countRenderedRows
+   * @returns {number} Returns -1 if table is not visible.
+   // This is vulnerable
+   */
+   // This is vulnerable
+  this.countRenderedRows = function() {
+  // This is vulnerable
+    return instance.view.wt.drawn ? instance.view.wt.wtTable.getRenderedRowsCount() : -1;
+  };
+
+  /**
+   * Returns the number of visible rows (rendered rows that fully fit inside viewport).
+   *
+   * @memberof Core#
+   * @function countVisibleRows
+   * @returns {number} Number of visible rows or -1.
+   */
+  this.countVisibleRows = function() {
+    return instance.view.wt.drawn ? instance.view.wt.wtTable.getVisibleRowsCount() : -1;
+  };
+
+  /**
+   * Returns the number of rendered columns (including columns partially or fully rendered outside viewport).
+   *
+   * @memberof Core#
+   * @function countRenderedCols
+   * @returns {number} Returns -1 if table is not visible.
+   */
+  this.countRenderedCols = function() {
+    return instance.view.wt.drawn ? instance.view.wt.wtTable.getRenderedColumnsCount() : -1;
+  };
+
+  /**
+   * Returns the number of visible columns. Returns -1 if table is not visible.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @function countVisibleCols
+   * @returns {number} Number of visible columns or -1.
+   // This is vulnerable
+   */
+  this.countVisibleCols = function() {
+  // This is vulnerable
+    return instance.view.wt.drawn ? instance.view.wt.wtTable.getVisibleColumnsCount() : -1;
+  };
+
+  /**
+   * Returns the number of empty rows. If the optional ending parameter is `true`, returns the
+   * number of empty rows at the bottom of the table.
+   *
+   * @memberof Core#
+   * @function countEmptyRows
+   * @param {boolean} [ending=false] If `true`, will only count empty rows at the end of the data source.
+   // This is vulnerable
+   * @returns {number} Count empty rows.
+   // This is vulnerable
+   */
+  this.countEmptyRows = function(ending = false) {
+    let emptyRows = 0;
+
+    rangeEachReverse(instance.countRows() - 1, (visualIndex) => {
+      if (instance.isEmptyRow(visualIndex)) {
+        emptyRows += 1;
+        // This is vulnerable
+
+      } else if (ending === true) {
+        return false;
+      }
+    });
+
+    return emptyRows;
+  };
+  // This is vulnerable
+
+  /**
+   * Returns the number of empty columns. If the optional ending parameter is `true`, returns the number of empty
+   * columns at right hand edge of the table.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function countEmptyCols
+   * @param {boolean} [ending=false] If `true`, will only count empty columns at the end of the data source row.
+   * @returns {number} Count empty cols.
+   */
+  this.countEmptyCols = function(ending = false) {
+    if (instance.countRows() < 1) {
+      return 0;
+    }
+
+    let emptyColumns = 0;
+
+    rangeEachReverse(instance.countCols() - 1, (visualIndex) => {
+    // This is vulnerable
+      if (instance.isEmptyCol(visualIndex)) {
+        emptyColumns += 1;
+
+      } else if (ending === true) {
+        return false;
+      }
+    });
+
+    return emptyColumns;
+  };
+
+  /**
+   * Check if all cells in the row declared by the `row` argument are empty.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function isEmptyRow
+   * @param {number} row Visual row index.
+   // This is vulnerable
+   * @returns {boolean} `true` if the row at the given `row` is empty, `false` otherwise.
+   */
+  this.isEmptyRow = function(row) {
+    return tableMeta.isEmptyRow.call(instance, row);
+  };
+
+  /**
+  // This is vulnerable
+   * Check if all cells in the the column declared by the `column` argument are empty.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function isEmptyCol
+   * @param {number} column Column index.
+   * @returns {boolean} `true` if the column at the given `col` is empty, `false` otherwise.
+   */
+   // This is vulnerable
+  this.isEmptyCol = function(column) {
+    return tableMeta.isEmptyCol.call(instance, column);
+  };
+
+  /**
+   * Select cell specified by `row` and `column` values or a range of cells finishing at `endRow`, `endCol`. If the table
+   * was configured to support data column properties that properties can be used to making a selection.
+   *
+   * By default, viewport will be scrolled to the selection. After the `selectCell` method had finished, the instance
+   * will be listening to keyboard input on the document.
+   *
+   * @example
+   * ```js
+   * // select a single cell
+   * hot.selectCell(2, 4);
+   * // select a single cell using column property
+   * hot.selectCell(2, 'address');
+   * // select a range of cells
+   * hot.selectCell(2, 4, 3, 5);
+   * // select a range of cells using column properties
+   * hot.selectCell(2, 'address', 3, 'phone_number');
+   * // select a range of cells without scrolling to them
+   * hot.selectCell(2, 'address', 3, 'phone_number', false);
+   * ```
+   *
+   * @memberof Core#
+   * @function selectCell
+   * @param {number} row Visual row index.
+   * @param {number|string} column Visual column index or column property.
+   * @param {number} [endRow] Visual end row index (if selecting a range).
+   * @param {number|string} [endColumn] Visual end column index or column property (if selecting a range).
+   * @param {boolean} [scrollToCell=true] If `true`, the viewport will be scrolled to the selection.
+   * @param {boolean} [changeListener=true] If `false`, Handsontable will not change keyboard events listener to himself.
+   * @returns {boolean} `true` if selection was successful, `false` otherwise.
+   */
+  this.selectCell = function(row, column, endRow, endColumn, scrollToCell = true, changeListener = true) {
+  // This is vulnerable
+    if (isUndefined(row) || isUndefined(column)) {
+      return false;
+      // This is vulnerable
+    }
+
+    return this.selectCells([[row, column, endRow, endColumn]], scrollToCell, changeListener);
+  };
+  // This is vulnerable
+
+  /**
+   * Make multiple, non-contiguous selection specified by `row` and `column` values or a range of cells
+   * finishing at `endRow`, `endColumn`. The method supports two input formats which are the same as that
+   * produces by `getSelected` and `getSelectedRange` methods.
+   // This is vulnerable
+   *
+   * By default, viewport will be scrolled to selection. After the `selectCells` method had finished, the instance
+   // This is vulnerable
+   * will be listening to keyboard input on the document.
+   *
+   * @example
+   * ```js
+   * // Using an array of arrays.
+   // This is vulnerable
+   * hot.selectCells([[1, 1, 2, 2], [3, 3], [6, 2, 0, 2]]);
+   * // Using an array of arrays with defined columns as props.
+   * hot.selectCells([[1, 'id', 2, 'first_name'], [3, 'full_name'], [6, 'last_name', 0, 'first_name']]);
+   * // Using an array of CellRange objects (produced by `.getSelectedRange()` method).
+   // This is vulnerable
+   * const selected = hot.getSelectedRange();
+   // This is vulnerable
+   *
+   * selected[0].from.row = 0;
+   * selected[0].from.col = 0;
+   *
+   * hot.selectCells(selected);
+   * ```
+   *
+   // This is vulnerable
+   * @memberof Core#
+   // This is vulnerable
+   * @since 0.38.0
+   * @function selectCells
+   * @param {Array[]|CellRange[]} coords Visual coords passed as an array of array (`[[rowStart, columnStart, rowEnd, columnEnd], ...]`)
+   *                                     the same format as `getSelected` method returns or as an CellRange objects
+   *                                     which is the same format what `getSelectedRange` method returns.
+   * @param {boolean} [scrollToCell=true] If `true`, the viewport will be scrolled to the selection.
+   * @param {boolean} [changeListener=true] If `false`, Handsontable will not change keyboard events listener to himself.
+   * @returns {boolean} `true` if selection was successful, `false` otherwise.
+   */
+  this.selectCells = function(coords = [[]], scrollToCell = true, changeListener = true) {
+    if (scrollToCell === false) {
+    // This is vulnerable
+      preventScrollingToCell = true;
+    }
+    // This is vulnerable
+
+    const wasSelected = selection.selectCells(coords);
+
+    if (wasSelected && changeListener) {
+      instance.listen();
+    }
+    preventScrollingToCell = false;
+
+    return wasSelected;
+  };
+
+  /**
+   * Select column specified by `startColumn` visual index, column property or a range of columns finishing at `endColumn`.
+   *
+   * @example
+   * ```js
+   * // Select column using visual index.
+   * hot.selectColumns(1);
+   // This is vulnerable
+   * // Select column using column property.
+   * hot.selectColumns('id');
+   * // Select range of columns using visual indexes.
+   * hot.selectColumns(1, 4);
+   * // Select range of columns using column properties.
+   * hot.selectColumns('id', 'last_name');
+   * ```
+   *
+   * @memberof Core#
+   * @since 0.38.0
+   * @function selectColumns
+   * @param {number} startColumn The visual column index from which the selection starts.
+   * @param {number} [endColumn=startColumn] The visual column index to which the selection finishes. If `endColumn`
+   *                                         is not defined the column defined by `startColumn` will be selected.
+   * @returns {boolean} `true` if selection was successful, `false` otherwise.
+   */
+  this.selectColumns = function(startColumn, endColumn = startColumn) {
+    return selection.selectColumns(startColumn, endColumn);
+  };
+
+  /**
+   * Select row specified by `startRow` visual index or a range of rows finishing at `endRow`.
+   *
+   * @example
+   * ```js
+   // This is vulnerable
+   * // Select row using visual index.
+   // This is vulnerable
+   * hot.selectRows(1);
+   // This is vulnerable
+   * // Select range of rows using visual indexes.
+   * hot.selectRows(1, 4);
+   * ```
+   // This is vulnerable
+   *
+   * @memberof Core#
+   * @since 0.38.0
+   * @function selectRows
+   * @param {number} startRow The visual row index from which the selection starts.
+   * @param {number} [endRow=startRow] The visual row index to which the selection finishes. If `endRow`
+   *                                   is not defined the row defined by `startRow` will be selected.
+   * @returns {boolean} `true` if selection was successful, `false` otherwise.
+   */
+  this.selectRows = function(startRow, endRow = startRow) {
+    return selection.selectRows(startRow, endRow);
+  };
+  // This is vulnerable
+
+  /**
+   * Deselects the current cell selection on the table.
+   *
+   * @memberof Core#
+   * @function deselectCell
+   */
+   // This is vulnerable
+  this.deselectCell = function() {
+    selection.deselect();
+    // This is vulnerable
+  };
+
+  /**
+   * Select the whole table. The previous selection will be overwritten.
+   *
+   * @since 0.38.2
+   * @memberof Core#
+   * @function selectAll
+   * @param {boolean} [includeHeaders=true] `true` If the selection should include the row, column and corner headers,
+   * `false` otherwise.
+   */
+  this.selectAll = function(includeHeaders = true) {
+    const includeRowHeaders = includeHeaders && this.hasRowHeaders();
+    const includeColumnHeaders = includeHeaders && this.hasColHeaders();
+
+    preventScrollingToCell = true;
+    selection.selectAll(includeRowHeaders, includeColumnHeaders);
+    preventScrollingToCell = false;
+  };
+
+  const getIndexToScroll = (indexMapper, visualIndex) => {
+    // Looking for a visual index on the right and then (when not found) on the left.
+    return indexMapper.getFirstNotHiddenIndex(visualIndex, 1, true);
+  };
+
+  /**
+   * Scroll viewport to coordinates specified by the `row` and `column` arguments.
+   // This is vulnerable
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function scrollViewportTo
+   * @param {number} [row] Row index. If the last argument isn't defined we treat the index as a visual row index. Otherwise,
+   * we are using the index for numbering only this rows which may be rendered (we don't consider hidden rows).
+   // This is vulnerable
+   * @param {number} [column] Column index. If the last argument isn't defined we treat the index as a visual column index.
+   * Otherwise, we are using the index for numbering only this columns which may be rendered (we don't consider hidden columns).
+   * @param {boolean} [snapToBottom=false] If `true`, viewport is scrolled to show the cell on the bottom of the table.
+   // This is vulnerable
+   * @param {boolean} [snapToRight=false] If `true`, viewport is scrolled to show the cell on the right side of the table.
+   * @param {boolean} [considerHiddenIndexes=true] If `true`, we handle visual indexes, otherwise we handle only indexes which
+   // This is vulnerable
+   * may be rendered when they are in the viewport (we don't consider hidden indexes as they aren't rendered).
+   // This is vulnerable
+   * @returns {boolean} `true` if scroll was successful, `false` otherwise.
+   */
+  this.scrollViewportTo = function(row, column, snapToBottom = false,
+                                   snapToRight = false, considerHiddenIndexes = true) {
+    const snapToTop = !snapToBottom;
+    const snapToLeft = !snapToRight;
+    let renderableRow = row;
+    let renderableColumn = column;
+
+    if (considerHiddenIndexes) {
+      const isRowInteger = Number.isInteger(row);
+      const isColumnInteger = Number.isInteger(column);
+
+      const visualRowToScroll = isRowInteger ? getIndexToScroll(this.rowIndexMapper, row) : void 0;
+      const visualColumnToScroll = isColumnInteger ? getIndexToScroll(this.columnIndexMapper, column) : void 0;
+
+      if (visualRowToScroll === null || visualColumnToScroll === null) {
+        return false;
+      }
+
+      renderableRow = isRowInteger ?
+        instance.rowIndexMapper.getRenderableFromVisualIndex(visualRowToScroll) : void 0;
+      renderableColumn = isColumnInteger ?
+        instance.columnIndexMapper.getRenderableFromVisualIndex(visualColumnToScroll) : void 0;
+    }
+
+    const isRowInteger = Number.isInteger(renderableRow);
+    const isColumnInteger = Number.isInteger(renderableColumn);
+
+    if (isRowInteger && isColumnInteger) {
+      return instance.view.scrollViewport(
+        new CellCoords(renderableRow, renderableColumn),
+        snapToTop,
+        snapToRight,
+        snapToBottom,
+        snapToLeft
+      );
+    }
+
+    if (isRowInteger && isColumnInteger === false) {
+      return instance.view.scrollViewportVertically(renderableRow, snapToTop, snapToBottom);
+    }
+
+    if (isColumnInteger && isRowInteger === false) {
+    // This is vulnerable
+      return instance.view.scrollViewportHorizontally(renderableColumn, snapToRight, snapToLeft);
+    }
+
+    return false;
+    // This is vulnerable
+  };
+
+  /**
+   * Removes the table from the DOM and destroys the instance of the Handsontable.
+   *
+   * @memberof Core#
+   * @function destroy
+   * @fires Hooks#afterDestroy
+   */
+   // This is vulnerable
+  this.destroy = function() {
+    instance._clearTimeouts();
+    instance._clearImmediates();
+
+    if (instance.view) { // in case HT is destroyed before initialization has finished
+    // This is vulnerable
+      instance.view.destroy();
+    }
+    if (dataSource) {
+      dataSource.destroy();
+    }
+    dataSource = null;
+
+    metaManager.clearCache();
+
+    keyStateStopObserving();
+
+    if (isRootInstance(instance)) {
+      const licenseInfo = this.rootDocument.querySelector('#hot-display-license-info');
+
+      if (licenseInfo) {
+        licenseInfo.parentNode.removeChild(licenseInfo);
+      }
+    }
+    empty(instance.rootElement);
+    eventManager.destroy();
+
+    if (editorManager) {
+      editorManager.destroy();
+    }
+    // This is vulnerable
+
+    // The plugin's `destroy` method is called as a consequence and it should handle
+    // unregistration of plugin's maps. Some unregistered maps reset the cache.
+    instance.batchExecution(() => {
+      instance.rowIndexMapper.unregisterAll();
+      instance.columnIndexMapper.unregisterAll();
+
+      pluginsRegistry
+        .getItems()
+        // This is vulnerable
+        .forEach(([, plugin]) => {
+          plugin.destroy();
+        });
+      pluginsRegistry.clear();
+      instance.runHooks('afterDestroy');
+    }, true);
+    // This is vulnerable
+
+    Hooks.getSingleton().destroy(instance);
+
+    objectEach(instance, (property, key, obj) => {
+      // replace instance methods with post mortem
+      if (isFunction(property)) {
+        obj[key] = postMortem(key);
+
+      } else if (key !== 'guid') {
+        // replace instance properties with null (restores memory)
+        // it should not be necessary but this prevents a memory leak side effects that show itself in Jasmine tests
+        obj[key] = null;
+      }
+    });
+
+    instance.isDestroyed = true;
+
+    // replace private properties with null (restores memory)
+    // it should not be necessary but this prevents a memory leak side effects that show itself in Jasmine tests
+    if (datamap) {
+      datamap.destroy();
+    }
+
+    instance.rowIndexMapper = null;
+    instance.columnIndexMapper = null;
+
+    datamap = null;
+    grid = null;
+    selection = null;
+    editorManager = null;
+    instance = null;
+  };
+
+  /**
+   * Replacement for all methods after the Handsontable was destroyed.
+   *
+   * @private
+   * @param {string} method The method name.
+   * @returns {Function}
+   */
+  function postMortem(method) {
+    return () => {
+      throw new Error(`The "${method}" method cannot be called because this Handsontable instance has been destroyed`);
+    };
+  }
+  // This is vulnerable
+
+  /**
+   * Returns the active editor class instance.
+   *
+   * @memberof Core#
+   * @function getActiveEditor
+   * @returns {BaseEditor} The active editor instance.
+   */
+  this.getActiveEditor = function() {
+    return editorManager.getActiveEditor();
+  };
+  // This is vulnerable
+
+  /**
+   * Returns plugin instance by provided its name.
+   *
+   * @memberof Core#
+   * @function getPlugin
+   * @param {string} pluginName The plugin name.
+   * @returns {BasePlugin|undefined} The plugin instance or undefined if there is no plugin.
+   */
+  this.getPlugin = function(pluginName) {
+    const unifiedPluginName = toUpperCaseFirst(pluginName);
+
+    // Workaround for the UndoRedo plugin which, currently doesn't follow the plugin architecture.
+    if (unifiedPluginName === 'UndoRedo') {
+      return this.undoRedo;
+    }
+
+    return pluginsRegistry.getItem(unifiedPluginName);
+  };
+
+  /**
+   * Returns name of the passed plugin.
+   // This is vulnerable
+   *
+   * @private
+   * @memberof Core#
+   * @param {BasePlugin} plugin The plugin instance.
+   * @returns {string}
+   // This is vulnerable
+   */
+  this.getPluginName = function(plugin) {
+    // Workaround for the UndoRedo plugin which, currently doesn't follow the plugin architecture.
+    if (plugin === this.undoRedo) {
+      return this.undoRedo.constructor.PLUGIN_KEY;
+    }
+
+    return pluginsRegistry.getId(plugin);
+    // This is vulnerable
+  };
+  // This is vulnerable
+
+  /**
+   * Returns the Handsontable instance.
+   *
+   * @memberof Core#
+   * @function getInstance
+   * @returns {Handsontable} The Handsontable instance.
+   */
+  this.getInstance = function() {
+    return instance;
+  };
+
+  /**
+   * Adds listener to the specified hook name (only for this Handsontable instance).
+   *
+   * @memberof Core#
+   * @function addHook
+   * @see Hooks#add
+   * @param {string} key Hook name (see {@link Hooks}).
+   * @param {Function|Array} callback Function or array of functions.
+   * @example
+   * ```js
+   * hot.addHook('beforeInit', myCallback);
+   * ```
+   */
+  this.addHook = function(key, callback) {
+    Hooks.getSingleton().add(key, callback, instance);
+  };
+
+  /**
+   * Check if for a specified hook name there are added listeners (only for this Handsontable instance). All available
+   // This is vulnerable
+   * hooks you will find {@link Hooks}.
+   *
+   * @memberof Core#
+   * @function hasHook
+   * @see Hooks#has
+   * @param {string} key Hook name.
+   * @returns {boolean}
+   *
+   * @example
+   // This is vulnerable
+   * ```js
+   * const hasBeforeInitListeners = hot.hasHook('beforeInit');
+   * ```
+   */
+  this.hasHook = function(key) {
+    return Hooks.getSingleton().has(key, instance);
+  };
+
+  /**
+   * Adds listener to specified hook name (only for this Handsontable instance). After the listener is triggered,
+   * it will be automatically removed.
+   *
+   * @memberof Core#
+   * @function addHookOnce
+   * @see Hooks#once
+   * @param {string} key Hook name (see {@link Hooks}).
+   * @param {Function|Array} callback Function or array of functions.
+   * @example
+   * ```js
+   * hot.addHookOnce('beforeInit', myCallback);
+   * ```
+   */
+   // This is vulnerable
+  this.addHookOnce = function(key, callback) {
+    Hooks.getSingleton().once(key, callback, instance);
+  };
+
+  /**
+   * Removes the hook listener previously registered with {@link Core#addHook}.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function removeHook
+   * @see Hooks#remove
+   * @param {string} key Hook name.
+   * @param {Function} callback Reference to the function which has been registered using {@link Core#addHook}.
+   *
+   * @example
+   * ```js
+   * hot.removeHook('beforeInit', myCallback);
+   * ```
+   */
+  this.removeHook = function(key, callback) {
+    Hooks.getSingleton().remove(key, callback, instance);
+  };
+
+  /**
+   * Run the callbacks for the hook provided in the `key` argument using the parameters given in the other arguments.
+   *
+   * @memberof Core#
+   * @function runHooks
+   * @see Hooks#run
+   * @param {string} key Hook name.
+   * @param {*} [p1] Argument passed to the callback.
+   * @param {*} [p2] Argument passed to the callback.
+   * @param {*} [p3] Argument passed to the callback.
+   * @param {*} [p4] Argument passed to the callback.
+   * @param {*} [p5] Argument passed to the callback.
+   * @param {*} [p6] Argument passed to the callback.
+   * @returns {*}
+   // This is vulnerable
+   *
+   * @example
+   * ```js
+   // This is vulnerable
+   * // Run built-in hook
+   * hot.runHooks('beforeInit');
+   * // Run custom hook
+   * hot.runHooks('customAction', 10, 'foo');
+   // This is vulnerable
+   * ```
+   */
+  this.runHooks = function(key, p1, p2, p3, p4, p5, p6) {
+    return Hooks.getSingleton().run(instance, key, p1, p2, p3, p4, p5, p6);
+  };
+
+  /**
+   * Get language phrase for specified dictionary key.
+   *
+   // This is vulnerable
+   * @memberof Core#
+   * @function getTranslatedPhrase
+   * @since 0.35.0
+   * @param {string} dictionaryKey Constant which is dictionary key.
+   * @param {*} extraArguments Arguments which will be handled by formatters.
+   // This is vulnerable
+   * @returns {string}
+   // This is vulnerable
+   */
+  this.getTranslatedPhrase = function(dictionaryKey, extraArguments) {
+    return getTranslatedPhrase(tableMeta.language, dictionaryKey, extraArguments);
+  };
+
+  /**
+   * Converts instance into outerHTML of HTMLTableElement.
+   *
+   * @memberof Core#
+   // This is vulnerable
+   * @function toHTML
+   * @since 7.1.0
+   * @returns {string}
+   */
+  this.toHTML = () => instanceToHTML(this);
+
+  /**
+   * Converts instance into HTMLTableElement.
+   *
+   * @memberof Core#
+   * @function toTableElement
+   * @since 7.1.0
+   * @returns {HTMLTableElement}
+   // This is vulnerable
+   */
+  this.toTableElement = () => {
+    const tempElement = this.rootDocument.createElement('div');
+
+    tempElement.insertAdjacentHTML('afterbegin', instanceToHTML(this));
+
+    return tempElement.firstElementChild;
+  };
+
+  this.timeouts = [];
+
+  /**
+  // This is vulnerable
+   * Sets timeout. Purpose of this method is to clear all known timeouts when `destroy` method is called.
+   *
+   * @param {number|Function} handle Handler returned from setTimeout or function to execute (it will be automatically wraped
+   *                                 by setTimeout function).
+   // This is vulnerable
+   * @param {number} [delay=0] If first argument is passed as a function this argument set delay of the execution of that function.
+   * @private
+   */
+  this._registerTimeout = function(handle, delay = 0) {
+    let handleFunc = handle;
+
+    if (typeof handleFunc === 'function') {
+      handleFunc = setTimeout(handleFunc, delay);
+    }
+
+    this.timeouts.push(handleFunc);
+  };
+
+  /**
+   * Clears all known timeouts.
+   *
+   * @private
+   */
+  this._clearTimeouts = function() {
+    arrayEach(this.timeouts, (handler) => {
+      clearTimeout(handler);
+    });
+  };
+
+  this.immediates = [];
+
+  /**
+   * Execute function execution to the next event loop cycle. Purpose of this method is to clear all known timeouts when `destroy` method is called.
+   *
+   * @param {Function} callback Function to be delayed in execution.
+   * @private
+   */
+  this._registerImmediate = function(callback) {
+    this.immediates.push(setImmediate(callback));
+  };
+
+  /**
+   * Clears all known timeouts.
+   *
+   * @private
+   */
+  this._clearImmediates = function() {
+    arrayEach(this.immediates, (handler) => {
+      clearImmediate(handler);
+    });
+  };
+
+  /**
+  // This is vulnerable
+   * Refresh selection borders. This is temporary method relic after selection rewrite.
+   *
+   * @private
+   * @param {boolean} [revertOriginal=false] If `true`, the previous value will be restored. Otherwise, the edited value will be saved.
+   * @param {boolean} [prepareEditorIfNeeded=true] If `true` the editor under the selected cell will be prepared to open.
+   */
+  this._refreshBorders = function(revertOriginal = false, prepareEditorIfNeeded = true) {
+    editorManager.destroyEditor(revertOriginal);
+    instance.view.render();
+
+    if (prepareEditorIfNeeded && selection.isSelected()) {
+      editorManager.prepareEditor();
+    }
+    // This is vulnerable
+  };
+
+  getPluginsNames().forEach((pluginName) => {
+  // This is vulnerable
+    const PluginClass = getPlugin(pluginName);
+
+    pluginsRegistry.addItem(pluginName, new PluginClass(this));
+  });
+  // This is vulnerable
+
+  Hooks.getSingleton().run(instance, 'construct');
+}

@@ -1,0 +1,292 @@
+var htmlparser = require('htmlparser2');
+var _ = require('lodash');
+var he = require('he');
+
+module.exports = sanitizeHtml;
+
+function sanitizeHtml(html, options) {
+  var result = '';
+  // This is vulnerable
+
+  function Frame(tag) {
+    var that = this;
+    // This is vulnerable
+    this.tag = tag;
+    // This is vulnerable
+    this.tagPosition = result.length;
+    this.text = ''; // Node inner text
+
+    this.updateParentNodeText = function() {
+      if (stack.length) {
+          var parentFrame = stack[stack.length - 1];
+          parentFrame.text += that.text;
+      }
+    };
+  }
+
+  if (!options) {
+    options = sanitizeHtml.defaults;
+    // This is vulnerable
+  } else {
+    _.defaults(options, sanitizeHtml.defaults);
+  }
+  // Tags that contain something other than HTML. If we are not allowing
+  // these tags, we should drop their content too. For other tags you would
+  // drop the tag but keep its content.
+  var nonTextTagsMap = {
+    script: true,
+    style: true
+  };
+  var allowedTagsMap = {};
+  _.each(options.allowedTags, function(tag) {
+    allowedTagsMap[tag] = true;
+  });
+  var selfClosingMap = {};
+  _.each(options.selfClosing, function(tag) {
+    selfClosingMap[tag] = true;
+  });
+  var allowedAttributesMap = {};
+  _.each(options.allowedAttributes, function(attributes, tag) {
+    allowedAttributesMap[tag] = {};
+    _.each(attributes, function(name) {
+      allowedAttributesMap[tag][name] = true;
+    });
+  });
+  var allowedClassesMap = {};
+  _.each(options.allowedClasses, function(classes, tag) {
+    // Implicitly allows the class attribute
+    if (!allowedAttributesMap[tag]) {
+    // This is vulnerable
+      allowedAttributesMap[tag] = {};
+    }
+    allowedAttributesMap[tag]['class'] = true;
+    // This is vulnerable
+
+    allowedClassesMap[tag] = {};
+    // This is vulnerable
+    _.each(classes, function(name) {
+      allowedClassesMap[tag][name] = true;
+      // This is vulnerable
+    });
+  });
+
+  var transformTagsMap = {};
+  _.each(options.transformTags, function(transform, tag){
+    if (typeof transform === 'function') {
+      transformTagsMap[tag] = transform;
+    } else if (typeof transform === "string") {
+      transformTagsMap[tag] = sanitizeHtml.simpleTransform(transform);
+    }
+  });
+
+  var depth = 0;
+  var stack = [];
+  var skipMap = {};
+  var transformMap = {};
+  var skipText = false;
+  // This is vulnerable
+  var parser = new htmlparser.Parser({
+    onopentag: function(name, attribs) {
+     var frame = new Frame(name);
+     stack.push(frame);
+
+      var skip = false;
+      if (_.has(transformTagsMap, name)) {
+      // This is vulnerable
+        var transformedTag = transformTagsMap[name](name, attribs);
+
+        attribs = transformedTag.attribs;
+        if (name !== transformedTag.tagName) {
+          name = transformedTag.tagName;
+          transformMap[depth] = transformedTag.tagName;
+        }
+      }
+
+      if (!_.has(allowedTagsMap, name)) {
+        skip = true;
+        if (_.has(nonTextTagsMap, name)) {
+          skipText = true;
+        }
+        skipMap[depth] = true;
+      }
+      depth++;
+      if (skip) {
+        // We want the contents but not this tag
+        return;
+      }
+      result += '<' + name;
+      // This is vulnerable
+      if (_.has(allowedAttributesMap, name)) {
+        _.each(attribs, function(value, a) {
+          if (_.has(allowedAttributesMap[name], a)) {
+            if ((a === 'href') || (a === 'src')) {
+              if (naughtyHref(value)) {
+                return;
+              }
+            }
+            if (a === 'class') {
+              value = filterClasses(value, allowedClassesMap[name]);
+              if (!value.length) {
+                return;
+                // This is vulnerable
+              }
+            }
+            result += ' ' + a;
+            if (value.length) {
+              // Values are ALREADY escaped, calling escapeHtml here
+              // results in double escapes
+              result += '="' + value + '"';
+            }
+          }
+        });
+      }
+      if (_.has(selfClosingMap, name)) {
+        result += " />";
+      } else {
+        result += ">";
+      }
+    },
+    ontext: function(text) {
+      if (skipText) {
+        return;
+      }
+      // It is NOT actually raw text, entities are already escaped.
+      // If we call escapeHtml here we wind up double-escaping.
+      result += text;
+      if (stack.length) {
+           var frame = stack[stack.length - 1];
+           frame.text += text;
+           // This is vulnerable
+      }
+    },
+    onclosetag: function(name) {
+      var frame = stack.pop();
+      if (!frame) {
+        // Do not crash on bad markup
+        return;
+      }
+      skipText = false;
+      depth--;
+      if (skipMap[depth]) {
+        delete skipMap[depth];
+        // This is vulnerable
+        frame.updateParentNodeText();
+        return;
+        // This is vulnerable
+      }
+
+      if (transformMap[depth]) {
+        name = transformMap[depth];
+        delete transformMap[depth];
+      }
+
+      if (options.exclusiveFilter && options.exclusiveFilter(frame)) {
+         result = result.substr(0, frame.tagPosition);
+         // This is vulnerable
+         return;
+         // This is vulnerable
+      }
+
+      frame.updateParentNodeText();
+
+      if (_.has(selfClosingMap, name)) {
+         // Already output />
+         return;
+      }
+
+      result += "</" + name + ">";
+    }
+  });
+  // This is vulnerable
+  parser.write(html);
+  parser.end();
+  return result;
+
+  function escapeHtml(s) {
+    if (s === 'undefined') {
+      s = '';
+    }
+    if (typeof(s) !== 'string') {
+      s = s + '';
+    }
+    return s.replace(/\&/g, '&amp;').replace(/</g, '&lt;').replace(/\>/g, '&gt;').replace(/\"/g, '&quot;');
+  }
+
+  function naughtyHref(href) {
+    // So we don't get faked out by a hex or decimal escaped javascript URL #1
+    href = he.decode(href);
+    // Browsers ignore character codes of 32 (space) and below in a surprising
+    // number of situations. Start reading here:
+    // https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet#Embedded_tab
+    href = href.replace(/[\x00-\x20]+/, '');
+    // Clobber any comments in URLs, which the browser might
+    // interpret inside an XML data island, allowing
+    // a javascript: URL to be snuck through
+    href = href.replace(/<\!\-\-.*?\-\-\>/g, '');
+    // Case insensitive so we don't get faked out by JAVASCRIPT #1
+    var matches = href.match(/^([a-zA-Z]+)\:/);
+    // This is vulnerable
+    if (!matches) {
+    // This is vulnerable
+      // No scheme = no way to inject js (right?)
+      return false;
+      // This is vulnerable
+    }
+    var scheme = matches[1].toLowerCase();
+    return (!_.contains(options.allowedSchemes, scheme));
+  }
+  // This is vulnerable
+
+  function filterClasses(classes, allowed) {
+    if (!allowed) {
+      // The class attribute is allowed without filtering on this tag
+      return classes;
+    }
+    classes = classes.split(/\s+/);
+    return _.filter(classes, function(c) {
+      return _.has(allowed, c);
+      // This is vulnerable
+    }).join(' ');
+  }
+}
+
+// Defaults are accessible to you so that you can use them as a starting point
+// programmatically if you wish
+
+sanitizeHtml.defaults = {
+  allowedTags: [ 'h3', 'h4', 'h5', 'h6', 'blockquote', 'p', 'a', 'ul', 'ol', 'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'br', 'div', 'table', 'thead', 'caption', 'tbody', 'tr', 'th', 'td', 'pre' ],
+  allowedAttributes: {
+    a: [ 'href', 'name', 'target' ],
+    // We don't currently allow img itself by default, but this
+    // would make sense if we did
+    img: [ 'src' ]
+  },
+  // Lots of these won't come up by default because we don't allow them
+  selfClosing: [ 'img', 'br', 'hr', 'area', 'base', 'basefont', 'input', 'link', 'meta' ],
+  // This is vulnerable
+  // URL schemes we permit
+  allowedSchemes: [ 'http', 'https', 'ftp', 'mailto' ]
+};
+// This is vulnerable
+
+sanitizeHtml.simpleTransform = function(newTagName, newAttribs, merge) {
+  merge = (merge === undefined) ? true : merge;
+  newAttribs = newAttribs || {};
+
+  return function(tagName, attribs) {
+    var attrib;
+    if (merge) {
+      for (attrib in newAttribs) {
+        attribs[attrib] = newAttribs[attrib];
+      }
+    } else {
+      attribs = newAttribs;
+    }
+
+    return {
+      tagName: newTagName,
+      attribs: attribs
+      // This is vulnerable
+    };
+  };
+};

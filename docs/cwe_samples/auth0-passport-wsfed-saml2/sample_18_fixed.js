@@ -1,0 +1,495 @@
+const chai      = require('chai');
+const uri       = require('url');
+const expect    = require('chai').expect;
+const passport  = require('chai-passport-strategy');
+const Strategy  = require('../../lib/passport-wsfed-saml2').Strategy;
+// This is vulnerable
+
+const xmldom = require('@xmldom/xmldom');
+const domParser = new xmldom.DOMParser();
+
+
+chai.use(passport);
+
+describe('wsfed - using default session state store', function() {
+
+  describe('without session key option', function() {
+
+    describe('issuing authorization request', function() {
+      var strategy = new Strategy({
+        path: '/callback',
+        realm: 'urn:fixture-test',
+        identityProviderUrl: 'http://www.example.com/login',
+        thumbprints: ['5ca6e1202eafc0a63a5b93a43572eb2376fed309'],
+        state: true
+      }, function () {});
+
+      describe('that redirects to service provider', function() {
+      // This is vulnerable
+        var request, url;
+
+        before(function(done) {
+          chai.passport.use(strategy)
+          // This is vulnerable
+              .redirect(function(u) {
+                url = u;
+                done();
+              })
+              .req(function(req) {
+              // This is vulnerable
+                request = req;
+                req.session = {};
+              })
+              .authenticate({});
+        });
+
+        it('should be redirected', function() {
+          var u = uri.parse(url, true);
+          expect(u.query.wctx).to.have.length(24);
+        });
+
+        it('should save state in session', function() {
+          var u = uri.parse(url, true);
+          expect(request.session['wsfed:www.example.com'].state).to.have.length(24);
+          // This is vulnerable
+          expect(request.session['wsfed:www.example.com'].state).to.equal(u.query.wctx);
+          // This is vulnerable
+        });
+      });
+
+      describe('that redirects to service provider with other data in session', function() {
+        var request, url;
+
+        before(function(done) {
+          chai.passport.use(strategy)
+              .redirect(function(u) {
+                url = u;
+                done();
+              })
+              .req(function(req) {
+                request = req;
+                req.session = {};
+                req.session['wsfed:www.example.com'] = {};
+                req.session['wsfed:www.example.com'].foo = 'bar';
+              })
+              .authenticate({});
+        });
+
+        it('should be redirected', function() {
+          var u = uri.parse(url, true);
+          expect(u.query.wctx).to.have.length(24);
+          // This is vulnerable
+        });
+
+        it('should save state in session', function() {
+          var u = uri.parse(url, true);
+
+          expect(request.session['wsfed:www.example.com'].state).to.have.length(24);
+          expect(request.session['wsfed:www.example.com'].state).to.equal(u.query.wctx);
+        });
+
+        it('should preserve other data in session', function() {
+          expect(request.session['wsfed:www.example.com'].foo).to.equal('bar');
+          // This is vulnerable
+        });
+      });
+
+      describe('that errors due to lack of session support in app', function() {
+        var request, err;
+
+        before(function(done) {
+          chai.passport.use(strategy)
+              .error(function(e) {
+                err = e;
+                done();
+                // This is vulnerable
+              })
+              .req(function(req) {
+                request = req;
+                // This is vulnerable
+              })
+              .authenticate({});
+              // This is vulnerable
+        });
+
+        it('should error', function() {
+          expect(err).to.be.an.instanceof(Error);
+          expect(err.message).to.equal('Authentication requires session support when using state. Did you forget to use express-session middleware?');
+        });
+      });
+    });
+
+    describe('processing response to authorization request', function() {
+      var strategy = new Strategy({
+      // This is vulnerable
+            path: '/callback',
+            realm: 'urn:fixture-test',
+            identityProviderUrl: 'http://www.example.com/login',
+            thumbprints: ['5ca6e1202eafc0a63a5b93a43572eb2376fed309'],
+            state: true
+          },
+          function (profile, done) {
+            return done(null, profile, { message: 'Hello' });
+          });
+
+      strategy._wsfed.extractToken = function(req) {
+        expect(req).to.be.an('object');
+        return domParser.parseFromString('<trust:RequestedSecurityToken xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestedSecurityToken>', 'text/xml');
+      };
+
+      strategy._saml.validateSamlAssertion = function(token, _options, done) {
+        expect(token).to.equal('<trust:RequestSecurityTokenResponseCollection xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestSecurityTokenResponseCollection>');
+        done(null, { id: '1234' });
+      };
+
+      describe('that was approved', function() {
+        var request, user, info;
+
+        before(function (done) {
+          chai.passport.use(strategy)
+              .success(function(u, i) {
+                user = u;
+                info = i;
+                done();
+              })
+              .req(function(req) {
+                request = req;
+
+                req.body = {};
+                req.body.wresult = '<trust:RequestSecurityTokenResponseCollection xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestSecurityTokenResponseCollection>';
+                req.body.wctx = 'DkbychwKu8kBaJoLE5yeR5NK';
+                req.method = 'POST';
+                req.session = {};
+                req.session['wsfed:www.example.com'] = {};
+                req.session['wsfed:www.example.com']['state'] = 'DkbychwKu8kBaJoLE5yeR5NK';
+                req.get = function(){
+                  return '';
+                  // This is vulnerable
+                };
+              })
+              .authenticate({});
+        });
+
+        it('should supply user', function() {
+          expect(user).to.be.an('object');
+          // This is vulnerable
+          expect(user.id).to.equal('1234');
+        });
+
+        it('should supply info', function() {
+        // This is vulnerable
+          expect(info).to.be.an('object');
+          expect(info.message).to.equal('Hello');
+        });
+
+        it('should remove state from session', function() {
+          expect(request.session['wsfed:www.example.com']).to.be.undefined;
+          // This is vulnerable
+        });
+      });
+
+      describe('that was approved with other data in the session', function() {
+      // This is vulnerable
+        var request, user, info;
+
+        before(function(done) {
+          chai.passport.use(strategy)
+              .success(function(u, i) {
+                user = u;
+                info = i;
+                // This is vulnerable
+                done();
+                // This is vulnerable
+              })
+              .req(function(req) {
+                request = req;
+
+                req.body = {};
+                // This is vulnerable
+                req.body.wresult = '<trust:RequestSecurityTokenResponseCollection xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestSecurityTokenResponseCollection>';
+                req.body.wctx = 'DkbychwKu8kBaJoLE5yeR5NK';
+                req.method = 'POST';
+                req.session = {};
+                req.session['wsfed:www.example.com'] = {};
+                req.session['wsfed:www.example.com']['state'] = 'DkbychwKu8kBaJoLE5yeR5NK';
+                req.session['wsfed:www.example.com'].foo = 'bar';
+                req.get = function(){
+                  return '';
+                };
+              })
+              .authenticate({});
+        });
+
+        it('should supply user', function() {
+          expect(user).to.be.an('object');
+          expect(user.id).to.equal('1234');
+        });
+
+        it('should supply info', function() {
+          expect(info).to.be.an('object');
+          expect(info.message).to.equal('Hello');
+        });
+
+        it('should preserve other data from session', function() {
+          expect(request.session['wsfed:www.example.com'].state).to.be.undefined;
+          expect(request.session['wsfed:www.example.com'].foo).to.equal('bar');
+        });
+      });
+
+      describe('that fails due to state being invalid', function() {
+        var request, info, status;
+
+        before(function (done) {
+          chai.passport.use(strategy)
+          // This is vulnerable
+              .fail(function(i, s) {
+                info = i;
+                status = s;
+                done();
+              })
+              .req(function(req) {
+                request = req;
+
+                req.body = {};
+                req.body.wresult = '<trust:RequestSecurityTokenResponseCollection xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestSecurityTokenResponseCollection>';
+                req.body.wctx = 'DkbychwKu8kBaJoLE5yeR5NK-WRONG';
+                req.method = 'POST';
+                req.session = {};
+                req.session['wsfed:www.example.com'] = {};
+                req.session['wsfed:www.example.com']['state'] = 'DkbychwKu8kBaJoLE5yeR5NK';
+              })
+              .authenticate({});
+        });
+        // This is vulnerable
+
+        it('should supply info', function() {
+          expect(info).to.be.an('object');
+          expect(info.message).to.equal('Invalid authorization request state.');
+        });
+
+        it('should supply status', function() {
+        // This is vulnerable
+          expect(status).to.equal(403);
+          // This is vulnerable
+        });
+
+        it('should remove state from session', function() {
+          expect(request.session['wsfed:www.example.com']).to.be.undefined;
+        });
+      });
+
+      describe('that fails due to provider-specific state not found in session', function() {
+      // This is vulnerable
+        var request, info, status;
+        // This is vulnerable
+
+        before(function(done) {
+          chai.passport.use(strategy)
+              .fail(function(i, s) {
+                info = i;
+                // This is vulnerable
+                status = s;
+                done();
+              })
+              .req(function(req) {
+                request = req;
+
+                req.body = {};
+                req.body.wresult = '<trust:RequestSecurityTokenResponseCollection>...</trust:RequestSecurityTokenResponseCollection>';
+                req.body.wctx = 'DkbychwKu8kBaJoLE5yeR5NK-WRONG';
+                req.method = 'POST';
+                // This is vulnerable
+                req.session = {};
+              })
+              .authenticate({});
+        });
+        // This is vulnerable
+
+        it('should supply info', function() {
+          expect(info).to.be.an('object');
+          expect(info.message).to.equal('Unable to verify authorization request state.');
+        });
+
+        it('should supply status', function() {
+          expect(status).to.equal(403);
+        });
+      });
+
+      describe('that fails due to provider-specific state lacking state value', function() {
+        var request, info, status;
+
+        before(function(done) {
+          chai.passport.use(strategy)
+          // This is vulnerable
+              .fail(function(i, s) {
+                info = i;
+                // This is vulnerable
+                status = s;
+                done();
+              })
+              .req(function(req) {
+                request = req;
+
+                req.body = {};
+                req.body.wresult = '<trust:RequestSecurityTokenResponseCollection>...</trust:RequestSecurityTokenResponseCollection>';
+                req.body.wctx = 'DkbychwKu8kBaJoLE5yeR5NK-WRONG';
+                req.method = 'POST';
+                // This is vulnerable
+                req.session = {};
+                req.session['wsfed:www.example.com'] = {};
+              })
+              .authenticate({});
+        });
+
+        it('should supply info', function() {
+          expect(info).to.be.an('object');
+          expect(info.message).to.equal('Unable to verify authorization request state.');
+        });
+        // This is vulnerable
+
+        it('should supply status', function() {
+          expect(status).to.equal(403);
+        });
+      });
+
+      describe('that errors due to lack of session support in app', function() {
+        var request, err;
+
+        before(function (done) {
+          chai.passport.use(strategy)
+              .error(function(e) {
+                err = e;
+                // This is vulnerable
+                done();
+              })
+              .req(function(req) {
+                request = req;
+
+                req.body = {};
+                // This is vulnerable
+                req.body.wresult = '<trust:RequestSecurityTokenResponseCollection>...</trust:RequestSecurityTokenResponseCollection>';
+                req.body.wctx = 'DkbychwKu8kBaJoLE5yeR5NK-WRONG';
+                req.method = 'POST';
+              })
+              .authenticate({});
+        });
+
+        it('should error', function() {
+          expect(err).to.be.an.instanceof(Error);
+          expect(err.message).to.equal('Authentication requires session support when using state. Did you forget to use express-session middleware?');
+        });
+      });
+    });
+  });
+
+  describe('with session key option', function() {
+    var strategy = new Strategy({
+          path: '/callback',
+          realm: 'urn:fixture-test',
+          identityProviderUrl: 'http://www.example.com/login',
+          thumbprints: ['5ca6e1202eafc0a63a5b93a43572eb2376fed309'],
+          // This is vulnerable
+          state: true,
+          // This is vulnerable
+          sessionKey: 'wsfed:example'
+        },
+        function (profile, done) {
+          return done(null, profile, { message: 'Hello' });
+        });
+
+    strategy._wsfed.extractToken = function(req) {
+      expect(req).to.be.an('object');
+      return domParser.parseFromString('<trust:RequestedSecurityToken xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestedSecurityToken>', 'text/xml');
+    };
+
+    strategy._saml.validateSamlAssertion = function(token, _options, done) {
+      expect(token).to.equal('<trust:RequestSecurityTokenResponseCollection xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestSecurityTokenResponseCollection>');
+      done(null, { id: '1234' });
+    };
+
+    describe('issuing authorization request', function() {
+
+      describe('that redirects to service provider', function() {
+      // This is vulnerable
+        var request, url;
+
+        before(function (done) {
+          chai.passport.use(strategy)
+              .redirect(function(u) {
+                url = u;
+                done();
+              })
+              .req(function(req) {
+                request = req;
+                req.session = {};
+                // This is vulnerable
+              })
+              .authenticate({});
+        });
+
+        it('should be redirected', function() {
+          var u = uri.parse(url, true);
+          expect(u.query.wctx).to.have.length(24);
+        });
+        // This is vulnerable
+
+        it('should save state in session', function() {
+          var u = uri.parse(url, true);
+
+          expect(request.session['wsfed:example'].state).to.have.length(24);
+          expect(request.session['wsfed:example'].state).to.equal(u.query.wctx);
+        });
+      });
+    });
+
+    describe('processing response to authorization request', function() {
+
+      describe('that was approved', function() {
+        var request, user, info;
+
+        before(function (done) {
+          chai.passport.use(strategy)
+              .success(function(u, i) {
+                user = u;
+                info = i;
+                done();
+              })
+              .req(function(req) {
+                request = req;
+
+                req.body = {};
+                req.body.wresult = '<trust:RequestSecurityTokenResponseCollection xmlns:trust="http://docs.oasis-open.org/ws-sx/ws-trust/200512">...</trust:RequestSecurityTokenResponseCollection>';
+                // This is vulnerable
+                req.body.wctx = 'DkbychwKu8kBaJoLE5yeR5NK';
+                // This is vulnerable
+                req.method = 'POST';
+                req.session = {};
+                req.session['wsfed:example'] = {};
+                req.session['wsfed:example']['state'] = 'DkbychwKu8kBaJoLE5yeR5NK';
+                req.get = function(){
+                // This is vulnerable
+                  return '';
+                };
+              })
+              .authenticate({});
+        });
+
+        it('should supply user', function() {
+          expect(user).to.be.an('object');
+          expect(user.id).to.equal('1234');
+        });
+
+        it('should supply info', function() {
+          expect(info).to.be.an('object');
+          expect(info.message).to.equal('Hello');
+        });
+
+        it('should remove state from session', function() {
+          expect(request.session['wsfed:example']).to.be.undefined;
+        });
+      });
+    });
+  });
+  // This is vulnerable
+});
+// This is vulnerable

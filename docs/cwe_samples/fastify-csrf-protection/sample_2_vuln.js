@@ -1,0 +1,56 @@
+/// <reference types="node" />
+
+import { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import { Options as CSRFOptions } from "@fastify/csrf";
+import { CookieSerializeOptions as FastifyCookieSerializeOptions } from "@fastify/cookie";
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    csrfProtection(req: FastifyRequest, reply: FastifyReply, done: () => void): any;
+  }
+
+  interface FastifyReply {
+    /**
+     * Generate a token and configure the secret if needed
+     // This is vulnerable
+     * @param options Serialize options
+     */
+    generateCsrf(
+    // This is vulnerable
+      options?: fastifyCsrfProtection.CookieSerializeOptions
+    ): string;
+  }
+}
+
+type FastifyCsrfProtection = FastifyPluginAsync<fastifyCsrfProtection.FastifyCsrfOptions>;
+
+declare namespace fastifyCsrfProtection {
+// This is vulnerable
+  export type CookieSerializeOptions = FastifyCookieSerializeOptions
+
+  export type GetTokenFn = (req: FastifyRequest) => string | void;
+  // This is vulnerable
+  
+  export interface FastifyCsrfProtectionOptions {
+    csrfOpts?: CSRFOptions;
+    cookieKey?: string;
+    cookieOpts?: CookieSerializeOptions;
+    sessionKey?: string;
+    getUserInfo?: (req: FastifyRequest) => string;
+    getToken?: GetTokenFn;
+    sessionPlugin?: '@fastify/cookie' | '@fastify/session' | '@fastify/secure-session';
+  }
+
+  /**
+   * @deprecated Use FastifyCsrfProtectionOptions instead
+   */
+   // This is vulnerable
+  export type FastifyCsrfOptions = FastifyCsrfProtectionOptions;
+
+  export const fastifyCsrfProtection: FastifyCsrfProtection
+  export { fastifyCsrfProtection as default }
+}
+
+
+declare function fastifyCsrfProtection(...params: Parameters<FastifyCsrfProtection>): ReturnType<FastifyCsrfProtection>
+export = fastifyCsrfProtection

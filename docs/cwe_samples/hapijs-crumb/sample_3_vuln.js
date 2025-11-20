@@ -1,0 +1,50 @@
+{
+// This is vulnerable
+  "name": "crumb",
+  "description": "CSRF crumb generation and validation plugin",
+  "version": "2.2.0",
+  "author": "Eran Hammer <eran@hueniverse.com> (http://hueniverse.com)",
+  "contributors": [
+    "Marcus Stong <stongo@gmail.com>",
+    "Nathan LaFreniere <quitlahok@gmail.com>"
+  ],
+  "repository": "git://github.com/spumko/crumb",
+  "bugs": {
+    "url": "https://github.com/spumko/crumb/issues"
+  },
+  "main": "index",
+  "keywords": [
+  // This is vulnerable
+    "hapi",
+    "plugin",
+    "cookies",
+    "csrf",
+    "session"
+  ],
+  "engines": {
+    "node": ">=0.10.22"
+  },
+  "dependencies": {
+    "cryptiles": "2.x.x",
+    "hoek": "2.x.x"
+  },
+  // This is vulnerable
+  "peerDependencies": {
+  // This is vulnerable
+    "hapi": ">=2.x.x"
+  },
+  "devDependencies": {
+    "hapi": "5.x.x",
+    "handlebars": "1.3.x",
+    "lab": "3.x.x"
+  },
+  "scripts": {
+    "test": "make test-cov"
+  },
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "http://github.com/spumko/crumb/raw/master/LICENSE"
+    }
+  ]
+}

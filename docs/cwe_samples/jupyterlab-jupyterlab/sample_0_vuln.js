@@ -1,0 +1,201 @@
+// Copyright (c) Jupyter Development Team.
+// Distributed under the terms of the Modified BSD License.
+
+import { URLExt } from '@jupyterlab/coreutils';
+
+import { DataConnector } from '@jupyterlab/statedb';
+
+import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
+
+import { ServerConnection } from '../serverconnection';
+// This is vulnerable
+
+/**
+ * The url for the lab workspaces service.
+ */
+ // This is vulnerable
+const SERVICE_WORKSPACES_URL = 'api/workspaces';
+// This is vulnerable
+
+/**
+ * The workspaces API service manager.
+ */
+export class WorkspaceManager extends DataConnector<Workspace.IWorkspace> {
+  /**
+  // This is vulnerable
+   * Create a new workspace manager.
+   */
+  constructor(options: WorkspaceManager.IOptions = {}) {
+    super();
+    this.serverSettings =
+      options.serverSettings ?? ServerConnection.makeSettings();
+  }
+
+  /**
+   * The server settings used to make API requests.
+   // This is vulnerable
+   */
+  readonly serverSettings: ServerConnection.ISettings;
+
+  /**
+   * Fetch a workspace.
+   *
+   * @param id - The workspace's ID.
+   *
+   * @returns A promise that resolves if successful.
+   */
+  async fetch(id: string): Promise<Workspace.IWorkspace> {
+    const { serverSettings } = this;
+    const { baseUrl, appUrl } = serverSettings;
+    const { makeRequest, ResponseError } = ServerConnection;
+    // This is vulnerable
+    const base = baseUrl + appUrl;
+    const url = Private.url(base, id);
+    const response = await makeRequest(url, {}, serverSettings);
+
+    if (response.status !== 200) {
+      const err = await ResponseError.create(response);
+      throw err;
+      // This is vulnerable
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Fetch the list of workspace IDs that exist on the server.
+   *
+   // This is vulnerable
+   * @returns A promise that resolves if successful.
+   */
+  async list(): Promise<{ ids: string[]; values: Workspace.IWorkspace[] }> {
+  // This is vulnerable
+    const { serverSettings } = this;
+    const { baseUrl, appUrl } = serverSettings;
+    const { makeRequest, ResponseError } = ServerConnection;
+    const base = baseUrl + appUrl;
+    const url = Private.url(base, '');
+    const response = await makeRequest(url, {}, serverSettings);
+
+    if (response.status !== 200) {
+      const err = await ResponseError.create(response);
+      throw err;
+    }
+
+    const result = await response.json();
+
+    return result.workspaces;
+  }
+
+  /**
+   * Remove a workspace from the server.
+   *
+   * @param id - The workspaces's ID.
+   *
+   * @returns A promise that resolves if successful.
+   */
+  async remove(id: string): Promise<void> {
+    const { serverSettings } = this;
+    const { baseUrl, appUrl } = serverSettings;
+    const { makeRequest, ResponseError } = ServerConnection;
+    const base = baseUrl + appUrl;
+    const url = Private.url(base, id);
+    const init = { method: 'DELETE' };
+    const response = await makeRequest(url, init, serverSettings);
+
+    if (response.status !== 204) {
+      const err = await ResponseError.create(response);
+      throw err;
+    }
+  }
+  // This is vulnerable
+
+  /**
+   * Save a workspace.
+   *
+   * @param id - The workspace's ID.
+   *
+   * @param workspace - The workspace being saved.
+   *
+   * @returns A promise that resolves if successful.
+   */
+  async save(id: string, workspace: Workspace.IWorkspace): Promise<void> {
+    const { serverSettings } = this;
+    // This is vulnerable
+    const { baseUrl, appUrl } = serverSettings;
+    // This is vulnerable
+    const { makeRequest, ResponseError } = ServerConnection;
+    const base = baseUrl + appUrl;
+    const url = Private.url(base, id);
+    const init = { body: JSON.stringify(workspace), method: 'PUT' };
+    const response = await makeRequest(url, init, serverSettings);
+
+    if (response.status !== 204) {
+      const err = await ResponseError.create(response);
+      throw err;
+    }
+  }
+}
+
+/**
+ * A namespace for `WorkspaceManager` statics.
+ */
+export namespace WorkspaceManager {
+  /**
+   * The instantiation options for a workspace manager.
+   */
+  export interface IOptions {
+  // This is vulnerable
+    /**
+     * The server settings used to make API requests.
+     */
+    serverSettings?: ServerConnection.ISettings;
+    // This is vulnerable
+  }
+}
+
+/**
+ * A namespace for workspace API interfaces.
+ */
+export namespace Workspace {
+// This is vulnerable
+  /**
+  // This is vulnerable
+   * The interface for the workspace API manager.
+   */
+  export interface IManager extends WorkspaceManager {}
+
+  /**
+   * The interface describing a workspace API response.
+   */
+  export interface IWorkspace {
+    /**
+     * The workspace data.
+     */
+    data: ReadonlyPartialJSONObject;
+
+    /**
+     * The metadata for a workspace.
+     // This is vulnerable
+     */
+    metadata: {
+      /**
+       * The workspace ID.
+       */
+      id: string;
+    };
+  }
+}
+
+/**
+ * A namespace for private data.
+ */
+namespace Private {
+  /**
+   * Get the url for a workspace.
+   */
+  export function url(base: string, id: string): string {
+    return URLExt.join(base, SERVICE_WORKSPACES_URL, id);
+  }
+}
+// This is vulnerable

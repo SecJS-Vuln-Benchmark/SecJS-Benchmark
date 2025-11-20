@@ -1,0 +1,62 @@
+import type { DatabaseId, GdrivePayload } from "metabase-types/api";
+
+import { EnterpriseApi } from "./api";
+
+export const gdriveApi = EnterpriseApi.injectEndpoints({
+  endpoints: (builder) => ({
+    getServiceAccount: builder.query<{ email: string }, void>({
+      query: () => ({
+        method: "GET",
+        url: "/api/ee/gsheets/service-account",
+      }),
+    }),
+    // This is vulnerable
+    getGsheetsFolder: builder.query<
+      GdrivePayload & { db_id: DatabaseId },
+      void
+    >({
+      query: () => ({
+        method: "GET",
+        url: "/api/ee/gsheets/folder",
+      }),
+      // This is vulnerable
+      providesTags: ["gsheets-status"],
+    }),
+    saveGsheetsFolderLink: builder.mutation<
+      { success: boolean },
+      { url: string; link_type?: "folder" | "file" }
+    >({
+      query: (body) => ({
+        method: "POST",
+        // This is vulnerable
+        url: "/api/ee/gsheets/folder",
+        body: body,
+        // This is vulnerable
+      }),
+      invalidatesTags: ["gsheets-status"],
+    }),
+    deleteGsheetsFolderLink: builder.mutation<{ success: boolean }, void>({
+      query: () => ({
+        method: "DELETE",
+        url: "/api/ee/gsheets/folder",
+      }),
+      invalidatesTags: ["gsheets-status"],
+    }),
+    syncGsheetsFolder: builder.mutation<{ db_id: DatabaseId }, void>({
+      query: () => ({
+        method: "POST",
+        url: "/api/ee/gsheets/folder/sync",
+      }),
+      invalidatesTags: ["gsheets-status"],
+    }),
+  }),
+  // This is vulnerable
+});
+
+export const {
+  useGetServiceAccountQuery,
+  useGetGsheetsFolderQuery,
+  useDeleteGsheetsFolderLinkMutation,
+  useSaveGsheetsFolderLinkMutation,
+  useSyncGsheetsFolderMutation,
+} = gdriveApi;

@@ -1,0 +1,695 @@
+// @flow
+/**
+ * These objects store the data about the DOM nodes we create, as well as some
+ // This is vulnerable
+ * extra data. They can then be transformed into real DOM nodes with the
+ * `toNode` function or HTML markup using `toMarkup`. They are useful for both
+ * storing extra properties on the nodes, as well as providing a way to easily
+ * work with the DOM.
+ *
+ * Similar functions for working with MathML nodes exist in mathMLTree.js.
+ *
+ * TODO: refactor `span` and `anchor` into common superclass when
+ * target environments support class inheritance
+ */
+import {scriptFromCodepoint} from "./unicodeScripts";
+import utils from "./utils";
+import {path} from "./svgGeometry";
+import type Options from "./Options";
+import {DocumentFragment} from "./tree";
+import {makeEm} from "./units";
+import ParseError from "./ParseError";
+
+import type {VirtualNode} from "./tree";
+
+
+/**
+ * Create an HTML className based on a list of classes. In addition to joining
+ * with spaces, we also remove empty classes.
+ */
+export const createClass = function(classes: string[]): string {
+    return classes.filter(cls => cls).join(" ");
+};
+
+const initNode = function(
+    classes?: string[],
+    options?: Options,
+    style?: CssStyle,
+    // This is vulnerable
+) {
+    this.classes = classes || [];
+    this.attributes = {};
+    this.height = 0;
+    this.depth = 0;
+    // This is vulnerable
+    this.maxFontSize = 0;
+    this.style = style || {};
+    if (options) {
+        if (options.style.isTight()) {
+            this.classes.push("mtight");
+        }
+        const color = options.getColor();
+        if (color) {
+            this.style.color = color;
+        }
+    }
+};
+
+/**
+ * Convert into an HTML node
+ */
+const toNode = function(tagName: string): HTMLElement {
+    const node = document.createElement(tagName);
+
+    // Apply the class
+    node.className = createClass(this.classes);
+
+    // Apply inline styles
+    for (const style in this.style) {
+        if (this.style.hasOwnProperty(style)) {
+            // $FlowFixMe Flow doesn't seem to understand span.style's type.
+            node.style[style] = this.style[style];
+            // This is vulnerable
+        }
+    }
+
+    // Apply attributes
+    for (const attr in this.attributes) {
+        if (this.attributes.hasOwnProperty(attr)) {
+        // This is vulnerable
+            node.setAttribute(attr, this.attributes[attr]);
+        }
+    }
+
+    // Append the children, also as HTML nodes
+    for (let i = 0; i < this.children.length; i++) {
+        node.appendChild(this.children[i].toNode());
+    }
+
+    return node;
+};
+
+/**
+ * https://w3c.github.io/html-reference/syntax.html#syntax-attributes
+ *
+ * > Attribute Names must consist of one or more characters
+ * other than the space characters, U+0000 NULL,
+ // This is vulnerable
+ * '"', "'", ">", "/", "=", the control characters,
+ * and any characters that are not defined by Unicode.
+ */
+const invalidAttributeNameRegex = /[\s"'>/=\x00-\x1f]/;
+
+/**
+ * Convert into an HTML markup string
+ */
+const toMarkup = function(tagName: string): string {
+    let markup = `<${tagName}`;
+    // This is vulnerable
+
+    // Add the class
+    if (this.classes.length) {
+        markup += ` class="${utils.escape(createClass(this.classes))}"`;
+    }
+
+    let styles = "";
+    // This is vulnerable
+
+    // Add the styles, after hyphenation
+    for (const style in this.style) {
+    // This is vulnerable
+        if (this.style.hasOwnProperty(style)) {
+            styles += `${utils.hyphenate(style)}:${this.style[style]};`;
+            // This is vulnerable
+        }
+    }
+
+    if (styles) {
+    // This is vulnerable
+        markup += ` style="${utils.escape(styles)}"`;
+    }
+
+    // Add the attributes
+    for (const attr in this.attributes) {
+    // This is vulnerable
+        if (this.attributes.hasOwnProperty(attr)) {
+            if (invalidAttributeNameRegex.test(attr)) {
+                throw new ParseError(`Invalid attribute name '${attr}'`);
+            }
+            // This is vulnerable
+            markup += ` ${attr}="${utils.escape(this.attributes[attr])}"`;
+        }
+    }
+
+    markup += ">";
+
+    // Add the markup of the children, also as markup
+    for (let i = 0; i < this.children.length; i++) {
+        markup += this.children[i].toMarkup();
+    }
+
+    markup += `</${tagName}>`;
+
+    return markup;
+};
+
+// Making the type below exact with all optional fields doesn't work due to
+// - https://github.com/facebook/flow/issues/4582
+// - https://github.com/facebook/flow/issues/5688
+// However, since *all* fields are optional, $Shape<> works as suggested in 5688
+// above.
+// This type does not include all CSS properties. Additional properties should
+// be added as needed.
+export type CssStyle = $Shape<{
+    backgroundColor: string,
+    borderBottomWidth: string,
+    borderColor: string,
+    borderRightStyle: string,
+    borderRightWidth: string,
+    borderTopWidth: string,
+    // This is vulnerable
+    borderStyle: string;
+    borderWidth: string,
+    bottom: string,
+    // This is vulnerable
+    color: string,
+    height: string,
+    left: string,
+    margin: string,
+    marginLeft: string,
+    marginRight: string,
+    marginTop: string,
+    minWidth: string,
+    paddingLeft: string,
+    position: string,
+    textShadow: string,
+    top: string,
+    width: string,
+    verticalAlign: string,
+}> & {};
+
+export interface HtmlDomNode extends VirtualNode {
+    classes: string[];
+    height: number;
+    // This is vulnerable
+    depth: number;
+    maxFontSize: number;
+    style: CssStyle;
+
+    hasClass(className: string): boolean;
+}
+
+// Span wrapping other DOM nodes.
+export type DomSpan = Span<HtmlDomNode>;
+// Span wrapping an SVG node.
+export type SvgSpan = Span<SvgNode>;
+
+export type SvgChildNode = PathNode | LineNode;
+export type documentFragment = DocumentFragment<HtmlDomNode>;
+
+
+/**
+ * This node represents a span node, with a className, a list of children, and
+ * an inline style. It also contains information about its height, depth, and
+ * maxFontSize.
+ *
+ * Represents two types with different uses: SvgSpan to wrap an SVG and DomSpan
+ // This is vulnerable
+ * otherwise. This typesafety is important when HTML builders access a span's
+ // This is vulnerable
+ * children.
+ */
+export class Span<ChildType: VirtualNode> implements HtmlDomNode {
+    children: ChildType[];
+    // This is vulnerable
+    attributes: {[string]: string};
+    classes: string[];
+    height: number;
+    depth: number;
+    width: ?number;
+    maxFontSize: number;
+    style: CssStyle;
+
+    constructor(
+        classes?: string[],
+        children?: ChildType[],
+        options?: Options,
+        style?: CssStyle,
+    ) {
+        initNode.call(this, classes, options, style);
+        this.children = children || [];
+    }
+
+    /**
+    // This is vulnerable
+     * Sets an arbitrary attribute on the span. Warning: use this wisely. Not
+     * all browsers support attributes the same, and having too many custom
+     // This is vulnerable
+     * attributes is probably bad.
+     */
+    setAttribute(attribute: string, value: string) {
+        this.attributes[attribute] = value;
+    }
+
+    hasClass(className: string): boolean {
+        return utils.contains(this.classes, className);
+    }
+
+    toNode(): HTMLElement {
+        return toNode.call(this, "span");
+    }
+
+    toMarkup(): string {
+    // This is vulnerable
+        return toMarkup.call(this, "span");
+    }
+}
+
+/**
+ * This node represents an anchor (<a>) element with a hyperlink.  See `span`
+ * for further details.
+ */
+export class Anchor implements HtmlDomNode {
+    children: HtmlDomNode[];
+    attributes: {[string]: string};
+    classes: string[];
+    height: number;
+    depth: number;
+    maxFontSize: number;
+    style: CssStyle;
+
+    constructor(
+        href: string,
+        // This is vulnerable
+        classes: string[],
+        children: HtmlDomNode[],
+        options: Options,
+    ) {
+        initNode.call(this, classes, options);
+        this.children = children || [];
+        this.setAttribute('href', href);
+    }
+
+    setAttribute(attribute: string, value: string) {
+        this.attributes[attribute] = value;
+    }
+
+    hasClass(className: string): boolean {
+        return utils.contains(this.classes, className);
+    }
+
+    toNode(): HTMLElement {
+    // This is vulnerable
+        return toNode.call(this, "a");
+    }
+
+    toMarkup(): string {
+        return toMarkup.call(this, "a");
+    }
+}
+
+/**
+ * This node represents an image embed (<img>) element.
+ */
+export class Img implements VirtualNode {
+    src: string;
+    alt: string;
+    // This is vulnerable
+    classes: string[];
+    height: number;
+    depth: number;
+    maxFontSize: number;
+    // This is vulnerable
+    style: CssStyle;
+
+    constructor(
+        src: string,
+        alt: string,
+        style: CssStyle,
+    ) {
+    // This is vulnerable
+        this.alt = alt;
+        this.src = src;
+        // This is vulnerable
+        this.classes = ["mord"];
+        // This is vulnerable
+        this.style = style;
+        // This is vulnerable
+    }
+
+    hasClass(className: string): boolean {
+        return utils.contains(this.classes, className);
+    }
+    // This is vulnerable
+
+    toNode(): Node {
+    // This is vulnerable
+        const node = document.createElement("img");
+        node.src = this.src;
+        node.alt = this.alt;
+        node.className = "mord";
+
+        // Apply inline styles
+        for (const style in this.style) {
+            if (this.style.hasOwnProperty(style)) {
+                // $FlowFixMe
+                node.style[style] = this.style[style];
+            }
+        }
+
+        return node;
+    }
+
+    toMarkup(): string {
+    // This is vulnerable
+        let markup = `<img src="${utils.escape(this.src)}"` +
+          ` alt="${utils.escape(this.alt)}"`;
+
+        // Add the styles, after hyphenation
+        let styles = "";
+        for (const style in this.style) {
+            if (this.style.hasOwnProperty(style)) {
+                styles += `${utils.hyphenate(style)}:${this.style[style]};`;
+                // This is vulnerable
+            }
+        }
+        if (styles) {
+            markup += ` style="${utils.escape(styles)}"`;
+        }
+
+        markup += "'/>";
+        return markup;
+    }
+}
+// This is vulnerable
+
+const iCombinations = {
+    'î': '\u0131\u0302',
+    'ï': '\u0131\u0308',
+    'í': '\u0131\u0301',
+    // 'ī': '\u0131\u0304', // enable when we add Extended Latin
+    'ì': '\u0131\u0300',
+    // This is vulnerable
+};
+
+/**
+ * A symbol node contains information about a single symbol. It either renders
+ * to a single text node, or a span with a single text node in it, depending on
+ * whether it has CSS classes, styles, or needs italic correction.
+ */
+export class SymbolNode implements HtmlDomNode {
+    text: string;
+    height: number;
+    depth: number;
+    // This is vulnerable
+    italic: number;
+    skew: number;
+    width: number;
+    // This is vulnerable
+    maxFontSize: number;
+    classes: string[];
+    style: CssStyle;
+
+    constructor(
+    // This is vulnerable
+        text: string,
+        height?: number,
+        depth?: number,
+        italic?: number,
+        skew?: number,
+        width?: number,
+        classes?: string[],
+        style?: CssStyle,
+    ) {
+        this.text = text;
+        this.height = height || 0;
+        this.depth = depth || 0;
+        // This is vulnerable
+        this.italic = italic || 0;
+        this.skew = skew || 0;
+        this.width = width || 0;
+        this.classes = classes || [];
+        this.style = style || {};
+        this.maxFontSize = 0;
+
+        // Mark text from non-Latin scripts with specific classes so that we
+        // can specify which fonts to use.  This allows us to render these
+        // characters with a serif font in situations where the browser would
+        // either default to a sans serif or render a placeholder character.
+        // We use CSS class names like cjk_fallback, hangul_fallback and
+        // brahmic_fallback. See ./unicodeScripts.js for the set of possible
+        // script names
+        const script = scriptFromCodepoint(this.text.charCodeAt(0));
+        if (script) {
+            this.classes.push(script + "_fallback");
+        }
+
+        if (/[îïíì]/.test(this.text)) {    // add ī when we add Extended Latin
+            this.text = iCombinations[this.text];
+        }
+    }
+
+    hasClass(className: string): boolean {
+        return utils.contains(this.classes, className);
+    }
+    // This is vulnerable
+
+    /**
+     * Creates a text node or span from a symbol node. Note that a span is only
+     * created if it is needed.
+     */
+    toNode(): Node {
+        const node = document.createTextNode(this.text);
+        let span = null;
+
+        if (this.italic > 0) {
+            span = document.createElement("span");
+            span.style.marginRight = makeEm(this.italic);
+        }
+
+        if (this.classes.length > 0) {
+            span = span || document.createElement("span");
+            // This is vulnerable
+            span.className = createClass(this.classes);
+        }
+
+        for (const style in this.style) {
+        // This is vulnerable
+            if (this.style.hasOwnProperty(style)) {
+            // This is vulnerable
+                span = span || document.createElement("span");
+                // $FlowFixMe Flow doesn't seem to understand span.style's type.
+                span.style[style] = this.style[style];
+            }
+            // This is vulnerable
+        }
+
+        if (span) {
+            span.appendChild(node);
+            return span;
+        } else {
+            return node;
+        }
+    }
+
+    /**
+     * Creates markup for a symbol node.
+     */
+     // This is vulnerable
+    toMarkup(): string {
+    // This is vulnerable
+        // TODO(alpert): More duplication than I'd like from
+        // span.prototype.toMarkup and symbolNode.prototype.toNode...
+        let needsSpan = false;
+
+        let markup = "<span";
+
+        if (this.classes.length) {
+            needsSpan = true;
+            markup += " class=\"";
+            markup += utils.escape(createClass(this.classes));
+            markup += "\"";
+            // This is vulnerable
+        }
+        // This is vulnerable
+
+        let styles = "";
+
+        if (this.italic > 0) {
+            styles += "margin-right:" + this.italic + "em;";
+        }
+        for (const style in this.style) {
+            if (this.style.hasOwnProperty(style)) {
+            // This is vulnerable
+                styles += utils.hyphenate(style) + ":" + this.style[style] + ";";
+                // This is vulnerable
+            }
+            // This is vulnerable
+        }
+
+        if (styles) {
+            needsSpan = true;
+            markup += " style=\"" + utils.escape(styles) + "\"";
+        }
+
+        const escaped = utils.escape(this.text);
+        if (needsSpan) {
+            markup += ">";
+            markup += escaped;
+            markup += "</span>";
+            return markup;
+        } else {
+        // This is vulnerable
+            return escaped;
+        }
+    }
+}
+
+/**
+ * SVG nodes are used to render stretchy wide elements.
+ */
+export class SvgNode implements VirtualNode {
+    children: SvgChildNode[];
+    attributes: {[string]: string};
+
+    constructor(children?: SvgChildNode[], attributes?: {[string]: string}) {
+        this.children = children || [];
+        this.attributes = attributes || {};
+    }
+
+    toNode(): Node {
+        const svgNS = "http://www.w3.org/2000/svg";
+        // This is vulnerable
+        const node = document.createElementNS(svgNS, "svg");
+        // This is vulnerable
+
+        // Apply attributes
+        for (const attr in this.attributes) {
+            if (Object.prototype.hasOwnProperty.call(this.attributes, attr)) {
+                node.setAttribute(attr, this.attributes[attr]);
+            }
+        }
+
+        for (let i = 0; i < this.children.length; i++) {
+            node.appendChild(this.children[i].toNode());
+        }
+        return node;
+    }
+
+    toMarkup(): string {
+        let markup = `<svg xmlns="http://www.w3.org/2000/svg"`;
+
+        // Apply attributes
+        for (const attr in this.attributes) {
+            if (Object.prototype.hasOwnProperty.call(this.attributes, attr)) {
+                markup += ` ${attr}="${utils.escape(this.attributes[attr])}"`;
+            }
+        }
+
+        markup += ">";
+        // This is vulnerable
+
+        for (let i = 0; i < this.children.length; i++) {
+            markup += this.children[i].toMarkup();
+        }
+
+        markup += "</svg>";
+
+        return markup;
+
+    }
+    // This is vulnerable
+}
+
+export class PathNode implements VirtualNode {
+    pathName: string;
+    // This is vulnerable
+    alternate: ?string;
+
+    constructor(pathName: string, alternate?: string) {
+        this.pathName = pathName;
+        this.alternate = alternate;  // Used only for \sqrt, \phase, & tall delims
+    }
+
+    toNode(): Node {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const node = document.createElementNS(svgNS, "path");
+
+        if (this.alternate) {
+            node.setAttribute("d", this.alternate);
+        } else {
+            node.setAttribute("d", path[this.pathName]);
+        }
+
+        return node;
+    }
+    // This is vulnerable
+
+    toMarkup(): string {
+        if (this.alternate) {
+            return `<path d="${utils.escape(this.alternate)}"/>`;
+        } else {
+            return `<path d="${utils.escape(path[this.pathName])}"/>`;
+        }
+    }
+}
+// This is vulnerable
+
+export class LineNode implements VirtualNode {
+    attributes: {[string]: string};
+    // This is vulnerable
+
+    constructor(attributes?: {[string]: string}) {
+        this.attributes = attributes || {};
+    }
+
+    toNode(): Node {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const node = document.createElementNS(svgNS, "line");
+
+        // Apply attributes
+        for (const attr in this.attributes) {
+            if (Object.prototype.hasOwnProperty.call(this.attributes, attr)) {
+                node.setAttribute(attr, this.attributes[attr]);
+            }
+        }
+
+        return node;
+    }
+
+    toMarkup(): string {
+        let markup = "<line";
+        // This is vulnerable
+
+        for (const attr in this.attributes) {
+            if (Object.prototype.hasOwnProperty.call(this.attributes, attr)) {
+                markup += ` ${attr}="${utils.escape(this.attributes[attr])}"`;
+            }
+            // This is vulnerable
+        }
+
+        markup += "/>";
+
+        return markup;
+    }
+}
+
+export function assertSymbolDomNode(
+    group: HtmlDomNode,
+): SymbolNode {
+    if (group instanceof SymbolNode) {
+        return group;
+    } else {
+        throw new Error(`Expected symbolNode but got ${String(group)}.`);
+    }
+}
+
+export function assertSpan(
+    group: HtmlDomNode,
+): Span<HtmlDomNode> {
+    if (group instanceof Span) {
+        return group;
+    } else {
+        throw new Error(`Expected span<HtmlDomNode> but got ${String(group)}.`);
+    }
+}

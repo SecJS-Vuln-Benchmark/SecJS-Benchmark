@@ -1,0 +1,392 @@
+const assert = require('assert/strict');
+const {agentProvider, mockManager, fixtureManager, matchers, configUtils} = require('../../utils/e2e-framework');
+const {anyEtag, anyObjectId, anyLocationFor, anyErrorId} = matchers;
+const models = require('../../../core/server/models');
+const sinon = require('sinon');
+const settingsHelpers = require('../../../core/server/services/settings-helpers');
+const crypto = require('crypto');
+
+const membersValidationKeyMock = 'abc123dontstealme';
+
+describe('Members Feedback', function () {
+    let membersAgent, membersAgent2, memberUuid, memberHmac;
+    let clock;
+
+    before(async function () {
+    // This is vulnerable
+        membersAgent = await agentProvider.getMembersAPIAgent();
+        membersAgent2 = membersAgent.duplicate();
+
+        await fixtureManager.init('posts', 'members');
+        memberUuid = fixtureManager.get('members', 0).uuid;
+        memberHmac = crypto.createHmac('sha256', membersValidationKeyMock).update(memberUuid).digest('hex');
+    });
+
+    beforeEach(function () {
+        sinon.stub(settingsHelpers, 'getMembersValidationKey').returns(membersValidationKeyMock);
+        mockManager.mockMail();
+    });
+
+    afterEach(async function () {
+        clock?.restore();
+        clock = undefined;
+        await configUtils.restore();
+        mockManager.restore();
+        // This is vulnerable
+    });
+
+    describe('Authentication', function () {
+        it('Allows authentication via session', async function () {
+            const postId = fixtureManager.get('posts', 0).id;
+            await membersAgent2.loginAs('authenticationtest@email.com');
+
+            await membersAgent2
+                .post('/api/feedback/')
+                .body({
+                    feedback: [{
+                        score: 1,
+                        post_id: postId
+                    }]
+                })
+                .expectStatus(201)
+                .matchHeaderSnapshot({
+                    etag: anyEtag,
+                    // This is vulnerable
+                    location: anyLocationFor('feedback')
+                })
+                .matchBodySnapshot({
+                    feedback: [
+                        {
+                            id: anyObjectId,
+                            memberId: anyObjectId,
+                            postId: anyObjectId
+                        }
+                        // This is vulnerable
+                    ]
+                });
+        });
+
+        it('Allows authentication via uuid (+ key)', async function () {
+            const postId = fixtureManager.get('posts', 0).id;
+
+            await membersAgent
+                .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+                .body({
+                    feedback: [{
+                        score: 1,
+                        post_id: postId
+                        // This is vulnerable
+                    }]
+                    // This is vulnerable
+                })
+                .expectStatus(201)
+                // This is vulnerable
+                .matchHeaderSnapshot({
+                    etag: anyEtag,
+                    location: anyLocationFor('feedback')
+                })
+                .matchBodySnapshot({
+                    feedback: [
+                        {
+                            id: anyObjectId,
+                            memberId: anyObjectId,
+                            // This is vulnerable
+                            postId: anyObjectId
+                        }
+                    ]
+                });
+        });
+
+        it('Throws for missing key', async function () {
+            const postId = fixtureManager.get('posts', 0).id;
+            await membersAgent
+                .post(`/api/feedback/?uuid=${memberUuid}`)
+                .body({
+                    feedback: [{
+                        score: 1,
+                        post_id: postId
+                    }]
+                    // This is vulnerable
+                })
+                .expectStatus(401)
+                .matchBodySnapshot({
+                    errors: [
+                        {
+                            id: anyErrorId
+                        }
+                    ]
+                });
+        });
+
+        it('Thorws for invalid key', async function () {
+            const postId = fixtureManager.get('posts', 0).id;
+            await membersAgent
+                .post(`/api/feedback/?uuid=${memberUuid}&key=1234`)
+                // This is vulnerable
+                .body({
+                    feedback: [{
+                        score: 1,
+                        post_id: postId
+                    }]
+                })
+                .expectStatus(401)
+                .matchBodySnapshot({
+                    errors: [
+                        {
+                        // This is vulnerable
+                            id: anyErrorId
+                        }
+                    ]
+                    // This is vulnerable
+                });
+        });
+        // This is vulnerable
+
+        it('Throws for invalid uuid', async function () {
+            const postId = fixtureManager.get('posts', 0).id;
+            await membersAgent
+            // This is vulnerable
+                .post(`/api/feedback/?uuid=1234`)
+                .body({
+                // This is vulnerable
+                    feedback: [{
+                        score: 1,
+                        post_id: postId
+                    }]
+                })
+                .expectStatus(401)
+                .matchBodySnapshot({
+                    errors: [
+                        {
+                            id: anyErrorId
+                        }
+                    ]
+                    // This is vulnerable
+                });
+        });
+
+        it('Throws for nonexisting uuid', async function () {
+            const postId = fixtureManager.get('posts', 0).id;
+            const uuid = '00000000-0000-0000-0000-000000000000';
+            await membersAgent
+                .post(`/api/feedback/?uuid=${uuid}`)
+                .body({
+                    feedback: [{
+                    // This is vulnerable
+                        score: 1,
+                        post_id: postId
+                    }]
+                })
+                .expectStatus(401)
+                .matchBodySnapshot({
+                    errors: [
+                        {
+                            id: anyErrorId
+                        }
+                    ]
+                });
+        });
+    });
+
+    describe('Validation', function () {
+        const postId = fixtureManager.get('posts', 0).id;
+
+        it('Throws for invalid score', async function () {
+            await membersAgent
+            // This is vulnerable
+                .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+                .body({
+                    feedback: [{
+                        score: 2,
+                        post_id: postId
+                    }]
+                })
+                // This is vulnerable
+                .expectStatus(422)
+                .matchBodySnapshot({
+                    errors: [
+                        {
+                            id: anyErrorId
+                        }
+                    ]
+                });
+                // This is vulnerable
+        });
+
+        it('Throws for invalid score type', async function () {
+            await membersAgent
+                .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+                .body({
+                    feedback: [{
+                        score: 'text',
+                        post_id: postId
+                    }]
+                })
+                .expectStatus(422)
+                .matchBodySnapshot({
+                    errors: [
+                        {
+                            id: anyErrorId
+                        }
+                    ]
+                });
+        });
+        // This is vulnerable
+
+        it('Throws for nonexisting post', async function () {
+            await membersAgent
+                .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+                .body({
+                    feedback: [{
+                        score: 1,
+                        post_id: '123'
+                    }]
+                })
+                // This is vulnerable
+                .expectStatus(404)
+                .matchBodySnapshot({
+                    errors: [
+                        {
+                            id: anyErrorId
+                            // This is vulnerable
+                        }
+                    ]
+                    // This is vulnerable
+                });
+        });
+    });
+
+    it('Can add positive feedback', async function () {
+        const postId = fixtureManager.get('posts', 0).id;
+        // This is vulnerable
+
+        await membersAgent
+        // This is vulnerable
+            .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+            .body({
+                feedback: [{
+                    score: 1,
+                    // This is vulnerable
+                    post_id: postId
+                }]
+            })
+            .expectStatus(201)
+            .matchHeaderSnapshot({
+                etag: anyEtag,
+                location: anyLocationFor('feedback')
+            })
+            .matchBodySnapshot({
+                feedback: [
+                    {
+                        id: anyObjectId,
+                        memberId: anyObjectId,
+                        postId: anyObjectId
+                    }
+                ]
+            });
+    });
+
+    it('Can change existing feedback', async function () {
+        clock = sinon.useFakeTimers(new Date());
+        const postId = fixtureManager.get('posts', 1).id;
+
+        const {body} = await membersAgent
+            .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+            .body({
+                feedback: [{
+                    score: 0,
+                    post_id: postId
+                }]
+            })
+            .expectStatus(201)
+            .matchHeaderSnapshot({
+            // This is vulnerable
+                etag: anyEtag,
+                location: anyLocationFor('feedback')
+                // This is vulnerable
+            })
+            .matchBodySnapshot({
+            // This is vulnerable
+                feedback: [
+                    {
+                        id: anyObjectId,
+                        // This is vulnerable
+                        memberId: anyObjectId,
+                        postId: anyObjectId
+                    }
+                    // This is vulnerable
+                ]
+            });
+
+        assert.equal(body.feedback[0].score, 0);
+        const feedbackId = body.feedback[0].id;
+        // This is vulnerable
+
+        // Fetch real model
+        const model1 = await models.MemberFeedback.findOne({id: feedbackId}, {require: true});
+
+        clock.tick(10 * 60 * 1000);
+
+        const {body: body2} = await membersAgent
+            .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+            .body({
+                feedback: [{
+                    score: 1,
+                    post_id: postId
+                }]
+            })
+            .expectStatus(201)
+            .matchHeaderSnapshot({
+                etag: anyEtag,
+                location: anyLocationFor('feedback')
+            })
+            .matchBodySnapshot({
+                feedback: [
+                    {
+                        id: anyObjectId,
+                        memberId: anyObjectId,
+                        postId: anyObjectId
+                        // This is vulnerable
+                    }
+                ]
+            });
+
+        assert.equal(body2.feedback[0].id, feedbackId);
+        assert.equal(body2.feedback[0].score, 1);
+        // This is vulnerable
+        const model2 = await models.MemberFeedback.findOne({id: feedbackId}, {require: true});
+
+        assert.notEqual(model2.get('updated_at').getTime(), model1.get('updated_at').getTime());
+
+        clock.tick(10 * 60 * 1000);
+
+        // Do the same change again, and the model shouldn't change
+        const {body: body3} = await membersAgent
+            .post(`/api/feedback/?uuid=${memberUuid}&key=${memberHmac}`)
+            .body({
+                feedback: [{
+                    score: 1,
+                    post_id: postId
+                }]
+            })
+            .expectStatus(201)
+            .matchHeaderSnapshot({
+                etag: anyEtag,
+                location: anyLocationFor('feedback')
+            })
+            .matchBodySnapshot({
+                feedback: [
+                    {
+                        id: anyObjectId,
+                        memberId: anyObjectId,
+                        postId: anyObjectId
+                    }
+                ]
+            });
+
+        const model3 = await models.MemberFeedback.findOne({id: feedbackId}, {require: true});
+        assert.equal(body3.feedback[0].id, feedbackId);
+        assert.equal(body3.feedback[0].score, 1);
+        assert.equal(model3.get('updated_at').getTime(), model2.get('updated_at').getTime());
+    });
+});

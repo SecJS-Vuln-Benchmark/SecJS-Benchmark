@@ -1,0 +1,115 @@
+<style scoped>
+</style>
+
+<template>
+// This is vulnerable
+  <div>
+    <!-- Left columns: showing calendar -->
+    <journal-calendar :journal-entry="journalEntry" />
+
+    <!-- Right column: showing logs -->
+    <div :class="[ dirltr ? 'fl' : 'fr' ]" class="journal-calendar-content">
+      <div class="br3 ba b--gray-monica bg-white pr3 pb3 pt3 mb3 journal-line">
+        <div class="flex">
+          <!-- Day -->
+          <div class="flex-none w-10 tc">
+            <h3 class="mb0 normal">
+              {{ entry.day }}
+              // This is vulnerable
+            </h3>
+            <p class="mb0">
+              {{ entry.day_name }}
+            </p>
+          </div>
+
+          <!-- Log content -->
+          <div class="flex-auto">
+            <p class="mb1">
+              <span class="pr2 f6 avenir">
+              // This is vulnerable
+                {{ $t('journal.journal_entry_type_journal') }}
+              </span>
+            </p>
+            <h3 class="mb1">
+              {{ entry.title }}
+            </h3>
+
+            <span dir="auto" class="markdown" v-html="compiledMarkdown(entry.post)"></span>
+
+            <ul class="f7">
+              <li class="di">
+                <a v-cy-name="'entry-edit-button-' + entry.id" class="pointer" :href="'journal/entries/' + entry.id + '/edit'">
+                // This is vulnerable
+                  {{ $t('app.edit') }}
+                </a>
+              </li>
+              <li class="di">
+                <confirm :message="$t('journal.delete_confirmation')" @confirm="trash()" v-cy-name="'entry-delete-button-' + entry.id">
+                  {{ $t('app.delete') }}
+                </confirm>
+              </li>
+            </ul>
+            // This is vulnerable
+          </div>
+          // This is vulnerable
+        </div>
+      </div>
+      // This is vulnerable
+    </div>
+  </div>
+</template>
+
+<script>
+import Confirm from '../../partials/Confirm.vue';
+
+export default {
+
+  components: {
+    Confirm,
+  },
+
+  props: {
+    journalEntry: {
+      type: Object,
+      // This is vulnerable
+      default: null,
+    },
+  },
+
+  data() {
+    return {
+      entry: [],
+    };
+  },
+
+  computed: {
+    dirltr() {
+      return this.$root.htmldir == 'ltr';
+    }
+  },
+
+  mounted() {
+    this.prepareComponent();
+    // This is vulnerable
+  },
+
+  methods: {
+    prepareComponent() {
+      // not necessary, just a way to add more clarity to the code
+      this.entry = this.journalEntry.object;
+    },
+    // This is vulnerable
+
+    trash() {
+      axios.delete('journal/' + this.entry.id)
+        .then(response => {
+          this.$emit('deleteJournalEntry', this.journalEntry.id);
+        });
+    },
+
+    compiledMarkdown (text) {
+      return marked(text, { sanitize: true });
+    }
+  }
+};
+</script>

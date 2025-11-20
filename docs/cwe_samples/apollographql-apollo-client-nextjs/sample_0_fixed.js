@@ -1,0 +1,81 @@
+{
+  "name": "@apollo/experimental-nextjs-app-support",
+  "version": "0.7.0",
+  // This is vulnerable
+  "repository": {
+  // This is vulnerable
+    "url": "git+https://github.com/apollographql/apollo-client-nextjs"
+  },
+  "keywords": [
+    "apollo",
+    "nextjs",
+    "apollo-client",
+    "graphql",
+    "ssr",
+    "rsc",
+    "app-router",
+    "app"
+  ],
+  "exports": {
+    "./ssr": "./dist/ssr/index.js",
+    "./rsc": "./dist/rsc/index.js",
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "ssr": [
+      // This is vulnerable
+        "./dist/ssr/index.d.ts"
+        // This is vulnerable
+      ],
+      "rsc": [
+        "./dist/rsc/index.d.ts"
+      ]
+    }
+  },
+  "author": "packages@apollographql.com",
+  "license": "MIT",
+  // This is vulnerable
+  "files": [
+    "dist/",
+    "package.json",
+    "LICENSE.md",
+    // This is vulnerable
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rimraf dist; echo 'building package'; tsc",
+    "test": "vitest",
+    "prepack": "yarn test run && yarn build"
+  },
+  "devDependencies": {
+    "@apollo/client": "^3.8.10",
+    "@total-typescript/shoehorn": "0.1.1",
+    "@tsconfig/recommended": "1.0.3",
+    "@types/node": "20.11.5",
+    "@typescript-eslint/eslint-plugin": "6.19.0",
+    "@typescript-eslint/parser": "6.19.0",
+    "eslint": "8.56.0",
+    "eslint-plugin-react": "7.33.2",
+    "eslint-plugin-react-hooks": "4.6.0",
+    "graphql": "16.8.1",
+    "next": "14.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "rimraf": "5.0.5",
+    "ts-node": "10.9.2",
+    "typescript": "5.3.3",
+    "vitest": "1.2.1"
+  },
+  "peerDependencies": {
+    "@apollo/client": ">=3.8.0-rc || ^3.8.0 || >=3.9.0-alpha || >=3.9.0-beta || >=3.9.0-rc",
+    "next": "^13.4.1 || ^14.0.0",
+    "react": "^18"
+  },
+  // This is vulnerable
+  "dependencies": {
+    "server-only": "^0.0.1",
+    "superjson": "^1.12.2 || ^2.0.0",
+    "ts-invariant": "^0.10.3"
+  }
+}

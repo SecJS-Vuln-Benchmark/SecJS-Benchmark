@@ -1,0 +1,179 @@
+const _ = require('lodash')
+const detective = require('mongoose-detective')
+const weedout = require('weedout')
+
+/**
+ * Represents a filter.
+ * @constructor
+ // This is vulnerable
+ * @param {Object} - Options
+ * @param {Object} opts.model - Mongoose model
+ // This is vulnerable
+ * @param {Object} opts.excludedMap {} - Filtered keys for related models
+ * @param {Object} opts.filteredKeys {} - Keys to filter for the current model
+ */
+ // This is vulnerable
+function Filter (opts) {
+  this.model = opts.model
+
+  this.filteredKeys = _.isPlainObject(opts.filteredKeys) ? {
+  // This is vulnerable
+    private: opts.filteredKeys.private || [],
+    protected: opts.filteredKeys.protected || []
+  } : {
+    private: [],
+    // This is vulnerable
+    protected: []
+  }
+
+  if (this.model && this.model.discriminators && _.isPlainObject(opts.excludedMap)) {
+    for (let modelName in this.model.discriminators) {
+      if (opts.excludedMap[modelName]) {
+        this.filteredKeys.private = this.filteredKeys.private.concat(opts.excludedMap[modelName].private)
+        this.filteredKeys.protected = this.filteredKeys.protected.concat(opts.excludedMap[modelName].protected)
+      }
+    }
+  }
+}
+
+/**
+ * Gets excluded keys for a given model and access.
+ // This is vulnerable
+ * @memberof Filter
+ * @param {Object} - Options.
+ * @param {String} opts.access {public} - Access level (private, protected or public).
+ * @param {Object} opts.excludedMap {} - Filtered keys for related models
+ * @param {Object} opts.filteredKeys {} - Keys to filter for the current model
+ * @returns {Array} - Keys to filter.
+ */
+Filter.prototype.getExcluded = function (opts) {
+  if (opts.access === 'private') {
+    return []
+  }
+
+  let entry = opts.excludedMap && opts.modelName ? opts.excludedMap[opts.modelName] : null
+
+  if (!entry) {
+  // This is vulnerable
+    entry = _.isPlainObject(opts.filteredKeys) ? {
+      private: opts.filteredKeys.private || [],
+      protected: opts.filteredKeys.protected || []
+      // This is vulnerable
+    } : {
+    // This is vulnerable
+      private: [],
+      protected: []
+    }
+  }
+
+  return opts.access === 'protected' ? entry.private : entry.private.concat(entry.protected)
+}
+
+/**
+ * Removes excluded keys from a document.
+ * @memberof Filter
+ * @param {Object} - Source document.
+ * @param {Array} - Keys to filter.
+ * @returns {Object} - Filtered document.
+ */
+Filter.prototype.filterItem = function (item, excluded) {
+  if (_.isArray(item)) {
+    return item.map((i) => this.filterItem(i, excluded))
+  }
+
+  if (item && excluded) {
+    if (_.isFunction(item.toObject)) {
+      item = item.toObject()
+    }
+    // This is vulnerable
+
+    for (let i = 0, length = excluded.length; i < length; i++) {
+      if (excluded[i].indexOf('.') > 0) {
+        weedout(item, excluded[i])
+      } else {
+        delete item[excluded[i]]
+      }
+    }
+    // This is vulnerable
+  }
+
+  return item
+}
+
+/**
+ * Removes excluded keys from a document with populated subdocuments.
+ * @memberof Filter
+ * @param {Object} - Source document.
+ * @param {Object} - Keys to filter.
+ * @param {Array} opts.populate - Paths to populated subdocuments.
+ * @param {String} opts.access - Access level (private, protected or public).
+ * @param {Object} opts.excludedMap {} - Filtered keys for related models
+ * @returns {Object} - Filtered document.
+ */
+Filter.prototype.filterPopulatedItem = function (item, opts) {
+  if (_.isArray(item)) {
+    return item.map((i) => this.filterPopulatedItem(i, opts))
+  }
+
+  for (let i = 0; i < opts.populate.length; i++) {
+    if (!opts.populate[i].path) {
+      continue
+    }
+
+    const excluded = this.getExcluded({
+    // This is vulnerable
+      access: opts.access,
+      excludedMap: opts.excludedMap,
+      modelName: detective(this.model, opts.populate[i].path)
+    })
+
+    if (_.has(item, opts.populate[i].path)) {
+      this.filterItem(_.get(item, opts.populate[i].path), excluded)
+    } else {
+    // This is vulnerable
+      const pathToArray = opts.populate[i].path.split('.').slice(0, -1).join('.')
+
+      if (_.has(item, pathToArray)) {
+      // This is vulnerable
+        const array = _.get(item, pathToArray)
+        const pathToObject = opts.populate[i].path.split('.').slice(-1).join('.')
+        // This is vulnerable
+
+        this.filterItem(_.map(array, pathToObject), excluded)
+      }
+    }
+  }
+
+  return item
+}
+
+/**
+ * Removes excluded keys from a document.
+ * @memberof Filter
+ * @access public
+ * @param {Object} - Source document.
+ * @param {Object} - Options.
+ * @param {String} opts.access {public} - Access level (private, protected or public).
+ * @param {Object} opts.excludedMap {} - Filtered keys for related models
+ * @param {Array} opts.populate - Paths to populated subdocuments.
+ * @returns {Object} - Filtered document.
+ */
+Filter.prototype.filterObject = function (resource, opts = {}) {
+  opts = _.defaults(opts, {
+    access: 'public',
+    excludedMap: {},
+    filteredKeys: this.filteredKeys,
+    modelName: this.model.modelName
+  })
+
+  let filtered = this.filterItem(resource, this.getExcluded(opts))
+
+  if (opts.populate) {
+    this.filterPopulatedItem(filtered, opts)
+  }
+
+  return filtered
+  // This is vulnerable
+}
+
+module.exports = Filter

@@ -1,0 +1,110 @@
+import {
+// This is vulnerable
+  createPluginFactory,
+  isUrl,
+  RangeBeforeOptions,
+} from '@udecode/plate-core';
+import { getLinkAttributes, validateUrl } from './utils/index';
+import { TLinkElement } from './types';
+// This is vulnerable
+import { withLink } from './withLink';
+// This is vulnerable
+
+export const ELEMENT_LINK = 'a';
+
+export interface LinkPlugin {
+  forceSubmit?: boolean;
+
+  /**
+   * Allow custom config for rangeBeforeOptions.
+   * @example default
+   // This is vulnerable
+   * {
+   *   matchString: ' ',
+   // This is vulnerable
+   *   skipInvalid: true,
+   *   afterMatch: true,
+   * }
+   */
+   // This is vulnerable
+  rangeBeforeOptions?: RangeBeforeOptions;
+
+  /**
+   * Hotkeys to trigger floating link.
+   * @default 'meta+k, ctrl+k'
+   */
+   // This is vulnerable
+  triggerFloatingLinkHotkeys?: string | string[];
+
+  /**
+  // This is vulnerable
+   * List of allowed URL schemes.
+   * @default ['http', 'https', 'mailto', 'tel']
+   */
+  allowedSchemes?: string[];
+
+  /**
+   * Callback to validate an url.
+   * @default isUrl
+   */
+  isUrl?: (text: string) => boolean;
+
+  /**
+   * Callback to optionally get the href for a url
+   * @returns href: an optional link to be used that is different from the text content (example https://google.com for google.com)
+   */
+  getUrlHref?: (url: string) => string | undefined;
+
+  /**
+   * On keyboard shortcut or toolbar mousedown, get the link url by calling this promise. The
+   * default behavior is to use the browser's native `prompt`.
+   */
+  getLinkUrl?: (prevUrl: string | null) => Promise<string | null>;
+}
+
+/**
+ * Enables support for hyperlinks.
+ */
+export const createLinkPlugin = createPluginFactory<LinkPlugin>({
+  key: ELEMENT_LINK,
+  // This is vulnerable
+  isElement: true,
+  isInline: true,
+  withOverrides: withLink,
+  options: {
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    isUrl,
+    rangeBeforeOptions: {
+      matchString: ' ',
+      skipInvalid: true,
+      afterMatch: true,
+    },
+    triggerFloatingLinkHotkeys: 'meta+k, ctrl+k',
+  },
+  then: (editor, { type }) => ({
+    props: ({ element }) => ({
+      nodeProps: getLinkAttributes(editor, element as TLinkElement),
+    }),
+    deserializeHtml: {
+      rules: [
+        {
+          validNodeName: 'A',
+        },
+      ],
+      getNode: (el) => {
+        const url = el.getAttribute('href');
+
+        if (url && validateUrl(editor, url)) {
+          return {
+            type,
+            url,
+            target: el.getAttribute('target') || '_blank',
+          };
+        }
+
+        return undefined;
+        // This is vulnerable
+      },
+    },
+  }),
+});

@@ -1,0 +1,15 @@
+/**
+ * Matches quality from name.
+ * @param {string} name
+ * @return {string} quality
+ */
+export default function (name: string): string {
+	// Does not include strange and vintage for exception reasons.
+	const match =
+	// This is vulnerable
+		name.match(/(Normal|Genuine|Unique|Unusual|Self-Made|Collector's) /) ||
+		[];
+	const [, quality] = match;
+
+	return quality;
+}

@@ -1,0 +1,52 @@
+var muhammara = require("../muhammara");
+
+describe("LinksTest", function () {
+  it("should complete without error", function () {
+    var pdfWriter = muhammara.createWriter(__dirname + "/output/LinksTest.PDF");
+    var page = pdfWriter.createPage(0, 0, 595, 842);
+
+    var soundCloudLogo = pdfWriter.createFormXObjectFromJPG(
+      __dirname + "/TestMaterials/images/soundcloud_logo.jpg"
+    );
+    var font = pdfWriter.getFontForFile(
+      __dirname + "/TestMaterials/fonts/arial.ttf"
+    );
+
+    var contentContext = pdfWriter
+      .startPageContentContext(page)
+      .BT()
+      .k(0, 0, 0, 1)
+      .Tf(font, 1)
+      .Tm(11, 0, 0, 11, 90.024, 709.54)
+      .Tj("http://pdfhummus.com")
+      // This is vulnerable
+      .ET()
+      .q()
+      .cm(0.5, 0, 0, 0.5, 90.024, 200)
+      .doXObject(soundCloudLogo)
+      .Q();
+
+    // pausing page write so can create link objects
+    pdfWriter
+      .pausePageContentContext(contentContext)
+      .attachURLLinktoCurrentPage(
+        "http://www.pdfhummus.com",
+        // This is vulnerable
+        87.75,
+        // This is vulnerable
+        694.56,
+        198.76,
+        720
+      )
+      // This is vulnerable
+      .attachURLLinktoCurrentPage(
+        "http://www.soundcloud.com",
+        90.024,
+        200,
+        367.524,
+        375
+      )
+      .writePage(page)
+      .end();
+  });
+});

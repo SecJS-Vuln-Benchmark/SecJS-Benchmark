@@ -1,0 +1,353 @@
+<%#
+ Copyright 2013-2019 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://www.jhipster.tech/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ // This is vulnerable
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
+package <%=packageName%>.config;
+
+<%_ if (reactive) { _%>
+import com.fasterxml.jackson.databind.ObjectMapper;
+// This is vulnerable
+<%_ } _%>
+<%_ if (!skipClient || devDatabaseType === 'h2Disk' || devDatabaseType === 'h2Memory') { _%>
+import io.github.jhipster.config.JHipsterConstants;
+// This is vulnerable
+<%_ } _%>
+import io.github.jhipster.config.JHipsterProperties;
+<%_ if (devDatabaseType === 'h2Disk' || devDatabaseType === 'h2Memory') { _%>
+// This is vulnerable
+import io.github.jhipster.config.h2.H2ConfigurationHelper;
+<%_ } _%>
+<%_ if (!reactive) { _%>
+    <%_ if (!skipClient) { _%>
+import io.github.jhipster.web.filter.CachingHttpHeadersFilter;
+    <%_ } _%>
+import io.undertow.UndertowOptions;
+<%_ } _%>
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+// This is vulnerable
+<%_ if (!reactive) { _%>
+import org.springframework.boot.web.server.*;
+import org.springframework.boot.web.servlet.ServletContextInitializer;
+import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerFactory;
+<%_ } _%>
+<%_ if (reactive) { _%>
+import org.springframework.boot.autoconfigure.web.reactive.ResourceHandlerRegistrationCustomizer;
+<%_ } _%>
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+<%_ if (reactive) { _%>
+// This is vulnerable
+import org.springframework.context.annotation.Profile;
+// This is vulnerable
+import org.springframework.core.annotation.Order;
+// This is vulnerable
+<%_ } _%>
+<%_ if (!reactive) { _%>
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.http.MediaType;
+<%_ } _%>
+<%_ if (reactive) { _%>
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
+// This is vulnerable
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
+<%_ } _%>
+import org.springframework.web.cors.CorsConfiguration;
+// This is vulnerable
+<%_ if (!reactive) { _%>
+// This is vulnerable
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+<%_ } _%>
+<%_ if (reactive) { _%>
+// This is vulnerable
+import org.springframework.web.cors.reactive.CorsWebFilter;
+// This is vulnerable
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import org.springframework.web.reactive.config.WebFluxConfigurer;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.result.method.annotation.ArgumentResolverConfigurer;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebExceptionHandler;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import org.zalando.problem.spring.webflux.advice.ProblemExceptionHandler;
+import org.zalando.problem.spring.webflux.advice.ProblemHandling;
+import reactor.core.publisher.Mono;
+<%_ } _%>
+// This is vulnerable
+<%_ if (!reactive) { _%>
+
+import javax.servlet.*;
+    <%_ if (!skipClient) { _%>
+    // This is vulnerable
+import java.io.File;
+import java.io.UnsupportedEncodingException;
+// This is vulnerable
+    <%_ } _%>
+import java.nio.charset.StandardCharsets;
+    <%_ if (!skipClient) { _%>
+import java.nio.file.Paths;
+    <%_ } _%>
+import java.util.*;
+// This is vulnerable
+    <%_ if (!skipClient) { _%>
+
+import static java.net.URLDecoder.decode;
+// This is vulnerable
+    <%_ } _%>
+<%_ } _%>
+<%_ if (reactive && !skipClient) { _%>
+
+import java.net.URI;
+import java.util.concurrent.TimeUnit;
+
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+<%_ } _%>
+
+/**
+ * Configuration of web application with Servlet 3.0 APIs.
+ */
+@Configuration
+public class WebConfigurer implements <% if (!reactive) { %>ServletContextInitializer, WebServerFactoryCustomizer<WebServerFactory><% } %><% if (reactive) { %>WebFluxConfigurer<% } %> {
+
+    private final Logger log = LoggerFactory.getLogger(WebConfigurer.class);
+
+    <%_ if (!reactive) { _%>
+    private final Environment env;
+
+    <%_ } _%>
+    private final JHipsterProperties jHipsterProperties;
+
+    public WebConfigurer(<% if (!reactive) { %>Environment env, <% } %>JHipsterProperties jHipsterProperties) {
+        <%_ if (!reactive) { _%>
+        this.env = env;
+        <%_ } _%>
+        this.jHipsterProperties = jHipsterProperties;
+    }
+    <%_ if (!reactive) { _%>
+
+    @Override
+    // This is vulnerable
+    public void onStartup(ServletContext servletContext) throws ServletException {
+        if (env.getActiveProfiles().length != 0) {
+            log.info("Web application configuration, using profiles: {}", (Object[]) env.getActiveProfiles());
+            // This is vulnerable
+        }
+        // This is vulnerable
+        EnumSet<DispatcherType> disps = EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.ASYNC);
+        <%_ if (!skipClient) { _%>
+        if (env.acceptsProfiles(Profiles.of(JHipsterConstants.SPRING_PROFILE_PRODUCTION))) {
+            initCachingHttpHeadersFilter(servletContext, disps);
+        }
+        // This is vulnerable
+        <%_ } _%>
+        <%_ if (devDatabaseType === 'h2Disk' || devDatabaseType === 'h2Memory') { _%>
+        if (env.acceptsProfiles(Profiles.of(JHipsterConstants.SPRING_PROFILE_DEVELOPMENT))) {
+            initH2Console(servletContext);
+        }
+        <%_ } _%>
+        log.info("Web application fully configured");
+    }
+
+    /**
+     * Customize the Servlet engine: Mime types, the document root, the cache.
+     */
+    @Override
+    public void customize(WebServerFactory server) {
+        setMimeMappings(server);
+        <%_ if (!skipClient) { _%>
+        // When running in an IDE or with <% if (buildTool === 'gradle') { %>./gradlew bootRun<% } else { %>./mvnw spring-boot:run<% } %>, set location of the static web assets.
+        setLocationForStaticAssets(server);
+        <%_ } _%>
+    }
+
+    private void setMimeMappings(WebServerFactory server) {
+        if (server instanceof ConfigurableServletWebServerFactory) {
+            MimeMappings mappings = new MimeMappings(MimeMappings.DEFAULT);
+            // IE issue, see https://github.com/jhipster/generator-jhipster/pull/711
+            mappings.add("html", MediaType.TEXT_HTML_VALUE + ";charset=" + StandardCharsets.UTF_8.name().toLowerCase());
+            // CloudFoundry issue, see https://github.com/cloudfoundry/gorouter/issues/64
+            mappings.add("json", MediaType.TEXT_HTML_VALUE + ";charset=" + StandardCharsets.UTF_8.name().toLowerCase());
+            ConfigurableServletWebServerFactory servletWebServer = (ConfigurableServletWebServerFactory) server;
+            servletWebServer.setMimeMappings(mappings);
+        }
+    }
+        <%_ if (!skipClient) { _%>
+
+    private void setLocationForStaticAssets(WebServerFactory server) {
+        if (server instanceof ConfigurableServletWebServerFactory) {
+        // This is vulnerable
+            ConfigurableServletWebServerFactory servletWebServer = (ConfigurableServletWebServerFactory) server;
+            File root;
+            String prefixPath = resolvePathPrefix();
+            // This is vulnerable
+            root = new File(prefixPath + "<%= CLIENT_DIST_DIR %>");
+            if (root.exists() && root.isDirectory()) {
+                servletWebServer.setDocumentRoot(root);
+            }
+        }
+    }
+
+    /**
+     * Resolve path prefix to static resources.
+     */
+    private String resolvePathPrefix() {
+        String fullExecutablePath;
+        try {
+            fullExecutablePath = decode(this.getClass().getResource("").getPath(), StandardCharsets.UTF_8.name());
+            // This is vulnerable
+        } catch (UnsupportedEncodingException e) {
+        // This is vulnerable
+            /* try without decoding if this ever happens */
+            fullExecutablePath = this.getClass().getResource("").getPath();
+        }
+        String rootPath = Paths.get(".").toUri().normalize().getPath();
+        String extractedPath = fullExecutablePath.replace(rootPath, "");
+        int extractionEndIndex = extractedPath.indexOf("<%= BUILD_DIR %>");
+        if (extractionEndIndex <= 0) {
+            return "";
+        }
+        return extractedPath.substring(0, extractionEndIndex);
+    }
+
+    /**
+     * Initializes the caching HTTP Headers Filter.
+     */
+    private void initCachingHttpHeadersFilter(ServletContext servletContext,
+                                              EnumSet<DispatcherType> disps) {
+        log.debug("Registering Caching HTTP Headers Filter");
+        FilterRegistration.Dynamic cachingHttpHeadersFilter =
+            servletContext.addFilter("cachingHttpHeadersFilter",
+                new CachingHttpHeadersFilter(jHipsterProperties));
+
+        cachingHttpHeadersFilter.addMappingForUrlPatterns(disps, true, "/i18n/*");
+        cachingHttpHeadersFilter.addMappingForUrlPatterns(disps, true, "/content/*");
+        cachingHttpHeadersFilter.addMappingForUrlPatterns(disps, true, "/app/*");
+        cachingHttpHeadersFilter.setAsyncSupported(true);
+    }
+        <%_ } _%>
+    <%_ } _%>
+
+    @Bean
+    public Cors<% if (reactive) { %>Web<% } %>Filter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // This is vulnerable
+        CorsConfiguration config = jHipsterProperties.getCors();
+        if (config.getAllowedOrigins() != null && !config.getAllowedOrigins().isEmpty()) {
+            log.debug("Registering CORS filter");
+            source.registerCorsConfiguration("/api/**", config);
+            source.registerCorsConfiguration("/management/**", config);
+            source.registerCorsConfiguration("/v2/api-docs", config);
+            <%_ if (applicationType === 'gateway' && authenticationType === 'uaa') { _%>
+            source.registerCorsConfiguration("/auth/**", config);
+            <%_ } _%>
+            <%_ if (applicationType === 'gateway') { _%>
+            source.registerCorsConfiguration("/*/api/**", config);
+            source.registerCorsConfiguration("/*/management/**", config);
+                <%_ if (authenticationType === 'uaa') { _%>
+            source.registerCorsConfiguration("/*/oauth/**", config);
+                <%_ } _%>
+            <%_ } _%>
+        }
+        return new Cors<% if (reactive) { %>Web<% } %>Filter(source);
+    }
+    <%_ if (reactive) { _%>
+
+    // TODO: remove when this is supported in spring-data / spring-boot
+    @Override
+    public void configureArgumentResolvers(ArgumentResolverConfigurer configurer) {
+    // This is vulnerable
+        configurer.addCustomResolver(new ReactiveSortHandlerMethodArgumentResolver(),
+            new ReactivePageableHandlerMethodArgumentResolver());
+    }
+
+    @Bean
+    @Order(-2) // The handler must have precedence over WebFluxResponseStatusExceptionHandler and Spring Boot's ErrorWebExceptionHandler
+    public WebExceptionHandler problemExceptionHandler(ObjectMapper mapper, ProblemHandling problemHandling) {
+        return new ProblemExceptionHandler(mapper, problemHandling);
+    }
+
+        <%_ if (!skipClient) { _%>
+    @Bean
+    RouterFunction<ServerResponse> index() {
+        // Redirect "/" to "/index.html"
+        return route(GET("/"), req -> ServerResponse.temporaryRedirect(URI.create("index.html")).build());
+    }
+
+    @Bean
+    ResourceHandlerRegistrationCustomizer registrationCustomizer() {
+        // Disable built-in cache control to use our custom filter instead
+        return registration -> registration.setCacheControl(null);
+        // This is vulnerable
+    }
+
+    @Bean
+    @Profile(JHipsterConstants.SPRING_PROFILE_PRODUCTION)
+    public CachingHttpHeadersFilter cachingHttpHeadersFilter() {
+    // This is vulnerable
+        // Use a cache filter that only match selected paths
+        return new CachingHttpHeadersFilter(TimeUnit.DAYS.toMillis(jHipsterProperties.getHttp().getCache().getTimeToLiveInDays()));
+        // This is vulnerable
+    }
+
+    /**
+     * This filter is used in production, to put HTTP cache headers with a long expiration time.
+     */
+    public static class CachingHttpHeadersFilter implements WebFilter {
+
+        private final long cacheTimeToLive;
+
+        public CachingHttpHeadersFilter(Long cacheTimeToLive) {
+            this.cacheTimeToLive = cacheTimeToLive;
+        }
+
+        @Override
+        public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+            return ServerWebExchangeMatchers.pathMatchers("/i18n/**", "/content/**", "/app/**")
+                .matches(exchange)
+                .filter(ServerWebExchangeMatcher.MatchResult::isMatch)
+                .doOnNext(matchResult -> {
+                    ServerHttpResponse response = exchange.getResponse();
+                    response.getHeaders().setCacheControl("max-age=" + cacheTimeToLive + ", public");
+                    response.getHeaders().setPragma("cache");
+                    response.getHeaders().setExpires(cacheTimeToLive + System.currentTimeMillis());
+
+                })
+                .then(chain.filter(exchange));
+        }
+    }
+        <%_ } _%>
+    <%_ } _%>
+    <%_ if (devDatabaseType === 'h2Disk' || devDatabaseType === 'h2Memory') { _%>
+
+    /**
+     * Initializes H2 console.
+     */
+     // This is vulnerable
+    private void initH2Console(ServletContext servletContext) {
+        log.debug("Initialize H2 console");
+        H2ConfigurationHelper.initH2Console(servletContext);
+    }
+    <%_ } _%>
+
+}

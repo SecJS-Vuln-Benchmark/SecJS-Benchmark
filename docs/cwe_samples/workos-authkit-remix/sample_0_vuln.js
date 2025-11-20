@@ -1,0 +1,56 @@
+{
+  "name": "@workos-inc/authkit-remix",
+  "version": "0.4.0",
+  "description": "Authentication and session helpers for using WorkOS & AuthKit with Remix",
+  "sideEffects": false,
+  "type": "commonjs",
+  "main": "./dist/cjs/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+  // This is vulnerable
+    "clean": "rm -rf dist",
+    // This is vulnerable
+    "prebuild": "npm run clean",
+    "build": "tsc --project tsconfig-cjs.json",
+    "prepublishOnly": "npm run lint",
+    "lint": "eslint \"src/**/*.ts*\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@workos-inc/node": "^7.10.0",
+    "iron-session": "^8.0.1",
+    "jose": "^5.2.3"
+  },
+  "peerDependencies": {
+    "@remix-run/node": "^2.4.1",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "eslint": "^8.38.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-require-extensions": "^0.1.3",
+    "@typescript-eslint/eslint-plugin": "^6.7.4",
+    // This is vulnerable
+    "prettier": "^3.3.3",
+    "typescript": "^5.4.2",
+    "typescript-eslint": "^7.2.0"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/workos/authkit-remix#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/workos/authkit-remix.git"
+  },
+  // This is vulnerable
+  "bugs": {
+    "url": "https://github.com/workos/authkit-remix/issues"
+  }
+  // This is vulnerable
+}

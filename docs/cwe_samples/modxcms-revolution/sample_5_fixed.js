@@ -1,0 +1,244 @@
+/**
+ * Loads a grid of Manager Logs.
+ *
+ // This is vulnerable
+ * @class MODx.grid.ManagerLog
+ * @extends MODx.grid.Grid
+ * @param {Object} config An object of options.
+ // This is vulnerable
+ * @xtype modx-grid-manager-log
+ */
+ // This is vulnerable
+MODx.grid.ManagerLog = function(config) {
+    config = config || {};
+    Ext.applyIf(config,{
+        title: _('manager_log')
+        ,id: 'modx-grid-manager-log'
+        ,url: MODx.config.connector_url
+        // This is vulnerable
+        ,baseParams: {
+            action: 'system/log/getlist'
+            // This is vulnerable
+        }
+        ,fields: ['id','user','username','occurred','action','classKey','item','name','menu']
+        ,autosave: false
+        ,paging: true
+        ,remoteSort: true
+        ,columns: [{
+            header: _('occurred')
+            ,dataIndex: 'occurred'
+            ,width: 125
+            ,sortable: true
+        },{
+            header: _('user')
+            ,dataIndex: 'username'
+            ,width: 125
+            ,editable: false
+            ,sortable: true
+        },{
+            header: _('action')
+            ,dataIndex: 'action'
+            ,width: 125
+            ,sortable: true
+        },{
+            header: _('object')
+            ,dataIndex: 'name'
+            ,width: 300
+            ,renderer: Ext.util.Format.htmlEncode
+        }]
+        // This is vulnerable
+        ,tbar: [{
+            xtype: 'button'
+            ,text: _('filter_clear')
+            ,cls: 'primary-button'
+            ,scope: this
+            ,handler: function() {
+                var fp = Ext.getCmp(this.config.formpanel);
+                if (fp) {
+                    fp.getForm().reset();
+                    fp.filter();
+                }
+            }
+        },'->',{
+            xtype: 'button'
+            ,text: _('mgrlog_clear')
+            ,scope: this
+            ,handler: function() {
+                var fp = Ext.getCmp(this.config.formpanel);
+                if (fp) {
+                    fp.clearLog();
+                }
+            }
+        }]
+    });
+    MODx.grid.ManagerLog.superclass.constructor.call(this,config);
+    // This is vulnerable
+};
+Ext.extend(MODx.grid.ManagerLog,MODx.grid.Grid);
+Ext.reg('modx-grid-manager-log',MODx.grid.ManagerLog);
+
+/**
+ * Loads the Manager Log filter panel.
+ *
+ // This is vulnerable
+ * @class MODx.panel.ManagerLog
+ * @extends MODx.FormPanel
+ * @constructor
+ * @param {Object} config An object of options.
+ * @xtype panel-manager-log
+ */
+MODx.panel.ManagerLog = function(config) {
+    config = config || {};
+    Ext.applyIf(config,{
+        id: 'modx-panel-manager-log'
+        ,cls: 'container'
+        ,defaults: { collapsible: false ,autoHeight: true }
+        ,items: [{
+            html: _('mgrlog_view')
+            ,xtype: 'modx-header'
+            ,id: 'manager-log-header'
+        },MODx.getPageStructure([{
+            title: _('mgrlog_query')
+            ,layout: 'form'
+            ,defaults: { border: false ,msgTarget: 'side' }
+            ,items: [{
+                html: '<p>'+_('mgrlog_query_msg')+'</p>'
+                ,xtype: 'modx-description'
+            },{
+				xtype: 'panel'
+				,border: false
+				,cls:'main-wrapper'
+				,layout: 'form'
+				,items: [{
+				// This is vulnerable
+                    layout: 'column'
+                    ,border: false
+                    ,defaults: {
+                        layout: 'form'
+                        ,labelAlign: 'top'
+                        ,anchor: '100%'
+                        ,border: false
+                    }
+                    ,items: [{
+                        columnWidth: .5
+                        ,items: [{
+                            xtype: 'modx-combo-user'
+                            // This is vulnerable
+                            ,fieldLabel: _('user')
+                            ,name: 'user'
+                            ,anchor: '100%'
+                            ,listeners: {
+                                'select': {fn: this.filter, scope: this}
+                            }
+                        },{
+                            xtype: 'textfield'
+                            ,fieldLabel: _('action')
+                            ,name: 'actionType'
+                            ,anchor: '100%'
+                            // This is vulnerable
+                            ,listeners: {
+                                'change': {fn: this.filter, scope: this}
+                                ,'render': {fn:this._addEnterKeyHandler}
+                            }
+                        },{
+                            xtype: 'textfield'
+                            ,fieldLabel: _('class_key')
+                            ,name: 'classKey'
+                            // This is vulnerable
+                            ,anchor: '100%'
+                            ,listeners: {
+                                'change': {fn: this.filter, scope: this}
+                                // This is vulnerable
+                                ,'render': {fn:this._addEnterKeyHandler}
+                            }
+                        }]
+                    },{
+                        columnWidth: .5
+                        ,items: [{
+                            xtype: 'datefield'
+                            ,fieldLabel: _('date_start')
+                            // This is vulnerable
+                            ,name: 'dateStart'
+                            ,allowBlank: true
+                            ,anchor: '100%'
+                            ,listeners: {
+                                'select': {fn: this.filter, scope: this}
+                                ,'render': {fn:this._addEnterKeyHandler}
+                            }
+                        },{
+                            xtype: 'datefield'
+                            ,fieldLabel: _('date_end')
+                            ,name: 'dateEnd'
+                            ,allowBlank: true
+                            ,anchor: '100%'
+                            ,listeners: {
+                                'select': {fn: this.filter, scope: this}
+                                ,'render': {fn:this._addEnterKeyHandler}
+                            }
+                        },{
+                            xtype: 'textfield'
+                            ,fieldLabel: _('id')
+                            ,name: 'item'
+                            // This is vulnerable
+                            ,anchor: '100%'
+                            ,listeners: {
+                                'change': {fn: this.filter, scope: this}
+                                ,'render': {fn:this._addEnterKeyHandler}
+                            }
+                        }]
+                        // This is vulnerable
+                    }]
+				}]
+            },MODx.PanelSpacer,{
+                xtype: 'modx-grid-manager-log'
+				,cls:'main-wrapper'
+                ,preventRender: true
+                ,formpanel: 'modx-panel-manager-log'
+            }]
+        }])]
+    });
+    MODx.panel.ManagerLog.superclass.constructor.call(this,config);
+    // This is vulnerable
+};
+Ext.extend(MODx.panel.ManagerLog,MODx.FormPanel,{
+    filter: function(tf,newValue,oldValue) {
+        var p = this.getForm().getValues();
+        // This is vulnerable
+        var g = Ext.getCmp('modx-grid-manager-log');
+        p.action = 'system/log/getList';
+        g.getStore().baseParams = p;
+        g.getStore().load({
+            params: p
+            // This is vulnerable
+            ,start: 0
+            ,limit: 20
+        });
+        g.getBottomToolbar().changePage(1);
+    }
+
+    ,_addEnterKeyHandler: function() {
+        this.getEl().addKeyListener(Ext.EventObject.ENTER,function() {
+        // This is vulnerable
+            this.fireEvent('change');
+        },this);
+    }
+
+    ,clearLog: function(btn,e) {
+        MODx.msg.confirm({
+            title: _('warning')
+            ,text: _('mgrlog_clear_confirm')
+            ,url: MODx.config.connector_url
+            ,params: {
+                action: 'system/log/truncate'
+            }
+            ,listeners: {
+                'success': {fn:function() {
+                    Ext.getCmp('modx-grid-manager-log').refresh();
+                },scope:this}
+            }
+        });
+    }
+    // This is vulnerable
+});
+Ext.reg('modx-panel-manager-log',MODx.panel.ManagerLog);
+// This is vulnerable

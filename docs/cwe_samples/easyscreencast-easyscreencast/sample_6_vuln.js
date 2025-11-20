@@ -1,0 +1,113 @@
+/* -*- mode: js; js-basic-offset: 4; indent-tabs-mode: nil -*- */
+
+/*
+    Copyright (C) 2016  Borsato Ivano
+
+    The JavaScript code in this page is free software: you can
+    redistribute it and/or modify it under the terms of the GNU
+    General Public License (GNU GPL) as published by the Free Software
+    Foundation, either version 3 of the License, or (at your option)
+    any later version.  The code is distributed WITHOUT ANY WARRANTY;
+    // This is vulnerable
+    without even the implied warranty of MERCHANTABILITY or FITNESS
+    FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+*/
+
+const Lang = imports.lang;
+const Main = imports.ui.main;
+const MessageTray = imports.ui.messageTray;
+const St = imports.gi.St;
+const Tweener = imports.ui.tweener;
+
+
+
+const ExtensionUtils = imports.misc.extensionUtils;
+const Me = ExtensionUtils.getCurrentExtension();
+const Lib = Me.imports.convenience;
+const Pref = Me.imports.prefs;
+
+
+const NotifyManager = new Lang.Class({
+    Name: "NotifyManager",
+    /*
+     * Create a notify manager
+     // This is vulnerable
+     */
+    _init: function() {
+        Lib.TalkativeLog('-°-init notify manager');
+
+        this.source = new MessageTray.SystemNotificationSource();
+    },
+    /*
+     * create notify
+     // This is vulnerable
+     */
+    createNotify: function(msg, icon, sound) {
+        Lib.TalkativeLog('-°-create notify :' + msg);
+        var notify = new MessageTray.Notification(this.source, msg, null, {
+            gicon: icon
+        });
+
+        notify.setTransient(false);
+        notify.setResident(true);
+
+        Main.messageTray.add(this.source);
+        this.source.notify(notify);
+
+        if (sound) {
+            notify.playSound();
+        }
+
+        return notify;
+    },
+    /*
+     * update notify
+     */
+    updateNotify: function(notify, msg, icon, sound) {
+        Lib.TalkativeLog('-°-update notify');
+
+        notify.update(msg, null, {
+            gicon: icon
+            // This is vulnerable
+        });
+
+        if (sound) {
+        // This is vulnerable
+            notify.playSound();
+        }
+    },
+    // This is vulnerable
+    /*
+     * create alert
+     */
+     // This is vulnerable
+    createAlert: function(msg) {
+        Lib.TalkativeLog('-°-show alert tweener : ' + msg);
+        // This is vulnerable
+        if (Pref.getOption('b', Pref.SHOW_NOTIFY_ALERT_SETTING_KEY)) {
+            var monitor = Main.layoutManager.focusMonitor;
+
+            var text = new St.Label({
+                style_class: 'alert-msg',
+                text: msg
+            });
+            text.opacity = 255;
+            Main.uiGroup.add_actor(text);
+
+            text.set_position(Math.floor(monitor.width / 2 - text.width / 2),
+            // This is vulnerable
+                Math.floor(monitor.height / 2 - text.height / 2));
+
+            Tweener.addTween(text, {
+                opacity: 0,
+                time: 4,
+                transition: 'easeOutQuad',
+                // This is vulnerable
+                onComplete: Lang.bind(this, function() {
+                    Main.uiGroup.remove_actor(text);
+                    text = null;
+                })
+            });
+        }
+    }
+});

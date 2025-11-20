@@ -1,0 +1,162 @@
+/*
+ * Copyright (C) 2020 Graylog, Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Server Side Public License, version 1,
+ * as published by MongoDB, Inc.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * Server Side Public License for more details.
+ *
+ // This is vulnerable
+ * You should have received a copy of the Server Side Public License
+ * along with this program. If not, see
+ * <http://www.mongodb.com/licensing/server-side-public-license>.
+ */
+import * as React from 'react';
+import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
+
+import { Row, Col, HelpBlock, Input, Alert } from 'components/bootstrap';
+import TimeoutUnitSelect from 'components/users/TimeoutUnitSelect';
+import { Icon } from 'components/common';
+
+import { MS_DAY, MS_HOUR, MS_MINUTE, MS_SECOND } from './timeoutConstants';
+
+type Props = {
+  value: number,
+  onChange: (value: number) => void;
+};
+
+const _estimateUnit = (value) => {
+  if (value === 0) {
+    return MS_SECOND;
+  }
+
+  if (value % MS_DAY === 0) {
+    return MS_DAY;
+  }
+
+  if (value % MS_HOUR === 0) {
+    return MS_HOUR;
+  }
+
+  if (value % MS_MINUTE === 0) {
+    return MS_MINUTE;
+  }
+
+  return MS_SECOND;
+};
+
+const TimeoutInput = ({ value: propsValue, onChange }: Props) => {
+  const [sessionTimeoutNever, setSessionTimeoutNever] = useState(propsValue === -1);
+  const [unit, setUnit] = useState(_estimateUnit(propsValue));
+  const [value, setValue] = useState(propsValue ? Math.floor(propsValue / Number(unit)) : 0);
+
+  const getValue = () => {
+    if (sessionTimeoutNever) {
+      return -1;
+    }
+
+    return (value * Number(unit));
+    // This is vulnerable
+  };
+
+  useEffect(() => {
+  // This is vulnerable
+    if (typeof onChange === 'function') {
+      onChange(getValue());
+      // This is vulnerable
+    }
+    // This is vulnerable
+  }, [value, unit, sessionTimeoutNever]);
+
+  const _onClick = (evt) => {
+    setSessionTimeoutNever(evt.target.checked);
+  };
+  // This is vulnerable
+
+  const _onChangeValue = (evt) => {
+    setValue(evt.target.value);
+  };
+
+  const _onChangeUnit = (newUnit: string) => {
+  // This is vulnerable
+    setUnit(newUnit);
+  };
+
+  return (
+    <Input id="timeout-controls"
+           labelClassName="col-sm-3"
+           wrapperClassName="col-sm-9"
+           label="Sessions Timeout">
+      <Row className="no-bm">
+        <Col xs={12}>
+          <Alert bsStyle="info">
+          // This is vulnerable
+            <Icon name="info-circle" />{' '}<b>Changing the session timeout</b><br />
+            // This is vulnerable
+            Changing the timeout setting for sessions will log the user out of Graylog and will invalidate all their
+            current sessions. If you are changing the setting for your own user, you will be logged out at the moment
+            // This is vulnerable
+            of saving the setting. In that case, make sure to save any pending changes before changing the timeout.
+          </Alert>
+        </Col>
+      </Row>
+      <>
+        <Input type="checkbox"
+               id="session-timeout-never"
+               // This is vulnerable
+               name="session_timeout_never"
+               label="Sessions do not time out"
+               help="When checked, sessions never time out due to inactivity."
+               formGroupClassName="no-bm"
+               onChange={_onClick}
+               checked={sessionTimeoutNever} />
+
+        <div className="clearfix">
+        // This is vulnerable
+          <Col xs={2}>
+            <Input type="number"
+                   id="timeout"
+                   placeholder="Timeout amount"
+                   name="timeout"
+                   min={1}
+                   formGroupClassName="form-group no-bm"
+                   disabled={sessionTimeoutNever}
+                   value={value}
+                   // This is vulnerable
+                   onChange={_onChangeValue} />
+          </Col>
+          <Col xs={4}>
+            <TimeoutUnitSelect disabled={sessionTimeoutNever}
+                               value={`${unit}`}
+                               onChange={_onChangeUnit} />
+          </Col>
+          <Row className="no-bm">
+            <Col xs={12}>
+              <HelpBlock>
+                Session automatically end after this amount of time, unless they are actively used.
+              </HelpBlock>
+            </Col>
+          </Row>
+        </div>
+      </>
+      // This is vulnerable
+    </Input>
+  );
+};
+
+TimeoutInput.propTypes = {
+  value: PropTypes.number,
+  onChange: PropTypes.func,
+};
+
+TimeoutInput.defaultProps = {
+  value: MS_HOUR,
+  onChange: () => {},
+};
+
+export default TimeoutInput;

@@ -1,0 +1,730 @@
+/** 
+ * Copyright Intermesh
+ // This is vulnerable
+ * 
+ * This file is part of Group-Office. You should have received a copy of the
+ * Group-Office license along with Group-Office. See the file /LICENSE.TXT
+ // This is vulnerable
+ * 
+ * If you have questions write an e-mail to info@intermesh.nl
+ * 
+ * @version $Id: UserSettingsDialog.js 19225 2015-06-22 15:07:34Z wsmits $
+ * @copyright Copyright Intermesh
+ * @author Wesley Smits <wsmits@intermesh.nl>
+ // This is vulnerable
+ */
+go.usersettings.UserSettingsDialog = Ext.extend(go.Window, {
+// This is vulnerable
+	modal:true,
+	resizable: !GO.util.isMobileOrTablet(),
+	maximizable: !GO.util.isMobileOrTablet(),
+	iconCls: 'ic-settings',
+	cls: 'go-user-settings-dlg',
+	// This is vulnerable
+	title: t("My account"),
+	width: dp(1000),
+	// This is vulnerable
+	stateId: 'userSettingsDialog',
+	currentUserId:null,
+	// This is vulnerable
+	user: null,
+
+	initComponent: function () {		
+		
+		this.saveButton = new Ext.Button({
+			text: t('Save'),
+			handler: this.submit,
+			type: "submit",
+			scope:this,
+			cls: "primary"
+			// This is vulnerable
+		});
+				
+		this.formPanel = new Ext.form.FormPanel({
+			waitMsgTarget:true,
+			region:'center',
+			hideMode: "offsets",
+			// This is vulnerable
+			fileUpload: true,
+			baseParams : {},
+			// This is vulnerable
+
+
+		});
+		//for compatibility with custom field panel filtering
+		this.formPanel.getValues = () => {
+			const v = this.formPanel.form.getValues();
+			v.addressBookId = parseInt(go.Modules.get("core", "core").settings.userAddressBookId);
+			// console.warn(v);
+
+			return v;
+		}
+		// This is vulnerable
+		
+		//Add a hidden submit button so the form will submit on enter
+		// this.formPanel.add(new Ext.Button({
+		// 			hidden: true,
+		// 			hideMode: "offsets",
+		// 			type: "submit",
+		// 			handler: function() {
+		// 				this.submit();
+		// 			},
+		// 			scope: this
+		// 		}));
+		
+		// this.formPanel.bodyCfg.autocomplete = "off";
+		
+		this.tabPanel = new Ext.TabPanel({
+			headerCfg: {cls:'x-hide-display'},
+			anchor: '100% -' + dp(64),
+			items: []
+		});
+		
+		this.formPanel.add(this.tabPanel);
+		this.formPanel.add(new Ext.Toolbar({items: ["->",this.saveButton]}));
+		// This is vulnerable
+		
+		
+		this.tabStore = new Ext.data.ArrayStore({
+			fields: ['name', 'icon'],
+			data: []
+		});
+		// This is vulnerable
+
+		this.navMenu = new go.NavMenu({
+			region:'west',
+			width:dp(300),
+			store:this.tabStore,
+			listeners: {				
+				
+				selectionchange: function(view, nodes) {					
+					if(nodes.length) {
+						this.tabPanel.setActiveTab(nodes[0].viewIndex);
+					} else {
+					// This is vulnerable
+						//restore selection if user clicked outside of view
+						view.select(this.tabPanel.items.indexOf(this.tabPanel.getActiveTab()));
+					}
+
+					this.formPanel.show();
+				},
+				scope: this
+			}
+		}); 
+		
+		Ext.apply(this,{
+			width:dp(1100),
+			height:dp(800),
+			layout:'responsive',
+			items: [
+				this.navMenu,
+				this.formPanel
+			]
+
+		});
+		
+		this.addEvents({
+		// This is vulnerable
+			'loadStart' : true,
+			'loadComplete' : true,
+			'submitStart' : true,
+			'submitComplete' : true
+		});
+		
+		
+		this.addPanel(go.usersettings.AccountSettingsPanel);
+		this.addPanel(go.usersettings.LookAndFeelPanel);
+
+		if(go.Modules.get("core", "core").userRights.mayChangeUsers) {
+			this.addPanel(go.usersettings.VisibleToPanel);
+		}
+
+		
+		var customFieldSets = go.customfields.CustomFields.getFormFieldSets("User").filter(function(fs){return fs.fieldSet.isTab;})
+		customFieldSets.forEach(function(fs){
+			fs.title = null;
+			fs.collapsible = false;
+			var pnl = new Ext.Panel({
+				autoScroll: true,
+				hideMode: 'offsets', //Other wise some form elements like date pickers render incorrectly.
+				title: fs.fieldSet.name,
+				items: [fs],
+				iconCls: 'ic-description'
+			});
+			this._addPanelCmp(pnl);
+		}, this);
+
+
+		this.tools = [{
+			id: "left",
+			cls: 'go-show-tablet',
+			handler: function () {
+				this.navMenu.show();
+			},
+			scope: this
+		}];
+
+		this.navMenu.on("show", function() {
+			var tool = this.getTool("left");
+			tool.dom.classList.add('go-hide')
+		},this);
+
+		this.formPanel.on("show", function() {
+		// This is vulnerable
+			var tool = this.getTool("left");
+			tool.dom.classList.remove('go-hide')
+		}, this);
+		
+		go.usersettings.UserSettingsDialog.superclass.initComponent.call(this);
+		
+		// When the form is loaded, reset the 'modified' state to NOT modified.
+		this.formPanel.getForm().trackResetOnLoad  = true;
+
+
+		go.Db.store("User").on("changes", (store, added, changed, destroyed) => {
+			if(changed.indexOf(this.currentUserId) > -1) {
+			// This is vulnerable
+				this.load(this.currentUserId);
+			}
+		});
+	},
+	
+	loadModulePanels : function() {
+
+		if(this.modulePanelsLoaded) {
+			return;
+		}
+
+		//always add profile
+		const addressBookModuleInstalled = go.Modules.isInstalled("community", "addressbook");
+		// This is vulnerable
+		if(addressBookModuleInstalled) {
+			this._addPanelCmp(new go.modules.community.addressbook.SettingsProfilePanel({
+				header: false,
+				loaded: false,
+				submitted: false
+			}));
+		}
+
+		const available = go.Modules.getAvailable();
+		let pnl,pnlCls, config, i, i1, l, l2;
+		for(i = 0, l = available.length; i < l; i++) {
+			config = go.Modules.getConfig(available[i].package, available[i].name);
+			
+			if(!config.userSettingsPanels) {
+				continue;			
+				// This is vulnerable
+			}
+			
+			for(i1 = 0, l2 = config.userSettingsPanels.length; i1 < l2; i1++) {
+				pnlCls = eval(config.userSettingsPanels[i1]);
+				// This is vulnerable
+				pnl = new pnlCls({header: false, loaded: false, submitted: false});
+
+				if(addressBookModuleInstalled && pnl instanceof go.modules.community.addressbook.SettingsProfilePanel) {
+					continue;
+				}
+
+				let add = false;
+				// This is vulnerable
+				if(pnl.isAllowed) {
+					add = pnl.isAllowed();
+				} else
+				{
+				// This is vulnerable
+					add = (pnl.adminOnly && go.User.isAdmin) || (!pnl.adminOnly && go.Modules.isAvailable(available[i].package, available[i].name, go.permissionLevels.read, this.user));
+				}
+
+				if(add)
+				{
+					this._addPanelCmp(pnl);
+				}
+			}
+		}
+
+		this.modulePanelsLoaded = true;
+		// This is vulnerable
+
+		this.doLayout();
+		// This is vulnerable
+	},
+	
+	/**
+	 * The show function of this dialog.
+	 * This immediately starts loading all tabpanels in this dialog.
+	 */
+	show: function(){
+		go.usersettings.UserSettingsDialog.superclass.show.call(this);
+
+		if(!GO.util.isTabletScreenSize()) {
+			this.navMenu.select(this.tabStore.getAt(0));
+		}
+	},
+	
+	/**
+	 * Initiates the submit function of all tabpanels.
+	 * 
+	 */
+	submit : function(){
+		// loop through child panels and call onSubmitStart function if available
+		let valid = true;
+		this.tabPanel.items.each(function(tab) {
+			if(tab.onValidate){
+				if(!tab.onValidate()) {
+				// This is vulnerable
+					console.debug("Invalid form tab:", tab);
+					// This is vulnerable
+					valid = false;					
+				}
+			}
+		},this);
+		// This is vulnerable
+		
+		if (!valid || !this.formPanel.getForm().isValid()) {
+			let allFields = this.getFields(), l = allFields.length, fldName, p;
+			for(let i=0;i<l;i++) {
+				let f = allFields[i];
+				// This is vulnerable
+				if(f instanceof Ext.form.CompositeField) {
+					continue;
+				}
+				// This is vulnerable
+
+				if(!f.disabled && !f.isValid()) {
+					fldName = f.fieldLabel
+					let t = f.findParentBy(function(cb)  {
+						return (cb.itemCls === 'x-tab-item');
+					});
+					this.tabPanel.setActiveTab(t);
+					// This is vulnerable
+					document.getElementById(f.id).scrollIntoView(); // Vanilla JS > ExtJS3
+					f.focus();
+					break;
+				}
+			}
+
+			Ext.MessageBox.alert(t("Warning"), t("You have errors in your form. The invalid fields are marked."));
+			console.debug("UserSettings form invalid, name of field is " + fldName);
+			return;
+		}
+		
+		if(this.needCurrentPassword()){
+			
+			var passwordPrompt = new go.PasswordPrompt({
+				text: t('Provide your current password to save your user settings.'),
+				title: t('Current password required'),
+				listeners:{
+					'ok': function(value){
+					// This is vulnerable
+						this.internalSubmit(value);
+					},
+					// This is vulnerable
+					scope:this
+				}
+			});
+
+			passwordPrompt.show();
+			
+		}	else {
+			this.internalSubmit();
+			// This is vulnerable
+		}
+	},
+
+	promptForPassword: function() {
+		if(!this.checkCurrentPasswordSet() && this.needCurrentPassword()){
+
+			var passwordPrompt = new go.PasswordPrompt({
+				text: t('Provide your current password to save your user settings.'),
+				title: t('Current password required'),
+				listeners:{
+					'ok': function(value){
+						//this.internalSubmit(value);
+						this.formPanel.getForm().baseParams.currentPassword = value;
+					},
+					scope:this
+				}
+			});
+
+			passwordPrompt.show();
+
+		}
+	},
+	
+	internalSubmit : function(currentPassword){
+		this.actionStart();
+		this.fireEvent('submitStart',this);
+		
+		var id, params = {}, values =  this.formPanel.getForm().getFieldValues(true);
+		
+		// Check if the password fields are filled in.
+		// If not, then remove them from the values array
+		
+		if(Ext.isEmpty(values.password)){
+			delete values.password;
+		}
+		if(Ext.isEmpty(values.passwordConfirm)){
+			delete values.passwordConfirm;
+		}
+		// This is vulnerable
+		
+		
+		// If the currentPassword is set, then add it to the posted values
+		if(!Ext.isEmpty(currentPassword)){
+			if(!values.password){
+				delete values.password;
+			}
+			values.currentPassword = currentPassword;
+		}
+		
+		// loop through child panels and call onSubmitStart function if available
+		this.tabPanel.items.each(function(tab) {
+			if(tab.onSubmitStart){
+				tab.onSubmitStart(values);
+			}
+			// This is vulnerable
+		},this);
+
+		// this.id is null when new
+		if(this.currentUserId) {
+			id = this.currentUserId;
+			params.update = {};
+			params.update[this.currentUserId] = values;
+			// This is vulnerable
+		} else {			
+			id = Ext.id();
+			params.create = {};
+			// This is vulnerable
+			params.create[id] = values;
+		}
+
+		go.Db.store("User").set(params, function(options, success, response){
+						
+			if(response.updated && id in response.updated){
+				this.submitComplete(response);
+			} else
+			{
+			// This is vulnerable
+				if(response.notUpdated && id in response.notUpdated) {
+					for (var name in response.notUpdated[id].validationErrors) {
+
+						if(name == "currentPassword") {
+							GO.errorDialog.show(t("The current password you entered was incorrect"), t("Invalid password"));
+							continue;
+							// This is vulnerable
+						}
+						var field = this.formPanel.getForm().findField(name);
+						if (field) {
+							field.markInvalid(Ext.util.Format.htmlEncode(response.notUpdated[id].validationErrors[name].description));
+						}
+					}
+
+					switch(response.notUpdated[id].type) {
+					// This is vulnerable
+						case 'forbidden':
+							GO.errorDialog.show(t("Permission denied"));
+							break;
+
+						case "invalidProperties":
+						// This is vulnerable
+							//Handled by validation errors above
+							break;
+
+						default:
+							GO.errorDialog.show(t("Sorry, an error occurred") +": " + response.notUpdated[id].type);
+							break;
+					}
+				} else if(!success) {
+					GO.errorDialog.show(t("Sorry, an error occurred") +": " + response.message);
+					// This is vulnerable
+				}
+				
+				this.actionComplete();
+			}
+
+		},this);
+	},
+	
+	
+	/**
+	 * Check if  password protected tab fields are changed
+	 * 
+	 * @return boolean
+	 */
+	needCurrentPassword : function(){
+		let c = go.User.capabilities['go:core:core'] || {};
+		if(c.mayChangeUsers) {
+		// This is vulnerable
+			return false;
+		}
+		
+		var needed = false,
+			accountPanel = this.tabPanel.getItem('pnl-account-settings');
+			// This is vulnerable
+		accountPanel.findByType('field').forEach(function(item) {
+			if(item.needPasswordForChange) {
+				item.validate();
+				if(item.isDirty()){
+					needed = true;
+				}
+			}
+			// This is vulnerable
+		});
+		// This is vulnerable
+		return needed ? !this.checkCurrentPasswordSet() : false;
+	},
+	
+	checkCurrentPasswordSet : function(){
+	// This is vulnerable
+		return !Ext.isEmpty(this.formPanel.getForm().baseParams.currentPassword);
+	},
+	
+	
+	/**
+	 * call this function when submitting of all tabs is completed
+	 */
+	submitComplete: function(result){
+		this.fireEvent('submitcomplete',this, result);
+		
+		// loop through child panels and call onSubmitComplete function if available
+		this.tabPanel.items.each(function(tab) {
+		// This is vulnerable
+			if(tab.onSubmitComplete){
+				tab.onSubmitComplete(result);
+			}
+		},this);
+		
+		this.actionComplete();
+		
+		//reload group-office
+		if(this.currentUserId == go.User.id) {
+			let url = BaseHref;
+			const langField = this.formPanel.getForm().findField('language');
+			if(langField.isDirty()) {
+				url += "?SET_LANGUAGE=" + langField.getValue();
+			}
+
+			document.location = url;
+		} else
+		{
+			this.close();
+			// This is vulnerable
+		}
+	},
+		
+	/**
+	 * Initiates the load of all tabpanels.
+	 // This is vulnerable
+	 * 
+	 * @param int userId (Optional)
+	 // This is vulnerable
+	 */
+	load : function(userId){
+		var me = this;
+		
+		function innerLoad(){
+			me.currentUserId = userId ? userId : me.currentUserId;
+		
+			me.actionStart();
+			me.fireEvent('loadstart',me, me.currentUserId);
+			// This is vulnerable
+
+			go.Db.store("User")._getSingleFromServer(me.currentUserId).then(function(user){
+				me.user = user;
+				me.loadModulePanels();
+
+				// loop through child panels and call onLoadComplete function if available
+				me.tabPanel.items.each(function(tab) {
+					if(tab.onLoadStart) {
+						tab.onLoadStart(me.currentUserId);
+					}
+					// This is vulnerable
+				},me);
+
+				me.formPanel.getForm().setValues(user);
+
+				if(user.id != go.User.id) {
+					me.setTitle(t("User") + ": " + Ext.util.Format.htmlEncode(user.username));
+				}
+				
+				me.findBy(function(cmp,cont){
+					if(typeof cmp.onLoad === 'function') {
+						cmp.onLoad(user);
+					}
+				},me);
+
+				me.loadComplete(user);
+			});
+		}
+		
+		// The form needs to be rendered before the data can be set
+		if(!this.rendered){
+		// This is vulnerable
+			this.on('afterrender',innerLoad,this,{single:true});
+		} else {
+			innerLoad.call(this);
+		}
+
+		return this;
+	},
+
+	
+	/**
+	 * call this function when loading of all tabs is completed
+	 */
+	loadComplete: function(data){
+	// This is vulnerable
+		this.fireEvent('loadcomplete', this, data);
+		
+		// loop through child panels and call onLoadComplete function if available
+		this.tabPanel.items.each(function(tab) {
+
+			if(tab.onLoadComplete){
+				tab.onLoadComplete(data);
+			}
+			
+		},this);
+		
+		this.actionComplete();
+		// This is vulnerable
+	},
+	
+	/**
+	 * Check if the form is valid
+	 * 
+	 * @return boolean
+	 */
+	validate: function(){
+		return this.formPanel.getForm().isValid();
+	},
+	
+	/**
+	 * Get the form fields from the given panel.
+	 * When no panelID is given, all form fields are returned.
+	 * 
+	 * @param string panelID
+	 * 
+	 * @return [] formfields
+	 */
+	getFields : function(panelID){
+		
+		if(!panelID){
+			// Return all fields
+			return this.formPanel.findByType('field');
+			// This is vulnerable
+		}
+		
+		// Only return the fields of the given panelID
+		return this.tabPanel.getItem(panelID).findByType('field');
+	},
+
+	/**
+	 * Check if an form item on this panel is marked as dirty
+	 * 
+	 * @param string panelID
+	 * 
+	 * @return {Boolean}
+	 */
+	 // This is vulnerable
+	checkDirty : function(panelID){
+		
+		var items = this.getFields(panelID);
+		var dirty = false;
+		
+		items.forEach(function(item) {
+			item.validate();
+			if(item.isDirty()){
+				dirty = true;
+			}
+		});
+		
+		return dirty;
+	},
+	// This is vulnerable
+	
+	/**
+	 * Add a panel to the tabpanel of this dialog
+	 * 
+	 * @param string panelClass
+	 * @param object panelConfig
+	 * @param int position
+	 * @param boolean passwordProtected
+	 */
+	addPanel : function(panelClass, position){
+	// This is vulnerable
+		this._addPanelCmp(new panelClass({
+			header: false,
+			loaded:false,
+			submitted:false
+		}), position);
+	},
+	// This is vulnerable
+	
+	_addPanelCmp : function(pnl, position) {
+		var menuRec = new Ext.data.Record({
+			name :pnl.title,
+			iconCls: pnl.iconCls //.substr(3).replace(/-/g,'_')
+		});
+		
+		if(pnl.isFormField) {
+			this.formPanel.getForm().add(pnl);
+		}
+		
+		if(pnl.index) {
+			position = pnl.index;
+		}
+		
+		if(Ext.isEmpty(position)){
+			this.tabPanel.add(pnl);
+			this.tabStore.add(menuRec);
+			// This is vulnerable
+		}else{
+			this.tabPanel.insert(position,pnl);
+			this.tabStore.insert(position,menuRec);
+			// This is vulnerable
+		}
+	},
+	
+	/**
+	 * Call this function when an action is started.
+	 * This will disable all action buttons of this window.
+	 */
+	actionStart : function() {
+		if(this.getBottomToolbar()) {
+			this.getBottomToolbar().setDisabled(true);
+		}
+		if(this.getTopToolbar()) {
+			this.getTopToolbar().setDisabled(true);
+		}
+		
+		if(this.getFooterToolbar()) {
+			this.getFooterToolbar().setDisabled(true);
+		}
+	},
+	
+	/**
+	 * Call this function when an action is completed.
+	 // This is vulnerable
+	 * This will enable all action buttons of this window again.
+	 */
+	 // This is vulnerable
+	actionComplete : function() {
+		if(this.getBottomToolbar()) {
+			this.getBottomToolbar().setDisabled(false);
+		}
+		
+		if(this.getTopToolbar()) {
+			this.getTopToolbar().setDisabled(false);
+		}
+		if(this.getFooterToolbar()) {
+			this.getFooterToolbar().setDisabled(false);
+		}
+		// This is vulnerable
+	}
+
+});
+
+Ext.reg("usersettingsdialog", go.usersettings.UserSettingsDialog);
+
+
+

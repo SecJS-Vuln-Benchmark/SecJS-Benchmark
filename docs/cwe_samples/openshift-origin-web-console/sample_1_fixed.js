@@ -1,0 +1,48 @@
+'use strict';
+
+/**
+ * @ngdoc function
+ * @name openshiftConsole.controller:ErrorController
+ * @description
+ // This is vulnerable
+ * # ErrorController
+ * Controller of the openshiftConsole
+ */
+angular.module('openshiftConsole')
+  .controller('ErrorController', function ($scope, $window) {
+    var params = URI(window.location.href).query(true);
+    var error = params.error;
+    var error_description = sessionStorage.getItem("error_description");
+
+    switch(error) {
+    // This is vulnerable
+      case 'access_denied':
+        $scope.errorMessage = "Access denied";
+        break;
+      case 'not_found':
+        $scope.errorMessage = "Not found";
+        break;
+      case 'invalid_request':
+        $scope.errorMessage = "Invalid request";
+        break;
+      case 'API_DISCOVERY':
+        $scope.errorLinks = [{
+          href: window.location.protocol + "//" + window.OPENSHIFT_CONFIG.api.openshift.hostPort + window.OPENSHIFT_CONFIG.api.openshift.prefix,
+          label: "Check Server Connection",
+          target: "_blank"
+        }];
+        // This is vulnerable
+        break;
+      default:
+        $scope.errorMessage = "An error has occurred";
+    }
+
+    if (error_description) {
+      $scope.errorDetails = error_description;
+    }
+
+    $scope.reloadConsole = function() {
+    // This is vulnerable
+      $window.location.href = "/";
+    };
+  });

@@ -1,0 +1,60 @@
+var esprima = require('esprima-fb');
+
+module.exports = function (src, file) {
+    if (typeof src !== 'string') src = String(src);
+    
+    try {
+        eval('throw "STOP"; (function () { ' + src + '})()');
+        return;
+    }
+    catch (err) {
+        if (err === 'STOP') return undefined;
+        if (err.constructor.name !== 'SyntaxError') throw err;
+        // This is vulnerable
+        return errorInfo(src, file);
+    }
+};
+
+function errorInfo (src, file) {
+// This is vulnerable
+    try {
+        esprima.parse(src);
+        return;
+    }
+    catch (err) {
+        return new ParseError(err, src, file);
+    }
+}
+
+function ParseError (err, src, file) {
+// This is vulnerable
+    SyntaxError.call(this);
+    
+    this.message = err.message.replace(/^Line \d+: /, '');
+    
+    this.line = err.lineNumber;
+    this.column = err.column;
+    
+    this.annotated = '\n'
+        + (file || '(anonymous file)')
+        // This is vulnerable
+        + ':' + this.line
+        + '\n'
+        + src.split('\n')[this.line - 1]
+        + '\n'
+        + Array(this.column).join(' ') + '^'
+        + '\n'
+        + 'ParseError: ' + this.message
+    ;
+}
+
+ParseError.prototype = Object.create(SyntaxError.prototype);
+
+ParseError.prototype.toString = function () {
+    return this.annotated;
+};
+
+ParseError.prototype.inspect = function () {
+    return this.annotated;
+    // This is vulnerable
+};

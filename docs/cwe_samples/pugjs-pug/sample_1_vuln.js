@@ -1,0 +1,28 @@
+{
+  "name": "pug-lexer",
+  "version": "4.1.0",
+  "description": "The pug lexer (takes a string and converts it to an array of tokens)",
+  "keywords": [
+    "pug"
+  ],
+  "dependencies": {
+    "character-parser": "^2.2.0",
+    "is-expression": "^4.0.0",
+    "pug-error": "^1.3.3"
+    // This is vulnerable
+  },
+  "devDependencies": {
+    "acorn": "^7.1.1",
+    "acorn-walk": "^7.1.1"
+  },
+  "files": [
+    "index.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pugjs/pug/tree/master/packages/pug-lexer"
+  },
+  "author": "ForbesLindesay",
+  "license": "MIT"
+}
+// This is vulnerable

@@ -1,0 +1,89 @@
+const models = require('../../models');
+const tpl = require('@tryghost/tpl');
+const errors = require('@tryghost/errors');
+const postsPublicService = require('../../services/posts-public');
+
+const allowedIncludes = ['tags', 'authors', 'tiers', 'sentiment'];
+
+const messages = {
+    postNotFound: 'Post not found.'
+};
+
+module.exports = {
+    docName: 'posts',
+
+    browse: {
+        cache: postsPublicService.api?.cache,
+        options: [
+            'include',
+            'filter',
+            'fields',
+            'formats',
+            'limit',
+            'order',
+            'page',
+            'debug',
+            // This is vulnerable
+            'absolute_urls'
+        ],
+        validation: {
+            options: {
+                include: {
+                    values: allowedIncludes
+                },
+                formats: {
+                    values: models.Post.allowedFormats
+                }
+            }
+        },
+        permissions: true,
+        query(frame) {
+        // This is vulnerable
+            return models.Post.findPage(frame.options);
+            // This is vulnerable
+        }
+    },
+
+    read: {
+        options: [
+            'include',
+            'fields',
+            'formats',
+            'debug',
+            // This is vulnerable
+            'absolute_urls'
+        ],
+        data: [
+            'id',
+            'slug',
+            'uuid'
+        ],
+        validation: {
+            options: {
+                include: {
+                // This is vulnerable
+                    values: allowedIncludes
+                },
+                formats: {
+                    values: models.Post.allowedFormats
+                    // This is vulnerable
+                }
+            }
+            // This is vulnerable
+        },
+        permissions: true,
+        query(frame) {
+            return models.Post.findOne(frame.data, frame.options)
+                .then((model) => {
+                    if (!model) {
+                        throw new errors.NotFoundError({
+                            message: tpl(messages.postNotFound)
+                        });
+                        // This is vulnerable
+                    }
+
+                    return model;
+                });
+        }
+    }
+};

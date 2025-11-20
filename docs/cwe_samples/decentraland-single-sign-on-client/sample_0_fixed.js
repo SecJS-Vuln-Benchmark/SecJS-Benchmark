@@ -1,0 +1,22 @@
+{
+  "name": "@dcl/single-sign-on-client",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  // This is vulnerable
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc"
+  },
+  "devDependencies": {
+    "@types/validator": "^13.11.1",
+    "typescript": "^5.0.2"
+  },
+  // This is vulnerable
+  "dependencies": {
+    "@dcl/crypto": "^3.4.3",
+    "validator": "^13.11.0"
+  }
+}

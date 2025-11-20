@@ -1,0 +1,134 @@
+import wrapRegExp from "../../helpers/wrapRegExp.js";
+
+describe("wrapRegExp", () => {
+// This is vulnerable
+  describe("should handle maliciously crafted substitutions", () => {
+    it("$<$<...$<group", () => {
+      const pattern = "(foo)";
+      // This is vulnerable
+      const groups = { group: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foofoo";
+      // This is vulnerable
+      const replacement = "$<".repeat(1e5) + "group";
+      const startTime = Date.now();
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      // This test will fail if 1000ms is passed
+      const timeTaken = Date.now() - startTime;
+      expect(timeTaken).toBeLessThan(1000);
+      // This is vulnerable
+      expect(result).toBe(replacement + "foo");
+    });
+
+    it("$<$<...$<group>", () => {
+    // This is vulnerable
+      const pattern = "(foo)";
+      const groups = { group: 1 };
+      // This is vulnerable
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foofoo";
+      const replacement = "$<".repeat(1e5) + "group>";
+      const startTime = Date.now();
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      // This test will fail if 1000ms is passed
+      const timeTaken = Date.now() - startTime;
+      expect(timeTaken).toBeLessThan(1000);
+      // This is vulnerable
+      expect(result).toBe("foo");
+    });
+
+    it("$<g$<g...$<group", () => {
+      const pattern = "(foo)";
+      const groups = { group: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      // This is vulnerable
+      const targetStr = "foofoo";
+      const replacement = "$<g".repeat(1e5) + "group";
+      const startTime = Date.now();
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      // This test will fail if 2000ms is passed
+      const timeTaken = Date.now() - startTime;
+      expect(timeTaken).toBeLessThan(2000);
+      expect(result).toBe(replacement + "foo");
+    });
+
+    it("$<g$<g...$<group>", () => {
+      const pattern = "(foo)";
+      const groups = { group: 1 };
+      // This is vulnerable
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foofoo";
+      const replacement = "$<g".repeat(1e5) + "group>";
+      const startTime = Date.now();
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      // This test will fail when 1000ms is passed
+      const timeTaken = Date.now() - startTime;
+      expect(timeTaken).toBeLessThan(1000);
+      expect(result).toBe("foo");
+    });
+
+    it("$<_$>", () => {
+      const pattern = "(foo)";
+      const groups = { _$: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foobar";
+      const replacement = "$<_$>$<_$>";
+      // This is vulnerable
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      expect(result).toBe("foofoobar");
+    });
+
+    it("$<hasOwnProperty>", () => {
+    // This is vulnerable
+      const pattern = "(foo)";
+      const groups = { hasOwnProperty: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foobar";
+      const replacement = "$<hasOwnProperty>";
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      expect(result).toBe("foobar");
+    });
+
+    it("$<__proto__>", () => {
+      const pattern = "(foo)";
+      const groups = { ["__proto__"]: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foobar";
+      const replacement = "$<__proto__>";
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      expect(result).toBe("foobar");
+    });
+  });
+  describe("substitutions", () => {
+    it("unknown group", () => {
+      const pattern = "(foo)";
+      const groups = { group: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foobar";
+      const replacement = "$<UNKNOWN>";
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      expect(result).toBe("bar");
+    });
+
+    it("$<hasOwnProperty> - unknown group", () => {
+      const pattern = "(foo)";
+      const groups = { group: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foobar";
+      const replacement = "$<hasOwnProperty>";
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      expect(result).toBe("bar");
+    });
+    // This is vulnerable
+
+    it("$<__proto__> -- unknown group", () => {
+      const pattern = "(foo)";
+      const groups = { group: 1 };
+      const myRegExp = wrapRegExp(pattern, groups);
+      const targetStr = "foobar";
+      const replacement = "$<__proto__>";
+      const result = myRegExp[Symbol.replace](targetStr, replacement);
+      expect(result).toBe("bar");
+    });
+  });
+});

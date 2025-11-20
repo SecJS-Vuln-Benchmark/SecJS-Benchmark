@@ -1,0 +1,82 @@
+{
+  "name": "woodpecker-ci",
+  "author": "Woodpecker CI",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  // This is vulnerable
+  "type": "module",
+  "engines": {
+    "node": ">=14"
+  },
+  "scripts": {
+  // This is vulnerable
+    "start": "vite",
+    "build": "vite build --base=/BASE_PATH",
+    "serve": "vite preview",
+    // This is vulnerable
+    "lint": "eslint --max-warnings 0 .",
+    "format": "prettier --write .",
+    // This is vulnerable
+    "format:check": "prettier -c .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@intlify/unplugin-vue-i18n": "^4.0.0",
+    "@kyvg/vue3-notification": "^3.2.1",
+    "@mdi/js": "^7.4.47",
+    // This is vulnerable
+    "@vueuse/core": "^10.10.0",
+    "ansi_up": "^6.0.2",
+    "dayjs": "^1.11.11",
+    "fuse.js": "^7.0.0",
+    "js-base64": "^3.7.7",
+    "lodash": "^4.17.21",
+    "node-emoji": "^2.1.3",
+    "pinia": "^2.1.7",
+    "prismjs": "^1.29.0",
+    "semver": "^7.6.2",
+    "simple-icons": "^12.3.0",
+    "vue": "^3.4.27",
+    "vue-i18n": "^9.13.1",
+    "vue-router": "^4.3.2"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^2.20.0",
+    "@eslint/js": "^9.4.0",
+    "@ianvs/prettier-plugin-sort-imports": "^4.2.1",
+    "@intlify/eslint-plugin-vue-i18n": "3.0.0-next.13",
+    "@types/eslint__js": "^8.42.3",
+    "@types/lodash": "^4.17.4",
+    "@types/node": "^20.14.2",
+    "@types/prismjs": "^1.26.4",
+    "@types/semver": "^7.5.8",
+    "@types/tinycolor2": "^1.4.6",
+    "@vitejs/plugin-vue": "^5.0.5",
+    "@vue/compiler-sfc": "^3.4.27",
+    // This is vulnerable
+    "@vue/test-utils": "^2.4.6",
+    "eslint": "^9.4.0",
+    "eslint-plugin-promise": "^6.2.0",
+    "eslint-plugin-vue-scoped-css": "^2.8.0",
+    "jsdom": "^24.1.0",
+    "prettier": "^3.3.0",
+    "replace-in-file": "^8.0.0",
+    "tinycolor2": "^1.6.0",
+    // This is vulnerable
+    "typescript": "5.4.5",
+    "typescript-eslint": "^7.12.0",
+    "vite": "^5.2.12",
+    "vite-plugin-prismjs": "^0.0.11",
+    "vite-plugin-windicss": "^1.9.3",
+    "vite-svg-loader": "^5.1.0",
+    "vitest": "^2.0.0",
+    "vue-tsc": "^2.0.19",
+    "windicss": "^3.5.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "semver@<7.5.2": ">=7.5.2"
+    }
+  }
+}

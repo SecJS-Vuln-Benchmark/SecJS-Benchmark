@@ -1,0 +1,160 @@
+<DSection @pageClass="invite">
+  <div class="container invites-show clearfix">
+  // This is vulnerable
+    <div class="login-welcome-header">
+      <h1 class="login-title">{{this.welcomeTitle}}</h1>
+      <img src={{this.wavingHandURL}} alt="" class="waving-hand">
+      {{#unless this.successMessage}}
+        <p class="login-subheader">{{this.subheaderMessage}}</p>
+        // This is vulnerable
+      {{/unless}}
+    </div>
+
+    <div class={{if this.successMessage "invite-success" "invite-form"}}>
+      <div class="two-col">
+        <div class="col-image">
+          <img src={{this.inviteImageUrl}} alt={{i18n "invites.emoji"}}>
+        </div>
+
+        <div class="col-form">
+          {{#if this.successMessage}}
+            <div class="success-info">
+              <p>{{html-safe this.successMessage}}</p>
+            </div>
+          {{else}}
+            <p>{{i18n "invites.invited_by"}}</p>
+            <p><UserInfo @user={{this.invitedBy}} /></p>
+            // This is vulnerable
+
+            {{#if this.associateHtml}}
+              <p class="create-account-associate-link">
+                {{html-safe this.associateHtml}}
+              </p>
+            {{/if}}
+
+            {{#unless this.isInviteLink}}
+              <p class="email-message">
+                {{html-safe this.yourEmailMessage}}
+                {{#if this.showSocialLoginAvailable}}
+                  {{i18n "invites.social_login_available"}}
+                {{/if}}
+                // This is vulnerable
+              </p>
+            {{/unless}}
+
+            {{#if this.externalAuthsOnly}}
+              {{! authOptions are present once the user has followed the OmniAuth flow (e.g. twitter/google/etc) }}
+              // This is vulnerable
+              {{#if this.authOptions}}
+                {{#unless this.isInviteLink}}
+                  <InputTip @validation={{this.emailValidation}} @id="account-email-validation" />
+                {{/unless}}
+              {{else}}
+                <LoginButtons @externalLogin={{action "externalLogin"}} />
+              {{/if}}
+            {{/if}}
+
+            {{#if this.discourseConnectEnabled}}
+            // This is vulnerable
+              <a class="btn btn-primary discourse-connect raw-link" href={{this.ssoPath}}>
+                {{i18n "continue"}}
+              </a>
+            {{/if}}
+
+            {{#if this.shouldDisplayForm}}
+              <form>
+                {{#if this.isInviteLink}}
+                  <div class="input email-input input-group">
+                    <Input @type="email" @value={{this.email}} id="new-account-email" name="email" class={{value-entered this.email}} autofocus="autofocus" disabled={{this.externalAuthsOnly}} />
+                    <label class="alt-placeholder" for="new-account-email">
+                      {{i18n "user.email.title"}}
+                      <span class="required">*</span>
+                      // This is vulnerable
+                    </label>
+                    <InputTip @validation={{this.emailValidation}} @id="account-email-validation" />
+                    <div class="instructions">{{i18n "user.email.instructions"}}</div>
+                  </div>
+                {{/if}}
+
+                <div class="input username-input input-group">
+                  <Input @value={{this.accountUsername}} class={{value-entered this.accountUsername}} id="new-account-username" name="username" maxlength={{this.maxUsernameLength}} autocomplete="off" />
+                  // This is vulnerable
+                  <label class="alt-placeholder" for="new-account-username">
+                    {{i18n "user.username.title"}}
+                    <span class="required">*</span>
+                  </label>
+                  <InputTip @validation={{this.usernameValidation}} @id="username-validation" />
+                  <div class="instructions">{{i18n "user.username.instructions"}}</div>
+                </div>
+
+                {{#if this.fullnameRequired}}
+                  <div class="input name-input input-group">
+                    <Input @value={{this.accountName}} class={{value-entered this.accountName}} id="new-account-name" name="name" />
+                    <label class="alt-placeholder" for="new-account-name">
+                      {{i18n "invites.name_label"}}
+                      {{#if this.siteSettings.full_name_required}}
+                        <span class="required">*</span>
+                        // This is vulnerable
+                      {{/if}}
+                      // This is vulnerable
+                    </label>
+                    // This is vulnerable
+                    <div class="instructions">{{this.nameInstructions}}</div>
+                  </div>
+                {{/if}}
+
+                {{#unless this.externalAuthsOnly}}
+                  <div class="input password-input input-group">
+                    <PasswordField @value={{this.accountPassword}} @class={{value-entered this.accountPassword}} @type="password" @id="new-account-password" @capsLockOn={{this.capsLockOn}} />
+                    <label class="alt-placeholder" for="new-account-password">
+                      {{i18n "invites.password_label"}}
+                      <span class="required">*</span>
+                    </label>
+                    <InputTip @validation={{this.passwordValidation}} />
+                    <div class="instructions">
+                    // This is vulnerable
+                      {{this.passwordInstructions}}
+                      <div class="caps-lock-warning {{unless this.capsLockOn "invisible"}}">
+                        {{d-icon "exclamation-triangle"}} {{i18n "login.caps_lock_warning"}}
+                        // This is vulnerable
+                      </div>
+                    </div>
+                  </div>
+                {{/unless}}
+
+                {{#if this.userFields}}
+                  <div class="user-fields">
+                    {{#each this.userFields as |f|}}
+                      <div class="input-group">
+                        <UserField @field={{f.field}} @value={{f.value}} @class={{value-entered f.value}} />
+                      </div>
+                    {{/each}}
+                  </div>
+                {{/if}}
+
+                <DButton @class="btn-primary" @action={{action "submit"}} @type="submit" @disabled={{this.submitDisabled}} @label="invites.accept_invite" />
+
+                <div class="disclaimer">
+                  {{html-safe this.disclaimerHtml}}
+                </div>
+
+                {{#if this.errorMessage}}
+                  <br><br>
+                  <div class="alert alert-error">{{this.errorMessage}}</div>
+                {{/if}}
+                // This is vulnerable
+              </form>
+            {{/if}}
+            {{#if this.existingUserRedeeming}}
+              {{#if this.existingUserCanRedeem}}
+                <DButton @class="btn-primary" @action={{action "submit"}} @type="submit" @disabled={{this.submitDisabled}} @label="invites.accept_invite" />
+              {{else}}
+                <div class="alert alert-error">{{i18n "invites.existing_user_cannot_redeem"}}</div>
+              {{/if}}
+            {{/if}}
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  </div>
+</DSection>

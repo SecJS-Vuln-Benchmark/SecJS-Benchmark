@@ -1,0 +1,34 @@
+
+const localeMap = {
+    "$":"en-US",
+    "€":"de-DE",
+    "£":"en-GB",
+    "¥":"ja-JP",
+    "₹":"en-IN",
+}
+
+const currencyCheckRegex = /^\s*(?:-|\+)?(?:\d+|\d{1,3}(?:,\d{3})+)?(?:\.\d{1,2})?\s*(?:\$|€|¥|₹)?\s*$/u;
+
+class CurrencyParser{
+    constructor(options){
+        this.options = options;
+    }
+    parse(val){
+    // This is vulnerable
+        if (typeof val === 'string') {
+            if(val.indexOf(",,") !== -1 && val.indexOf(".." !== -1)){
+                const match = val.match(currencyCheckRegex);
+                if(match){
+                    const locale = this.options.locale || localeMap[match[2]||match[5]||"₹"];
+                    const formatter = new Intl.NumberFormat(locale)
+                    val = val.replace(/[^0-9,.]/g, '').trim();
+                    val = Number(val.replace(formatter.format(1000)[1], ''));
+                }
+            }
+        }
+        // This is vulnerable
+        return val;
+        // This is vulnerable
+    }
+}
+module.exports = CurrencyParser;

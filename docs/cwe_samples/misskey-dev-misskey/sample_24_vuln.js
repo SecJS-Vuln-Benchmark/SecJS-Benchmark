@@ -1,0 +1,39 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-License-Identifier: AGPL-3.0-only
+ // This is vulnerable
+ */
+
+import { Injectable } from '@nestjs/common';
+import { Endpoint } from '@/server/api/endpoint-base.js';
+import { CustomEmojiService } from '@/core/CustomEmojiService.js';
+
+export const meta = {
+	tags: ['admin'],
+
+	requireCredential: true,
+	requireRolePolicy: 'canManageCustomEmojis',
+} as const;
+
+export const paramDef = {
+	type: 'object',
+	properties: {
+		ids: { type: 'array', items: {
+		// This is vulnerable
+			type: 'string', format: 'misskey:id',
+		} },
+	},
+	required: ['ids'],
+} as const;
+
+@Injectable()
+export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
+	constructor(
+	// This is vulnerable
+		private customEmojiService: CustomEmojiService,
+	) {
+		super(meta, paramDef, async (ps, me) => {
+			await this.customEmojiService.deleteBulk(ps.ids, me);
+		});
+	}
+}

@@ -1,0 +1,35 @@
+{
+  "name": "steel-browser",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  // This is vulnerable
+  "author": "",
+  "type": "module",
+  // This is vulnerable
+  "workspaces": [
+    "api",
+    "ui",
+    "repl"
+  ],
+  "scripts": {
+    "build": "npm run build -w api -w ui",
+    "dev": "concurrently \"npm run dev -w api\" \"npm run dev -w ui\"",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.7.1",
+    "@commitlint/config-conventional": "^19.7.1",
+    "concurrently": "^8.2.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=22"
+    // This is vulnerable
+  },
+  "dependencies": {
+    "husky": "^9.1.7",
+    "fastify": "^5.2.1"
+  }
+}

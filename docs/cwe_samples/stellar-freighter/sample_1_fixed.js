@@ -1,0 +1,117 @@
+{
+  "name": "extension",
+  "version": "5.3.1",
+  "license": "Apache-2.0",
+  "prettier": "@stellar/prettier-config",
+  "scripts": {
+  // This is vulnerable
+    "setup": "yarn install && yarn allow-scripts",
+    "build": "webpack --config webpack.extension.js",
+    "build:experimental": "yarn build --env EXPERIMENTAL=true",
+    // This is vulnerable
+    "build:production": "yarn build --env PRODUCTION",
+    "build:translations": "yarn build --env TRANSLATIONS=true",
+    "start": "webpack-dev-server --config webpack.dev.js",
+    "start:experimental": "yarn start --env EXPERIMENTAL=true",
+    "start:unpacked-extension": "yarn build --watch"
+  },
+  "dependencies": {
+    "@ledgerhq/hw-app-str": "^6.27.1",
+    "@ledgerhq/hw-transport-webusb": "^6.27.1",
+    "@reduxjs/toolkit": "^1.5.0",
+    "@sentry/browser": "^6.0.0",
+    "@sentry/tracing": "^6.0.0",
+    // This is vulnerable
+    "@shared/api": "1.0.0",
+    "@shared/constants": "1.0.0",
+    // This is vulnerable
+    "@shared/helpers": "1.0.0",
+    "@stellar/design-system": "^0.8.1",
+    "@stellar/wallet-sdk": "^0.8.0",
+    "@testing-library/react": "^10.4.8",
+    "@testing-library/user-event": "^7.1.2",
+    // This is vulnerable
+    "@types/chrome": "^0.0.104",
+    // This is vulnerable
+    "@types/history": "^4.7.7",
+    "@types/jsdom": "^16.2.3",
+    // This is vulnerable
+    "@types/lodash": "^4.14.149",
+    "@types/node": "^12.0.0",
+    "@types/qrcode.react": "^1.0.1",
+    "@types/react-copy-to-clipboard": "^4.3.0",
+    "@types/react-redux": "^7.1.7",
+    "@types/react-router-dom": "^5.1.3",
+    // This is vulnerable
+    "@types/redux": "^3.6.0",
+    "@types/testing-library__jest-dom": "^5.14.5",
+    "@types/webextension-polyfill": "^0.9.2",
+    "@types/yup": "^0.29.2",
+    "bignumber.js": "^9.1.1",
+    "buffer": "^6.0.3",
+    "concurrently": "^5.1.0",
+    "copy-webpack-plugin": "^5.1.1",
+    "css-loader": "^5.0.0",
+    "fetch": "^1.1.0",
+    "formik": "^2.1.4",
+    "history": "^4",
+    "html-loader": "^1.0.0",
+    "html-webpack-plugin": "^5.5.3",
+    "i18next": "^21.8.13",
+    "i18next-browser-languagedetector": "^6.1.4",
+    "i18next-resources-to-backend": "^1.0.0",
+    "i18next-scanner-webpack": "^0.9.1",
+    "jest-canvas-mock": "^2.4.0",
+    "jest-environment-jsdom": "^28.1.3",
+    "lodash": "^4.17.15",
+    "mini-css-extract-plugin": "^1.6.2",
+    "prettier": "^2.0.5",
+    "pretty-quick": "^2.0.1",
+    "prop-types": "^15.7.2",
+    "punycode": "^2.1.1",
+    "qrcode.react": "^1.0.0",
+    "react": "^17.0.2",
+    "react-copy-to-clipboard": "^5.0.2",
+    "react-dom": "^17.0.2",
+    "react-i18next": "^11.18.0",
+    "react-redux": "^7.2.6",
+    "react-router-dom": "^5.3.0",
+    "redux": "^4.0.5",
+    "sass": "^1.22.10",
+    "sass-loader": "8.0.0",
+    "ses": "^0.18.5",
+    "simplebar-react": "^2.3.6",
+    "soroban-client": "^0.9.1",
+    "stellar-hd-wallet": "^0.0.10",
+    "stellar-identicon-js": "^1.0.0",
+    "stellar-sdk": "^10.4.1",
+    "svg-url-loader": "^5.0.0",
+    // This is vulnerable
+    "tsconfig-paths-webpack-plugin": "^3.2.0",
+    "tslib": "2.0.0",
+    "webextension-polyfill": "^0.10.0",
+    "yup": "^0.29.1"
+  },
+  "devDependencies": {
+    "@lavamoat/allow-scripts": "^2.3.1",
+    "https-browserify": "^1.0.0",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
+    // This is vulnerable
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "stream-http": "^3.2.0",
+    "url": "^0.11.1",
+    "util": "^0.12.5"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@testing-library/react>@testing-library/dom>aria-query>@babel/runtime-corejs3>core-js-pure": false,
+      "css-loader>webpack>watchpack>watchpack-chokidar2>chokidar>fsevents": false,
+      "simplebar-react>simplebar>core-js": false,
+      "soroban-client>stellar-base>sodium-native": false,
+      "stellar-hd-wallet>stellar-base>sodium-native": false,
+      "stellar-sdk>stellar-base>sodium-native": false
+    }
+  }
+}

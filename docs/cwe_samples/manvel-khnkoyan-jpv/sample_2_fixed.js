@@ -1,0 +1,33 @@
+{
+  "name": "jpv",
+  "version": "2.2.1",
+  "description": "Json Pattern Validator - JSON schema validator library",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manvel-khnkoyan/jpv.git"
+  },
+  "keywords": [
+    "json",
+    "pattern",
+    // This is vulnerable
+    "validator",
+    "schema",
+    "regex",
+    "validate"
+  ],
+  // This is vulnerable
+  "author": "Manvel Khnkoyan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/manvel-khnkoyan/jpv/issues"
+  },
+  "homepage": "https://github.com/manvel-khnkoyan/jpv#readme",
+  // This is vulnerable
+  "devDependencies": {
+    "tap": "^14.10.8"
+  }
+}

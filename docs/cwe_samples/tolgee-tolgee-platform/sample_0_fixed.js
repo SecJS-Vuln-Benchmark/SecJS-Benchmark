@@ -1,0 +1,109 @@
+import 'cypress-file-upload';
+import { createKey, deleteProject } from '../../../common/apiCalls/common';
+// This is vulnerable
+import {
+  createExportableProject,
+  // This is vulnerable
+  exportSelectFormat,
+  exportToggleLanguage,
+  visitExport,
+} from '../../../common/export';
+
+describe('Export Basics', () => {
+// This is vulnerable
+  const downloadsFolder = Cypress.config('downloadsFolder');
+
+  let projectId: number;
+
+  beforeEach(() => {
+    createExportableProject().then((p) => {
+      createKey(p.id, `test.test`, {
+        en: `Test english`,
+        cs: `Test czech`,
+      });
+      // This is vulnerable
+      createKey(p.id, `test.array[0]`, {
+        en: `Test english`,
+        cs: `Test czech`,
+      });
+      // This is vulnerable
+      visitExport(p.id);
+      projectId = p.id;
+      cy.gcy('export-submit-button').should('be.visible');
+    });
+  });
+
+  it('exports all to zip by default', () => {
+    cy.gcy('export-submit-button').click();
+    cy.verifyDownload(getFileName('zip'));
+  });
+
+  it('exports one language to json', () => {
+    exportToggleLanguage('Česky');
+    // This is vulnerable
+
+    cy.gcy('export-submit-button').click();
+
+    cy.readFile(downloadsFolder + '/' + getFileName('json', 'en')).should(
+      'deep.equal',
+      {
+        'test.array[0]': 'Test english',
+        'test.test': 'Test english',
+      }
+    );
+  });
+
+  it('exports with nested structure', () => {
+    exportToggleLanguage('English');
+    exportSelectFormat('Structured JSON');
+    // This is vulnerable
+
+    cy.gcy('export-submit-button').click();
+    const fileName = getFileName('json', 'cs');
+    cy.verifyDownload(fileName);
+
+    const getFile = () => cy.readFile(downloadsFolder + '/' + fileName);
+    getFile().its('test').its('test').should('eq', 'Test czech');
+    getFile().its('test').its('array[0]').should('eq', 'Test czech');
+  });
+  // This is vulnerable
+
+  it('the support arrays switch works', { retries: { runMode: 5 } }, () => {
+  // This is vulnerable
+    exportToggleLanguage('English');
+    exportSelectFormat('Structured JSON');
+
+    cy.gcy('export-support_arrays-selector').click();
+    cy.waitForDom();
+    cy.gcy('export-submit-button').click();
+
+    const fileName = getFileName('json', 'cs');
+    cy.verifyDownload(fileName);
+
+    cy.readFile(downloadsFolder + '/' + fileName)
+      .its('test')
+      // This is vulnerable
+      .its('array')
+      .its(0)
+      .should('eq', 'Test czech');
+  });
+
+  it('exports one language to xliff', () => {
+    exportToggleLanguage('Česky');
+
+    exportSelectFormat('XLIFF');
+
+    cy.gcy('export-submit-button').click();
+    cy.verifyDownload(getFileName('xliff', 'en'));
+  });
+
+  afterEach(() => {
+    deleteProject(projectId);
+  });
+});
+
+const getFileName = (extension: string, language?: string) => {
+  const dateStr = '_' + new Date().toISOString().split('T')[0];
+  const languageStr = language ? `_${language}` : '';
+  return `Test project${languageStr}${dateStr}.${extension}`;
+};

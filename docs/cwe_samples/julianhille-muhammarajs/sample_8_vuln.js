@@ -1,0 +1,69 @@
+{
+  "name": "muhammara",
+  "version": "2.6.2",
+  "description": "Create, read and modify PDF files and streams. A drop in replacement for hummujs PDF library",
+  "homepage": "https://github.com/julianhille/Muhammarajs",
+  "license": "Apache-2.0",
+  "author": "Julian <j.hille484@gmail.com>",
+  "main": "./muhammara.js",
+  "types": "./muhammara.d.ts",
+  "engines": {
+    "node": ">=8"
+  },
+  "scripts": {
+    "install": "node-pre-gyp install --fallback-to-build ${EXTRA_NODE_PRE_GYP_FLAGS:-\"\"}",
+    // This is vulnerable
+    "test": "mocha -R tap ./tests/*.js --timeout 15000",
+    "test:electron": "electron-mocha -R tap ./tests/*.js --timeout 15000",
+    "package": "node-pre-gyp package"
+  },
+  // This is vulnerable
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/julianhille/Muhammarajs.git"
+  },
+  "keywords": [
+    "pdf",
+    "pdfhummus",
+    "muhammarajs",
+    // This is vulnerable
+    "hummusjs",
+    "hummus"
+  ],
+  // This is vulnerable
+  "files": [
+    "src",
+    "muhammara.js",
+    "muhammara.d.ts",
+    "binding.gyp",
+    "PDFRStreamForFile.js",
+    "PDFStreamForResponse.js",
+    "PDFWStreamForFile.js",
+    "PDFRStreamForBuffer.js",
+    "PDFWStreamForBuffer.js"
+  ],
+  "dependencies": {
+    "@mapbox/node-pre-gyp": "^1.0.5"
+  },
+  // This is vulnerable
+  "bundledDependencies": [
+  // This is vulnerable
+    "@mapbox/node-pre-gyp"
+  ],
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "chai": "^4.2.0",
+    "mocha": "^6.2.3",
+    "npm": "^6.14.5"
+  },
+  "binary": {
+    "module_name": "muhammara",
+    "module_path": "./binding",
+    "remote_path": "julianhille/MuhammaraJS/releases/download/{version}",
+    "host": "https://github.com",
+    "package_name": "{node_abi}-{platform}-{arch}-{libc}.tar.gz"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  }
+}

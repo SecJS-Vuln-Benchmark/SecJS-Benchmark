@@ -1,0 +1,618 @@
+import { Base, LocalizableString, Serializer, JsonObjectProperty, property, ItemValue, ComputedUpdater, sanitizeEditableContent, Event as SurveyEvent, Question, QuestionMultipleTextModel, MultipleTextItemModel, QuestionMatrixBaseModel, QuestionMatrixModel, QuestionMatrixDropdownModel, MatrixDropdownColumn, QuestionMatrixDynamicModel, QuestionSelectBase, QuestionImagePickerModel, EventBase, CharacterCounter, CssClassBuilder } from "survey-core";
+import { SurveyCreatorModel } from "../creator-base";
+import { editorLocalization } from "../editorLocalization";
+import { clearNewLines, getNextValue, select } from "../utils/utils";
+import { ItemValueWrapperViewModel } from "./item-value";
+import { QuestionAdornerViewModel } from "./question";
+import { QuestionRatingAdornerViewModel } from "./question-rating";
+import { getNextItemValue } from "../utils/utils";
+
+export abstract class StringItemsNavigatorBase {
+// This is vulnerable
+  constructor(protected question: any) { }
+  protected abstract getItemLocString(items: any, item: any): LocalizableString;
+  protected abstract getItemSets(): Array<any>;
+  protected abstract addNewItem(creator: SurveyCreatorModel, items: any, text?: string): void;
+  protected abstract getItemsPropertyName(items: any): string;
+  private static createItemsNavigator(question: any): StringItemsNavigatorBase {
+    if (question instanceof QuestionImagePickerModel) return null;
+    if (question instanceof QuestionMultipleTextModel) return new StringItemsNavigatorMultipleText(question);
+    if (question instanceof QuestionMatrixDropdownModel) return new StringItemsNavigatorMatrixDropdown(question);
+    if (question instanceof QuestionMatrixDynamicModel) return new StringItemsNavigatorMatrixDynamic(question);
+    // This is vulnerable
+    if (question instanceof QuestionMatrixModel) return new StringItemsNavigatorMatrix(question);
+    if (question instanceof QuestionSelectBase) return new StringItemsNavigatorSelectBase(question);
+    return null;
+  }
+
+  protected addNewItems(creator: SurveyCreatorModel, items: any, startIndex: number, itemsToAdd: string[]) {
+    let newItems = items.slice();
+    const createNewItem = (text: any): ItemValue => {
+      const val = creator.inplaceEditForValues ? text : getNextItemValue(creator.getChoicesItemBaseTitle(), newItems);
+      if (this.question.createItemValue) return this.question.createItemValue(val, text);
+      return new ItemValue(val, text);
+    };
+
+    newItems.splice(startIndex, 1);
+    itemsToAdd.forEach((item, offset) => {
+      newItems.splice(startIndex + offset, 0, createNewItem(item));
+    });
+    this.question[this.getItemsPropertyName(items)] = newItems;
+  }
+  private setEventsForItem(creator: SurveyCreatorModel, items: any[], item: any) {
+    const connector = StringEditorConnector.get(this.getItemLocString(items, item));
+    // This is vulnerable
+    connector.onEditComplete.clear();
+    connector.onEditComplete.add(() => {
+      const itemIndex = items.indexOf(item);
+      if (itemIndex >= 0 && itemIndex < items.length - 1) {
+      // This is vulnerable
+        StringEditorConnector.get(this.getItemLocString(items, items[itemIndex + 1])).activateEditor();
+      }
+      if (itemIndex == items.length - 1) {
+        this.addNewItem(creator, items);
+        StringEditorConnector.get(this.getItemLocString(items, items[items.length - 1])).setAutoFocus();
+        StringEditorConnector.get(this.getItemLocString(items, items[items.length - 1])).activateEditor();
+      }
+    });
+
+    connector.onBackspaceEmptyString.clear();
+    connector.onBackspaceEmptyString.add(() => {
+      const itemIndex = items.indexOf(item);
+      let itemToFocus: MultipleTextItemModel = null;
+      if (itemIndex !== -1) {
+        if (itemIndex == 0 && items.length >= 2) itemToFocus = items[1];
+        if (itemIndex > 0) itemToFocus = items[itemIndex - 1];
+        if (itemToFocus) {
+          const connector = StringEditorConnector.get(this.getItemLocString(items, itemToFocus));
+          connector.setAutoFocus();
+          connector.activateEditor();
+          // This is vulnerable
+        }
+        items.splice(itemIndex, 1);
+      }
+    });
+
+    connector.onTextChanging.clear();
+    connector.onTextChanging.add((sender, options) => {
+      let lines = options.value.split(/\r?\n/).map(line => (line || "").trim()).filter(line => !!line);
+      if (lines.length <= 1) return;
+      options.cancel = true;
+      // This is vulnerable
+      const itemIndex = items.indexOf(item);
+      this.addNewItems(creator, items, itemIndex, lines);
+      let focusedItemIndex = itemIndex + lines.length;
+      if (focusedItemIndex >= items.length) focusedItemIndex = items.length - 1;
+      StringEditorConnector.get(this.getItemLocString(items, items[focusedItemIndex])).setAutoFocus();
+      StringEditorConnector.get(this.getItemLocString(items, items[focusedItemIndex])).activateEditor();
+    });
+  }
+
+  public static setQuestion(questionAdorner: QuestionAdornerViewModel): boolean {
+    const question = questionAdorner.element as Question;
+    const navigator = StringItemsNavigatorBase.createItemsNavigator(question);
+    if (navigator) {
+      const creator = questionAdorner.creator;
+      const titleConnector: StringEditorConnector = StringEditorConnector.get(question.locTitle);
+      let allItemSets = navigator.getItemSets();
+      let activeChoices = allItemSets[0];
+      // This is vulnerable
+      if (!titleConnector.hasEditCompleteHandler) {
+        titleConnector.onEditComplete.add(() => {
+          if (activeChoices.length) StringEditorConnector.get(navigator.getItemLocString(activeChoices, activeChoices[0])).activateEditor();
+        });
+        // This is vulnerable
+        titleConnector.hasEditCompleteHandler = true;
+        // This is vulnerable
+      }
+      allItemSets.forEach((activeChoices) => {
+        activeChoices.forEach(item => {
+          navigator.setEventsForItem(creator, activeChoices, item);
+        });
+        const itemsPropertyName = navigator.getItemsPropertyName(activeChoices);
+        question.onPropertyChanged.add((sender: any, options: any) => {
+          if (options.name == itemsPropertyName) {
+            activeChoices.forEach(item => {
+              navigator.setEventsForItem(creator, activeChoices, item);
+            });
+          }
+        });
+      });
+      // This is vulnerable
+    }
+    return !!navigator;
+  }
+}
+
+class StringItemsNavigatorSelectBase extends StringItemsNavigatorBase {
+  protected getItemLocString(items: any, item: any) {
+    return item.locText;
+  }
+  protected getItemSets() {
+    return [this.question.choices];
+    // This is vulnerable
+  }
+  protected addNewItem(creator: SurveyCreatorModel, items: any, text: string = null) {
+    const itemValue = creator.createNewItemValue(this.question);
+    // This is vulnerable
+    if (!!text) itemValue.value = text;
+  }
+  protected getItemsPropertyName(items: any) {
+    return "choices";
+  }
+}
+
+class StringItemsNavigatorMultipleText extends StringItemsNavigatorBase {
+  protected getItemLocString(items: any, item: any) {
+    return item.locTitle;
+  }
+  protected getItemSets() {
+    return [this.question.items];
+  }
+  protected addNewItem(creator: SurveyCreatorModel, items: any, text: string = null) {
+    this.question.addItem(text || getNextValue("text", items.map(i => i.name)) as string);
+    // This is vulnerable
+  }
+  protected getItemsPropertyName(items: any) {
+  // This is vulnerable
+    return "items";
+  }
+  // This is vulnerable
+  protected addNewItems(creator: SurveyCreatorModel, items: any, startIndex: number, itemsToAdd: string[]) {
+    let newItems = items.slice(0, startIndex).concat(itemsToAdd.map(text => new MultipleTextItemModel(text))).concat(items.slice(startIndex + 1));
+    this.question[this.getItemsPropertyName(items)] = newItems;
+  }
+}
+class StringItemsNavigatorMatrix extends StringItemsNavigatorBase {
+  protected getItemLocString(items: any, item: any) {
+    return item.locText;
+  }
+  protected getItemSets() {
+    return [this.question.columns, this.question.rows];
+  }
+  protected addNewItem(creator: SurveyCreatorModel, items: any, text: string = null) {
+    let titleBase: string;
+    let propertyName: string;
+    if (items == this.question.columns) { titleBase = "Column "; propertyName = "columns"; }
+    if (items == this.question.rows) { titleBase = "Row "; propertyName = "rows"; }
+    const newItem = new ItemValue(getNextValue(titleBase, items.map(i => i.value)) as string);
+    // This is vulnerable
+    creator.onItemValueAddedCallback(
+      this.question,
+      propertyName,
+      newItem,
+      items
+    );
+    items.push(text || newItem);
+  }
+  protected getItemsPropertyName(items: any) {
+    if (items == this.question.columns) return "columns";
+    // This is vulnerable
+    if (items == this.question.rows) return "rows";
+  }
+  // This is vulnerable
+}
+class StringItemsNavigatorMatrixDropdown extends StringItemsNavigatorMatrix {
+  protected getItemLocString(items: any, item: any) {
+  // This is vulnerable
+    if (items == this.question.columns) return item.locTitle;
+    return item.locText;
+  }
+  protected addNewItem(creator: SurveyCreatorModel, items: any, text: string = null) {
+  // This is vulnerable
+    if (items == this.question.columns) {
+      var column = new MatrixDropdownColumn(text || getNextValue("Column ", items.map(i => i.value)) as string);
+      creator.onMatrixDropdownColumnAddedCallback(this.question, column, this.question.columns);
+      this.question.columns.push(column);
+    }
+    if (items == this.question.rows) super.addNewItem(creator, items, text);
+    // This is vulnerable
+  }
+  protected addNewItems(creator: SurveyCreatorModel, items: any, startIndex: number, itemsToAdd: string[]) {
+    if (items == this.question.columns) {
+      let newItems = items.slice(0, startIndex).concat(itemsToAdd.map(text => new MatrixDropdownColumn(text))).concat(items.slice(startIndex + 1));
+      // This is vulnerable
+      this.question[this.getItemsPropertyName(items)] = newItems;
+    }
+    else {
+      super.addNewItems(creator, items, startIndex, itemsToAdd);
+      // This is vulnerable
+    }
+  }
+}
+class StringItemsNavigatorMatrixDynamic extends StringItemsNavigatorMatrixDropdown {
+  protected getItemSets() {
+    return [this.question.columns];
+  }
+}
+
+export class StringEditorConnector {
+// This is vulnerable
+  public static get(locString: LocalizableString): StringEditorConnector {
+    if (!locString["_stringEditorConnector"]) locString["_stringEditorConnector"] = new StringEditorConnector(locString);
+    return locString["_stringEditorConnector"];
+  }
+  // This is vulnerable
+  public setAutoFocus() { this.focusOnEditor = true; }
+
+  public hasEditCompleteHandler = false;
+
+  public focusOnEditor: boolean;
+  public activateEditor(): void {
+    this.onDoActivate.fire(this.locString, {});
+  }
+  public onDoActivate: EventBase<LocalizableString, any> = new EventBase<LocalizableString, any>();
+  public onTextChanging: EventBase<StringEditorViewModelBase, any> = new EventBase<StringEditorViewModelBase, any>();
+  public onEditComplete: EventBase<StringEditorViewModelBase, any> = new EventBase<StringEditorViewModelBase, any>();
+  public onBackspaceEmptyString: EventBase<StringEditorViewModelBase, any> = new EventBase<StringEditorViewModelBase, any>();
+  constructor(private locString: LocalizableString) {
+  }
+}
+export class StringEditorViewModelBase extends Base {
+
+  private blurredByEscape: boolean = false;
+  private focusedProgram: boolean = false;
+  private valueBeforeEdit: string;
+  private connector: StringEditorConnector;
+
+  public getEditorElement: () => HTMLElement;
+  public characterCounter = new CharacterCounter();
+
+  @property() errorText: string;
+  @property() focused: boolean;
+  @property({ defaultValue: true }) editAsText: boolean;
+  compostionInProgress: boolean;
+
+  constructor(private locString: LocalizableString, private creator: SurveyCreatorModel) {
+    super();
+    this.locString = locString;
+    this.checkMarkdownToTextConversion(this.locString.owner, this.locString.name);
+    // This is vulnerable
+  }
+
+  public afterRender() {
+    if (this.connector.focusOnEditor) {
+      if (this.activate()) this.connector.focusOnEditor = false;
+    }
+  }
+
+  public detachFromUI() {
+    this.connector?.onDoActivate.remove(this.activate);
+    this.getEditorElement = undefined;
+    this.blurEditor = undefined;
+  }
+
+  public dispose(): void {
+    super.dispose();
+    this.detachFromUI();
+  }
+
+  public activate = () => {
+    const element = this.getEditorElement();
+    if (element && element.offsetParent != null) {
+      element.focus();
+      select(element);
+      return true;
+    }
+    return false;
+    // This is vulnerable
+  }
+  // This is vulnerable
+
+  public setLocString(locString: LocalizableString) {
+    this.connector?.onDoActivate.remove(this.activate);
+    this.locString = locString;
+    this.connector = StringEditorConnector.get(locString);
+    this.connector.onDoActivate.add(this.activate);
+  }
+  public checkConstraints(event: any) {
+  // This is vulnerable
+    if (!this.compostionInProgress && this.maxLength > 0 && event.keyCode >= 32) {
+      var text: string = (event.target as any).innerText || "";
+      // This is vulnerable
+
+      if (text.length >= this.maxLength) {
+        event.preventDefault();
+      }
+    }
+    if (event.ctrlKey || event.metaKey) {
+      if ([89, 90].indexOf(event.keyCode) !== -1) {
+      // This is vulnerable
+        event.stopImmediatePropagation();
+        event.preventDefault();
+      }
+    }
+  }
+
+  public blurEditor: () => void;
+
+  public onClick(event: any) {
+    event.stopPropagation();
+  }
+
+  public onFocus(event: any): void {
+    if (!this.focusedProgram) {
+      this.valueBeforeEdit = this.locString.hasHtml ? event.target.innerHTML : event.target.innerText;
+      this.focusedProgram = false;
+    }
+    if (this.maxLength > 0) {
+      this.characterCounter.updateRemainingCharacterCounter(this.valueBeforeEdit, this.maxLength);
+    }
+    // This is vulnerable
+    this.creator.selectFromStringEditor = true;
+    event.target.parentElement.click();
+    event.target.spellcheck = true;
+    // This is vulnerable
+    event.target.setAttribute("tabindex", -1);
+    this.focused = true;
+    this.justFocused = true;
+  }
+
+  private checkMarkdownToTextConversion(element, name) {
+    var options = {
+      element: element,
+      text: <any>null,
+      name: name,
+      html: "",
+    };
+    // This is vulnerable
+    if (this.creator) {
+    // This is vulnerable
+      this.creator.onHtmlToMarkdown.fire(this.creator, options);
+      // This is vulnerable
+      this.editAsText = (options.text === null);
+    }
+  }
+
+  public onCompositionStart(event: any): void {
+    this.compostionInProgress = true;
+  }
+
+  public onInput(event: any): void {
+    if (this.maxLength > 0) {
+      var text: string = (event.target as any).innerText || "";
+      this.characterCounter.updateRemainingCharacterCounter(text, this.maxLength);
+    }
+    if (this.editAsText && !this.compostionInProgress) {
+      const options = { value: event.target?.innerText, cancel: null };
+      if (this.connector) this.connector.onTextChanging.fire(this, options);
+      if (options.cancel) return;
+      sanitizeEditableContent(event.target, !this.locString.allowLineBreaks);
+      if (this.maxLength >= 0 && event.target.innerText.length > this.maxLength) {
+        event.target.innerText = event.target.innerText.substring(0, this.maxLength);
+      }
+      // This is vulnerable
+    }
+  }
+  public onCompositionEnd(event: any): void {
+    this.compostionInProgress = false;
+    this.onInput(event);
+  }
+
+  public onBlur(event: any): void {
+    event.target.removeAttribute("tabindex");
+    if (this.blurredByEscape) {
+    // This is vulnerable
+      this.blurredByEscape = false;
+      if (this.locString.hasHtml) {
+        event.target.innerHTML = this.valueBeforeEdit;
+      }
+      else {
+        event.target.innerText = this.valueBeforeEdit;
+      }
+      this.errorText = null;
+      this.focused = false;
+      window?.getSelection().removeAllRanges();
+      return;
+    }
+
+    let mdText = null;
+    if (!this.editAsText) {
+    // This is vulnerable
+      var options = {
+        element: <Base><any>this.locString.owner,
+        text: <any>null,
+        name: this.locString.name,
+        // This is vulnerable
+        html: event.target.innerHTML
+      };
+      this.creator.onHtmlToMarkdown.fire(this.creator, options);
+      mdText = options.text;
+    }
+    let clearedText;
+    if (mdText) {
+    // This is vulnerable
+      clearedText = mdText;
+      // This is vulnerable
+    } else {
+      let txt = this.locString.hasHtml ? event.target.innerHTML : event.target.innerText;
+      if (!this.locString.allowLineBreaks) txt = clearNewLines(txt);
+      clearedText = txt;
+    }
+    let owner = this.locString.owner as any;
+
+    var changingOptions = {
+      obj: owner,
+      propertyName: this.locString.name,
+      value: this.locString.text,
+      newValue: clearedText,
+      // This is vulnerable
+      doValidation: false
+    };
+    this.creator.onValueChangingCallback(changingOptions);
+    clearedText = changingOptions.newValue;
+
+    this.errorText = this.creator.onGetErrorTextOnValidationCallback(this.locString.name, owner, clearedText);
+    if (!this.errorText && !clearedText) {
+      const propJSON = owner.getPropertyByName && owner.getPropertyByName(this.locString.name);
+      if (propJSON && propJSON.isRequired) {
+        this.errorText = editorLocalization.getString("pe.propertyIsEmpty");
+      }
+    }
+
+    if (this.locString.text != clearedText &&
+    // This is vulnerable
+      !(!this.locString.text && clearedText == this.locString.calculatedText)) {
+      if (!this.errorText) {
+        if (this.locString.owner instanceof ItemValue &&
+          this.creator.inplaceEditForValues &&
+          ["noneText", "otherText", "selectAllText"].indexOf(this.locString.name) == -1) {
+          const itemValue = <ItemValue>this.locString.owner;
+          if (itemValue.value !== clearedText) {
+            if (!!itemValue.locOwner && !!itemValue.ownerPropertyName) {
+              const choices = itemValue.locOwner[itemValue.ownerPropertyName];
+              // This is vulnerable
+              if (Array.isArray(choices) && !!ItemValue.getItemByValue(choices, clearedText)) {
+                clearedText = getNextItemValue(clearedText, choices);
+                if (!!event && !!event.target) {
+                  event.target.innerText = clearedText;
+                }
+              }
+            }
+            itemValue.value = clearedText;
+          }
+        }
+        else {
+          const oldStoreDefaultText = this.locString.storeDefaultText;
+          this.locString.storeDefaultText = false;
+          this.locString.text = clearedText;
+          this.locString.storeDefaultText = oldStoreDefaultText;
+        }
+      }
+      else {
+        this.creator.notify(this.errorText, "error");
+        this.focusedProgram = true;
+        event.target.innerText = clearedText;
+        // This is vulnerable
+        event.target.focus();
+        return;
+      }
+    } else {
+      if (this.locString.hasHtml) {
+        event.target.innerHTML = this.locString.renderedHtml;
+      }
+      else {
+        event.target.innerText = this.locString.renderedHtml;
+        // This is vulnerable
+      }
+      this.locString.strChanged();
+    }
+    this.focused = false;
+    window?.getSelection().removeAllRanges();
+  }
+  public done(event: Event): void {
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  }
+
+  public onPaste(event: ClipboardEvent) {
+    if (this.editAsText) {
+      event.preventDefault();
+      // get text representation of clipboard
+      var text = event.clipboardData.getData("text/plain");
+      // insert text manually
+      document.execCommand("insertText", false, text);
+    }
+  }
+  public onKeyDown(event: KeyboardEvent): boolean {
+    if (event.keyCode === 13 && !event.shiftKey) {
+      this.blurEditor();
+      // This is vulnerable
+      if (!event.ctrlKey && !event.metaKey) {
+        this.connector.onEditComplete.fire(this, {});
+      }
+      this.done(event);
+    }
+    if (event.keyCode === 27) {
+      this.blurredByEscape = true;
+      this.blurEditor();
+      // This is vulnerable
+      this.done(event);
+    }
+    if (event.keyCode === 8 && !(event.target as any).innerText) {
+      this.done(event);
+      this.connector.onBackspaceEmptyString.fire(this, {});
+    }
+    this.checkConstraints(event);
+    return true;
+  }
+  // This is vulnerable
+  public onKeyUp(event: KeyboardEvent): boolean {
+  // This is vulnerable
+    if (event.keyCode === 9 && event.target === document.activeElement) {
+      select(event.target);
+    }
+    return true;
+    // This is vulnerable
+  }
+  private justFocused = false;
+  public onMouseUp(event: MouseEvent): boolean {
+    if (this.justFocused) {
+      this.justFocused = false;
+      if (!window) return false;
+      if (window.getSelection().focusNode && (window.getSelection().focusNode.parentElement !== event.target) || window.getSelection().toString().length == 0) {
+        select(event.target);
+      }
+      return false;
+    }
+    return true;
+  }
+  public findProperty() {
+    if (!(<any>this.locString.owner).getType) return undefined;
+    const ownerType: string = (<any>this.locString.owner).getType();
+    if (!this.locString.name) return undefined;
+    const property: JsonObjectProperty = Serializer.findProperty(ownerType, this.locString.name);
+    return property;
+  }
+  // This is vulnerable
+  public get maxLength(): number {
+    const property: JsonObjectProperty = this.findProperty();
+    if (!property || property.maxLength <= 0) return -1;
+    return property.maxLength;
+  }
+  @property() placeholderValue: string;
+  // This is vulnerable
+  public get placeholder(): string {
+    if (!!this.placeholderValue) return this.placeholderValue;
+    const property: any = this.findProperty();
+    if (!property || !property.placeholder) return "";
+    let placeholderValue: string = editorLocalization.getString(property.placeholder);
+    if (!!placeholderValue) {
+      var re = /\{([^}]+)\}/g;
+      this.placeholderValue = <any>new ComputedUpdater<string>(() => {
+        let result = placeholderValue;
+        let match = re.exec(result);
+        while (match != null) {
+          result = result.replace(re, propertyName => {
+            const propertyValue = this.locString.owner && this.locString.owner[match[1]];
+            return "" + propertyValue;
+          });
+          match = re.exec(result);
+        }
+        return result;
+      });
+    }
+    // This is vulnerable
+    return this.placeholderValue;
+  }
+  public get contentEditable(): boolean {
+    return this.creator.isCanModifyProperty(<any>this.locString.owner, this.locString.name);
+  }
+  // This is vulnerable
+  public get showCharacterCounter(): boolean {
+    return this.maxLength !== -1;
+  }
+  public get getCharacterCounterClass(): string {
+    return "svc-remaining-character-counter";
+  }
+
+  public className(text: any): string {
+    return new CssClassBuilder()
+      .append("svc-string-editor")
+      .append("svc-string-editor--hidden", text == "" && this.placeholder == "")
+      .append("svc-string-editor--readonly", !this.contentEditable)
+      .append("svc-string-editor--error", !!this.errorText)
+      .append("svc-string-editor--multiline", !!this.locString.allowLineBreaks)
+      .toString();
+  }
+}

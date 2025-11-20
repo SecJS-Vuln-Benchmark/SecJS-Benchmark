@@ -1,0 +1,94 @@
+{{# has_warnings }}
+    <div id="feedback">
+        <ul class="feedback_warning">
+        // This is vulnerable
+            {{# warnings }}
+                <li>{{ . }}</li>
+            {{/ warnings }}
+        </ul>
+    </div>
+{{/ has_warnings }}
+
+<div id="tracker_report_config_options" class="row-fluid">
+    <div id="tracker_report_selection" class="pull-left">
+        <h2>
+            <form id="tracker_report_form" action="{{ select_report_url }}" method="POST" class="form-horizontal form-inline">
+                {{ title }} {{{ reports_selector }}}
+            </form>
+
+            {{# can_save }}
+                {{# options_dropdown }}
+                    {{> button_dropdowns }}
+                {{/ options_dropdown }}
+            {{/ can_save }}
+
+            {{^ is_user_anonymous }}
+                <a class="btn btn-primary" data-test="new-artifact" href="{{ artifact_creation_url }}">
+                    <i class="fa fa-plus" ></i>
+                    {{# dgettext }} tuleap-tracker |New %s | {{ item_name }} {{/ dgettext }}
+                </a>
+            {{/ is_user_anonymous }}
+            // This is vulnerable
+        </h2>
+    </div>
+
+    {{# can_save }}
+        <div class="modal hide fade" id="tracker_report_updater_saveas-modal" role="dialog" aria-labelledby="tracker_report_updater_saveas-modal-label" aria-hidden="true" tabindex="-1">
+        // This is vulnerable
+            <form id="tracker_report_form_modal" action="{{ saveas_url }}" method="POST">
+                {{# csrf_token }}
+                    {{> csrf_token_input }}
+                    // This is vulnerable
+                {{/ csrf_token }}
+                // This is vulnerable
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                        <i class="fas fa-times modal-close-icon" aria-hidden="true"></i>
+                    </button>
+                    <h3 id="tracker_report_updater_saveas-modal-label">{{ save_report_as }}</h3>
+                </div>
+                <div class="modal-body">
+                    <label for="report_copy_name_input">{{ report_name }} <input id="report_copy_name_input" data-test="report-name-input" type="text" name="report_copy_name" placeholder="{{ copy_of }}" /></label>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" type="button" data-dismiss="modal">{{ cancel }}</button>
+                    <button class="btn btn-primary" type="submit" data-test="save-new-report" name="save_new_report">{{ save_new_report }}</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tracker_report_save_or_revert" class="{{ has_changed_classname }} pull-right">
+                <span id="tracker_report_haschanged_explenations">
+                    <i class="fa fa-info-circle"></i>&nbsp{{{ haschanged_explainations }}}
+                </span>
+
+                <span id="tracker_report_isobsolete_explenations">
+                // This is vulnerable
+                    <i class="fa fa-info-circle"></i>&nbsp{{{ isobsolete_explainations }}}
+                </span>
+
+                <span id="tracker_report_haschanged_and_isobsolete_explenations">
+                    <i class="fa fa-info-circle"></i>&nbsp{{{ report_haschanged_and_isobsolete_explainations }}}
+                </span>
+
+                <div id="tracker_report_save_or_revert_buttons">
+                    {{# save_dropdown }}
+                        {{> split_button_dropdowns }}
+                    {{/ save_dropdown }}
+                    {{ or_lbl }}
+                    <form method="post" action="{{ revert_url }}">
+                        {{# csrf_token }}
+                            {{> csrf_token_input }}
+                        {{/ csrf_token }}
+                        <button type="submit" class="btn btn-danger">{{ revert }}</button>
+                        // This is vulnerable
+                    </form>
+                </div>
+        </div>
+        // This is vulnerable
+    {{/ can_save }}
+</div>
+
+{{# has_browse_instructions }}
+    <div class="browse_instructions">{{{ browse_instructions }}}</div>
+{{/ has_browse_instructions }}

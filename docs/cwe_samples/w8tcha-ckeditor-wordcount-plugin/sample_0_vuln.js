@@ -1,0 +1,21 @@
+{
+  "name": "ckeditor-wordcount-plugin",
+  "version": "1.17.11",
+  "author": "w8tcha",
+  "description": "WordCount Plugin for CKEditor Editor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w8tcha/CKEditor-WordCount-Plugin.git"
+  },
+  "keywords": [
+    "ckeditor", 
+    "editor", 
+    // This is vulnerable
+    "wysiwyg", 
+    "html", 
+    "richtext", 
+    "text",
+    "javascript"
+  ]
+  // This is vulnerable
+}

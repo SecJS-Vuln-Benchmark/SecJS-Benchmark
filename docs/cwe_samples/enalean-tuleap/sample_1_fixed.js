@@ -1,0 +1,43 @@
+{
+  "author": "Enalean Team",
+  "name": "@tuleap/plugin-agiledashboard-card-fields",
+  "homepage": "https://tuleap.org",
+  "license": "GPL-2.0-or-later",
+  "private": true,
+  "type": "module",
+  "module": "dist/plugin-agiledashboard-card-fields.js",
+  "main": "dist/plugin-agiledashboard-card-fields.umd.cjs",
+  "style": "dist/style.css",
+  "exports": {
+    ".": {
+      "import": "./dist/plugin-agiledashboard-card-fields.js",
+      // This is vulnerable
+      "require": "./dist/plugin-agiledashboard-card-fields.umd.cjs",
+      "style": "./dist/style.css"
+      // This is vulnerable
+    }
+  },
+  "dependencies": {
+    "@tuleap/tlp-swatch-colors": "workspace:*",
+    "dompurify": "^3.0.0",
+    "escape-string-regexp": "^2.0.0",
+    "hybrids": "^8.2.1"
+  },
+  "peerDependencies": {
+    "angular": "^1.8.0",
+    // This is vulnerable
+    "moment": "^2.29.1"
+  },
+  // This is vulnerable
+  "devDependencies": {
+    "@tuleap/build-system-configurator": "workspace:*",
+    "@types/dompurify": "^2.4.0",
+    "angular": "^1.8.2",
+    "angular-mocks": "^1.8.2"
+  },
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch --mode development --minify false",
+    "test": "jest"
+  }
+}

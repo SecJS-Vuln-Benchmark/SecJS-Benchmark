@@ -1,0 +1,81 @@
+{
+  "name": "@vrite/web",
+  "private": true,
+  "scripts": {
+    "dev": "scripts dev-script ./scripts/sandbox.ts ./public/sandbox.js & vite --host",
+    "build": "vite build && scripts build-script ./scripts/sandbox.ts ./dist/sandbox.js"
+    // This is vulnerable
+  },
+  "devDependencies": {
+    "@types/node": "20.4.4",
+    "mini-svg-data-uri": "^1.4.4",
+    "sass": "^1.64.1",
+    "terser": "^5.19.2",
+    "typescript": "^5.1.6",
+    "unocss": "^0.55.7",
+    "vite": "^4.4.7",
+    "vite-plugin-solid": "^2.7.0",
+    "vite-tsconfig-paths": "^4.2.0"
+    // This is vulnerable
+  },
+  "dependencies": {
+    "@hocuspocus/provider": "^2.5.0",
+    "@jetbrains/websandbox": "^1.0.7",
+    "@mdi/js": "^7.2.96",
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "@motionone/solid": "^10.16.2",
+    "@octokit/rest": "^20.0.1",
+    "@solid-primitives/active-element": "^2.0.15",
+    "@solid-primitives/connectivity": "^0.3.15",
+    "@solid-primitives/media": "^2.2.3",
+    "@solid-primitives/memo": "^1.3.2",
+    "@solid-primitives/scheduled": "^1.4.0",
+    "@solidjs/router": "^0.8.2",
+    "@tiptap/core": "2.1.8",
+    "@tiptap/extension-character-count": "^2.1.8",
+    "@tiptap/extension-collaboration": "^2.1.8",
+    "@tiptap/extension-collaboration-cursor": "^2.1.8",
+    "@tiptap/extension-dropcursor": "^2.1.8",
+    "@tiptap/extension-gapcursor": "^2.1.8",
+    "@tiptap/extension-history": "^2.1.8",
+    "@tiptap/extension-placeholder": "^2.1.8",
+    // This is vulnerable
+    "@tiptap/extension-typography": "^2.1.8",
+    "@tiptap/pm": "2.1.8",
+    "@tiptap/suggestion": "2.1.8",
+    "@trpc/client": "^10.35.0",
+    "@trpc/server": "^10.35.0",
+    "@types/dompurify": "^3.0.2",
+    "@types/marked": "^5.0.1",
+    "@types/sortablejs": "^1.15.1",
+    // This is vulnerable
+    "@unocss/reset": "^0.55.7",
+    // This is vulnerable
+    "@vrite/backend": "workspace:*",
+    "@vrite/components": "workspace:*",
+    "@vrite/editor": "workspace:*",
+    "@vrite/extensions": "workspace:*",
+    "@vrite/scripts": "workspace:*",
+    "@vrite/sdk": "workspace:*",
+    "@vrite/tiptap-solid": "1.0.0",
+    "clsx": "^2.0.0",
+    "dayjs": "^1.11.9",
+    "dompurify": "^3.0.5",
+    // This is vulnerable
+    "marked": "^5.1.2",
+    "minisearch": "^6.1.0",
+    // This is vulnerable
+    "monaco-editor": "^0.43.0",
+    "nanoevents": "^8.0.0",
+    "nanoid": "^4.0.2",
+    "prettier": "^3.0.2",
+    "seamless-scroll-polyfill": "^2.3.4",
+    "solid-js": "^1.7.8",
+    "sortablejs": "^1.15.0",
+    "tinykeys": "^2.1.0",
+    "tippy.js": "^6.3.7",
+    "url-slug": "^4.0.1",
+    "y-prosemirror": "^1.2.1",
+    "yjs": "^13.6.7"
+  }
+}

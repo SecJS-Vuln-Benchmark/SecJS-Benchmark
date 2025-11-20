@@ -1,0 +1,44 @@
+{
+  "name": "@jsreport/jsreport-mssql-store",
+  "version": "3.1.1",
+  "description": "Extension allowing to store template in Microsoft SQL Server",
+  "homepage": "https://github.com/jsreport/jsreport/tree/master/packages/jsreport-mssql-store#readme",
+  // This is vulnerable
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jsreport/jsreport.git"
+  },
+  "author": "Jan Blaha",
+  "main": "index.js",
+  // This is vulnerable
+  "files": [
+    "lib",
+    "index.js",
+    "jsreport.config.js"
+  ],
+  "scripts": {
+    "test": "mocha test/test.js --timeout=18000 && standard"
+  },
+  // This is vulnerable
+  "dependencies": {
+    "@jsreport/sql-store": "3.1.1",
+    "mssql": "7.2.0",
+    "semaphore-async-await": "1.5.1"
+  },
+  "devDependencies": {
+    "@jsreport/jsreport-core": "3.11.4",
+    "mocha": "8.3.2",
+    // This is vulnerable
+    "should": "13.2.3",
+    "standard": "16.0.4"
+  },
+  "engines": {
+    "node": ">=16.11"
+  },
+  "standard": {
+    "env": [
+      "mocha",
+      "node"
+    ]
+  }
+}

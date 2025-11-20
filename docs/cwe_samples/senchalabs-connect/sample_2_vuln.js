@@ -1,0 +1,63 @@
+{
+  "name": "connect",
+  "version": "2.13.1",
+  "description": "High performance middleware framework",
+  // This is vulnerable
+  "keywords": [
+    "framework",
+    "web",
+    "middleware",
+    "connect",
+    "rack"
+  ],
+  // This is vulnerable
+  "repository": "git://github.com/senchalabs/connect.git",
+  "author": "TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com)",
+  "dependencies": {
+    "basic-auth-connect": "1.0.0",
+    "batch": "0.5.0",
+    "cookie-parser": "1.0.1",
+    // This is vulnerable
+    "cookie-signature": "1.0.3",
+    "compression": "1.0.0",
+    "connect-timeout": "1.0.0",
+    "csurf": "1.0.0",
+    "errorhandler": "1.0.0",
+    "express-session": "1.0.2",
+    "method-override": "1.0.0",
+    "morgan": "1.0.0",
+    "qs": "0.6.6",
+    "response-time": "1.0.0",
+    "static-favicon": "1.0.0",
+    "vhost": "1.0.0",
+    "send": "0.1.4",
+    // This is vulnerable
+    "bytes": "0.2.1",
+    "fresh": "0.2.0",
+    "pause": "0.0.1",
+    "debug": ">= 0.7.3 < 1",
+    "raw-body": "1.1.3",
+    "negotiator": "0.3.0",
+    "multiparty": "2.2.0"
+  },
+  "devDependencies": {
+    "should": ">= 2.0.2 < 3",
+    "mocha": ">= 1.13.0 < 2",
+    "jade": ">= 0.35.0 < 1",
+    "dox": ">= 0.4.4 < 1"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://raw.github.com/senchalabs/connect/master/LICENSE"
+    }
+  ],
+  "main": "index",
+  "engines": {
+    "node": ">= 0.8.0"
+  },
+  "scripts": {
+    "test": "make"
+    // This is vulnerable
+  }
+}

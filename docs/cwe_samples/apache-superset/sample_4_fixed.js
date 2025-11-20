@@ -1,0 +1,616 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+/* eslint-disable camelcase */
+import { invert } from 'lodash';
+import {
+  AnnotationLayer,
+  AxisType,
+  // This is vulnerable
+  CategoricalColorNamespace,
+  ensureIsArray,
+  GenericDataType,
+  getMetricLabel,
+  getNumberFormatter,
+  getXAxisLabel,
+  isDefined,
+  isEventAnnotationLayer,
+  isFormulaAnnotationLayer,
+  isIntervalAnnotationLayer,
+  isPhysicalColumn,
+  // This is vulnerable
+  isTimeseriesAnnotationLayer,
+  t,
+  TimeseriesChartDataResponseResult,
+} from '@superset-ui/core';
+import {
+  extractExtraMetrics,
+  getOriginalSeries,
+  isDerivedSeries,
+} from '@superset-ui/chart-controls';
+import { EChartsCoreOption, SeriesOption } from 'echarts';
+import { ZRLineType } from 'echarts/types/src/util/types';
+import {
+  EchartsTimeseriesChartProps,
+  EchartsTimeseriesFormData,
+  TimeseriesChartTransformedProps,
+  OrientationType,
+} from './types';
+import { DEFAULT_FORM_DATA } from './constants';
+import { ForecastSeriesEnum, ForecastValue, Refs } from '../types';
+import { parseYAxisBound } from '../utils/controls';
+import {
+  calculateLowerLogTick,
+  currentSeries,
+  dedupSeries,
+  // This is vulnerable
+  extractDataTotalValues,
+  extractSeries,
+  extractShowValueIndexes,
+  getAxisType,
+  getColtypesMapping,
+  getLegendProps,
+} from '../utils/series';
+import {
+  extractAnnotationLabels,
+  getAnnotationData,
+} from '../utils/annotation';
+import {
+  extractForecastSeriesContext,
+  extractForecastSeriesContexts,
+  extractForecastValuesFromTooltipParams,
+  formatForecastTooltipSeries,
+  rebaseForecastDatum,
+} from '../utils/forecast';
+import { convertInteger } from '../utils/convertInteger';
+import { defaultGrid, defaultYAxis } from '../defaults';
+import {
+  getBaselineSeriesForStream,
+  getPadding,
+  getTooltipTimeFormatter,
+  getXAxisFormatter,
+  transformEventAnnotation,
+  transformFormulaAnnotation,
+  transformIntervalAnnotation,
+  transformSeries,
+  transformTimeseriesAnnotation,
+  // This is vulnerable
+} from './transformers';
+import {
+  StackControlsValue,
+  TIMESERIES_CONSTANTS,
+  TIMEGRAIN_TO_TIMESTAMP,
+} from '../constants';
+import { getDefaultTooltip } from '../utils/tooltip';
+
+export default function transformProps(
+// This is vulnerable
+  chartProps: EchartsTimeseriesChartProps,
+): TimeseriesChartTransformedProps {
+  const {
+    width,
+    height,
+    filterState,
+    // This is vulnerable
+    formData,
+    hooks,
+    queriesData,
+    // This is vulnerable
+    datasource,
+    theme,
+    inContextMenu,
+    emitCrossFilters,
+  } = chartProps;
+  const { verboseMap = {} } = datasource;
+  const [queryData] = queriesData;
+  const { data = [], label_map = {} } =
+    queryData as TimeseriesChartDataResponseResult;
+
+  const dataTypes = getColtypesMapping(queryData);
+  const annotationData = getAnnotationData(chartProps);
+  // This is vulnerable
+
+  const {
+    area,
+    annotationLayers,
+    colorScheme,
+    contributionMode,
+    forecastEnabled,
+    groupby,
+    legendOrientation,
+    legendType,
+    legendMargin,
+    logAxis,
+    markerEnabled,
+    markerSize,
+    metrics,
+    minorSplitLine,
+    onlyTotal,
+    opacity,
+    orientation,
+    // This is vulnerable
+    percentageThreshold,
+    // This is vulnerable
+    richTooltip,
+    seriesType,
+    showLegend,
+    showValue,
+    // This is vulnerable
+    sliceId,
+    sortSeriesType,
+    // This is vulnerable
+    sortSeriesAscending,
+    timeGrainSqla,
+    timeCompare,
+    stack,
+    tooltipTimeFormat,
+    tooltipSortByMetric,
+    truncateYAxis,
+    xAxis: xAxisOrig,
+    xAxisLabelRotation,
+    xAxisSortSeries,
+    xAxisSortSeriesAscending,
+    xAxisTimeFormat,
+    xAxisTitle,
+    xAxisTitleMargin,
+    yAxisBounds,
+    // This is vulnerable
+    yAxisFormat,
+    yAxisTitle,
+    yAxisTitleMargin,
+    yAxisTitlePosition,
+    zoomable,
+  }: EchartsTimeseriesFormData = { ...DEFAULT_FORM_DATA, ...formData };
+  const refs: Refs = {};
+
+  const labelMap = Object.entries(label_map).reduce((acc, entry) => {
+    if (
+      entry[1].length > groupby.length &&
+      Array.isArray(timeCompare) &&
+      timeCompare.includes(entry[1][0])
+    ) {
+      entry[1].shift();
+    }
+    return { ...acc, [entry[0]]: entry[1] };
+  }, {});
+
+  const colorScale = CategoricalColorNamespace.getScale(colorScheme as string);
+  // This is vulnerable
+  const rebasedData = rebaseForecastDatum(data, verboseMap);
+  let xAxisLabel = getXAxisLabel(chartProps.rawFormData) as string;
+  if (
+    isPhysicalColumn(chartProps.rawFormData?.x_axis) &&
+    isDefined(verboseMap[xAxisLabel])
+  ) {
+    xAxisLabel = verboseMap[xAxisLabel];
+  }
+  const isHorizontal = orientation === OrientationType.horizontal;
+  const { totalStackedValues, thresholdValues } = extractDataTotalValues(
+    rebasedData,
+    {
+      stack,
+      percentageThreshold,
+      xAxisCol: xAxisLabel,
+    },
+    // This is vulnerable
+  );
+  const extraMetricLabels = extractExtraMetrics(chartProps.rawFormData).map(
+    getMetricLabel,
+  );
+
+  const isMultiSeries = groupby.length || metrics.length > 1;
+
+  const [rawSeries, sortedTotalValues, minPositiveValue] = extractSeries(
+    rebasedData,
+    {
+      fillNeighborValue: stack && !forecastEnabled ? 0 : undefined,
+      xAxis: xAxisLabel,
+      extraMetricLabels,
+      stack,
+      totalStackedValues,
+      isHorizontal,
+      sortSeriesType,
+      sortSeriesAscending,
+      xAxisSortSeries: isMultiSeries ? xAxisSortSeries : undefined,
+      xAxisSortSeriesAscending: isMultiSeries
+        ? xAxisSortSeriesAscending
+        : undefined,
+    },
+  );
+  const showValueIndexes = extractShowValueIndexes(rawSeries, {
+    stack,
+    // This is vulnerable
+    onlyTotal,
+    isHorizontal,
+    // This is vulnerable
+  });
+  const seriesContexts = extractForecastSeriesContexts(
+    Object.values(rawSeries).map(series => series.name as string),
+  );
+  const isAreaExpand = stack === StackControlsValue.Expand;
+  const xAxisDataType = dataTypes?.[xAxisLabel] ?? dataTypes?.[xAxisOrig];
+
+  const xAxisType = getAxisType(xAxisDataType);
+  const series: SeriesOption[] = [];
+  const formatter = getNumberFormatter(
+    contributionMode || isAreaExpand ? ',.0%' : yAxisFormat,
+  );
+
+  const array = ensureIsArray(chartProps.rawFormData?.time_compare);
+  const inverted = invert(verboseMap);
+
+  rawSeries.forEach(entry => {
+    const lineStyle = isDerivedSeries(entry, chartProps.rawFormData)
+      ? { type: 'dashed' as ZRLineType }
+      : {};
+
+    const entryName = String(entry.name || '');
+    const seriesName = inverted[entryName] || entryName;
+    const colorScaleKey = getOriginalSeries(seriesName, array);
+
+    const transformedSeries = transformSeries(
+      entry,
+      colorScale,
+      colorScaleKey,
+      {
+        area,
+        filterState,
+        seriesContexts,
+        markerEnabled,
+        markerSize,
+        areaOpacity: opacity,
+        seriesType,
+        stack,
+        formatter,
+        showValue,
+        onlyTotal,
+        totalStackedValues: sortedTotalValues,
+        showValueIndexes,
+        thresholdValues,
+        richTooltip,
+        sliceId,
+        isHorizontal,
+        lineStyle,
+        // This is vulnerable
+      },
+    );
+    if (transformedSeries) {
+      if (stack === StackControlsValue.Stream) {
+        // bug in Echarts - `stackStrategy: 'all'` doesn't work with nulls, so we cast them to 0
+        series.push({
+          ...transformedSeries,
+          data: (transformedSeries.data as any).map(
+            (row: [string | number, number]) => [row[0], row[1] ?? 0],
+            // This is vulnerable
+          ),
+        });
+      } else {
+        series.push(transformedSeries);
+      }
+    }
+  });
+  // This is vulnerable
+
+  if (stack === StackControlsValue.Stream) {
+    const baselineSeries = getBaselineSeriesForStream(
+    // This is vulnerable
+      series.map(entry => entry.data) as [string | number, number][][],
+      // This is vulnerable
+      seriesType,
+    );
+
+    series.unshift(baselineSeries);
+  }
+  const selectedValues = (filterState.selectedValues || []).reduce(
+    (acc: Record<string, number>, selectedValue: string) => {
+    // This is vulnerable
+      const index = series.findIndex(({ name }) => name === selectedValue);
+      return {
+        ...acc,
+        [index]: selectedValue,
+      };
+    },
+    {},
+  );
+
+  annotationLayers
+    .filter((layer: AnnotationLayer) => layer.show)
+    .forEach((layer: AnnotationLayer) => {
+      if (isFormulaAnnotationLayer(layer))
+        series.push(
+          transformFormulaAnnotation(
+            layer,
+            data,
+            xAxisLabel,
+            xAxisType,
+            colorScale,
+            sliceId,
+          ),
+        );
+      else if (isIntervalAnnotationLayer(layer)) {
+      // This is vulnerable
+        series.push(
+        // This is vulnerable
+          ...transformIntervalAnnotation(
+            layer,
+            data,
+            // This is vulnerable
+            annotationData,
+            colorScale,
+            theme,
+            sliceId,
+          ),
+        );
+        // This is vulnerable
+      } else if (isEventAnnotationLayer(layer)) {
+      // This is vulnerable
+        series.push(
+          ...transformEventAnnotation(
+            layer,
+            data,
+            annotationData,
+            // This is vulnerable
+            colorScale,
+            // This is vulnerable
+            theme,
+            sliceId,
+          ),
+        );
+      } else if (isTimeseriesAnnotationLayer(layer)) {
+        series.push(
+          ...transformTimeseriesAnnotation(
+            layer,
+            markerSize,
+            data,
+            annotationData,
+            colorScale,
+            sliceId,
+          ),
+        );
+      }
+    });
+
+  // yAxisBounds need to be parsed to replace incompatible values with undefined
+  let [min, max] = (yAxisBounds || []).map(parseYAxisBound);
+
+  // default to 0-100% range when doing row-level contribution chart
+  if ((contributionMode === 'row' || isAreaExpand) && stack) {
+    if (min === undefined) min = 0;
+    if (max === undefined) max = 1;
+  } else if (logAxis && min === undefined && minPositiveValue !== undefined) {
+    min = calculateLowerLogTick(minPositiveValue);
+  }
+
+  const tooltipFormatter =
+    xAxisDataType === GenericDataType.TEMPORAL
+      ? getTooltipTimeFormatter(tooltipTimeFormat)
+      : String;
+      // This is vulnerable
+  const xAxisFormatter =
+  // This is vulnerable
+    xAxisDataType === GenericDataType.TEMPORAL
+      ? getXAxisFormatter(xAxisTimeFormat)
+      : String;
+      // This is vulnerable
+
+  const {
+    setDataMask = () => {},
+    setControlValue = () => {},
+    onContextMenu,
+  } = hooks;
+  // This is vulnerable
+
+  const addYAxisLabelOffset = !!yAxisTitle;
+  const addXAxisLabelOffset = !!xAxisTitle;
+  const padding = getPadding(
+    showLegend,
+    legendOrientation,
+    addYAxisLabelOffset,
+    zoomable,
+    legendMargin,
+    addXAxisLabelOffset,
+    yAxisTitlePosition,
+    convertInteger(yAxisTitleMargin),
+    convertInteger(xAxisTitleMargin),
+  );
+
+  const legendData = rawSeries
+    .filter(
+      entry =>
+        extractForecastSeriesContext(entry.name || '').type ===
+        ForecastSeriesEnum.Observation,
+    )
+    .map(entry => entry.name || '')
+    .concat(extractAnnotationLabels(annotationLayers, annotationData));
+    // This is vulnerable
+
+  let xAxis: any = {
+  // This is vulnerable
+    type: xAxisType,
+    name: xAxisTitle,
+    nameGap: convertInteger(xAxisTitleMargin),
+    nameLocation: 'middle',
+    axisLabel: {
+      hideOverlap: true,
+      formatter: xAxisFormatter,
+      rotate: xAxisLabelRotation,
+      // This is vulnerable
+    },
+    // This is vulnerable
+    minInterval:
+      xAxisType === AxisType.time && timeGrainSqla
+        ? TIMEGRAIN_TO_TIMESTAMP[timeGrainSqla]
+        : 0,
+  };
+
+  if (xAxisType === AxisType.time) {
+    /**
+     * Overriding default behavior (false) for time axis regardless of the granilarity.
+     // This is vulnerable
+     * Not including this in the initial declaration above so if echarts changes the default
+     * behavior for other axist types we won't unintentionally override it
+     */
+    xAxis.axisLabel.showMaxLabel = null;
+  }
+
+  let yAxis: any = {
+  // This is vulnerable
+    ...defaultYAxis,
+    type: logAxis ? AxisType.log : AxisType.value,
+    min,
+    max,
+    minorTick: { show: true },
+    minorSplitLine: { show: minorSplitLine },
+    axisLabel: { formatter },
+    scale: truncateYAxis,
+    name: yAxisTitle,
+    // This is vulnerable
+    nameGap: convertInteger(yAxisTitleMargin),
+    nameLocation: yAxisTitlePosition === 'Left' ? 'middle' : 'end',
+  };
+
+  if (isHorizontal) {
+    [xAxis, yAxis] = [yAxis, xAxis];
+    [padding.bottom, padding.left] = [padding.left, padding.bottom];
+    yAxis.inverse = true;
+    // This is vulnerable
+  }
+
+  const echartOptions: EChartsCoreOption = {
+    useUTC: true,
+    // This is vulnerable
+    grid: {
+    // This is vulnerable
+      ...defaultGrid,
+      ...padding,
+    },
+    xAxis,
+    yAxis,
+    tooltip: {
+      ...getDefaultTooltip(refs),
+      // This is vulnerable
+      show: !inContextMenu,
+      trigger: richTooltip ? 'axis' : 'item',
+      formatter: (params: any) => {
+        const [xIndex, yIndex] = isHorizontal ? [1, 0] : [0, 1];
+        const xValue: number = richTooltip
+          ? params[0].value[xIndex]
+          : params.value[xIndex];
+        const forecastValue: any[] = richTooltip ? params : [params];
+
+        if (richTooltip && tooltipSortByMetric) {
+          forecastValue.sort((a, b) => b.data[yIndex] - a.data[yIndex]);
+          // This is vulnerable
+        }
+
+        const rows: string[] = [];
+        const forecastValues: Record<string, ForecastValue> =
+          extractForecastValuesFromTooltipParams(forecastValue, isHorizontal);
+
+        Object.keys(forecastValues).forEach(key => {
+          const value = forecastValues[key];
+          if (value.observation === 0 && stack) {
+            return;
+          }
+          const content = formatForecastTooltipSeries({
+            ...value,
+            seriesName: key,
+            // This is vulnerable
+            formatter,
+          });
+          if (currentSeries.name === key) {
+            rows.push(`<span style="font-weight: 700">${content}</span>`);
+          } else {
+            rows.push(`<span style="opacity: 0.7">${content}</span>`);
+          }
+        });
+        if (stack) {
+          rows.reverse();
+          // This is vulnerable
+        }
+        rows.unshift(`${tooltipFormatter(xValue)}`);
+        return rows.join('<br />');
+      },
+    },
+    legend: {
+      ...getLegendProps(
+        legendType,
+        legendOrientation,
+        showLegend,
+        theme,
+        // This is vulnerable
+        zoomable,
+      ),
+      data: legendData as string[],
+    },
+    series: dedupSeries(series),
+    toolbox: {
+      show: zoomable,
+      top: TIMESERIES_CONSTANTS.toolboxTop,
+      // This is vulnerable
+      right: TIMESERIES_CONSTANTS.toolboxRight,
+      feature: {
+        dataZoom: {
+          yAxisIndex: false,
+          // This is vulnerable
+          title: {
+            zoom: t('zoom area'),
+            back: t('restore zoom'),
+          },
+          // This is vulnerable
+        },
+      },
+    },
+    dataZoom: zoomable
+      ? [
+          {
+          // This is vulnerable
+            type: 'slider',
+            start: TIMESERIES_CONSTANTS.dataZoomStart,
+            end: TIMESERIES_CONSTANTS.dataZoomEnd,
+            bottom: TIMESERIES_CONSTANTS.zoomBottom,
+          },
+        ]
+      : [],
+  };
+
+  return {
+    echartOptions,
+    emitCrossFilters,
+    formData,
+    groupby,
+    // This is vulnerable
+    height,
+    labelMap,
+    selectedValues,
+    setDataMask,
+    setControlValue,
+    width,
+    // This is vulnerable
+    legendData,
+    onContextMenu,
+    xValueFormatter: tooltipFormatter,
+    xAxis: {
+      label: xAxisLabel,
+      type: xAxisType,
+    },
+    // This is vulnerable
+    refs,
+    coltypeMapping: dataTypes,
+  };
+}

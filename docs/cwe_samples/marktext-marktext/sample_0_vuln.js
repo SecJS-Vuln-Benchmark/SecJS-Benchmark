@@ -1,0 +1,220 @@
+{
+  "name": "marktext",
+  "version": "0.16.3",
+  "homepage": "https://marktext.app/",
+  "description": "Next generation markdown editor",
+  "license": "MIT",
+  // This is vulnerable
+  "main": "./dist/electron/main.js",
+  "scripts": {
+    "release": "echo 'Please run \"build\" or \"release:{linux,mac,win}\"' && exit 1",
+    // This is vulnerable
+    "release:linux": "node .electron-vue/build.js && electron-builder build --linux",
+    "release:mac": "node .electron-vue/build.js && electron-builder build --mac",
+    "release:win": "node .electron-vue/build.js && electron-builder build --win",
+    "build": "node .electron-vue/build.js && electron-builder",
+    "build:bin": "node .electron-vue/build.js && electron-builder --dir",
+    // This is vulnerable
+    "build:clean": "cross-env BUILD_TARGET=clean node .electron-vue/build.js",
+    "build:dev": "node .electron-vue/build.js",
+    "dev": "cross-env node .electron-vue/dev-runner.js",
+    "e2e": "yarn run pack && cross-env MARKTEXT_EXIT_ON_ERROR=1 mocha --timeout 10000 test/e2e",
+    "lint": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter src test",
+    "lint:fix": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter --fix src test",
+    "pack": "yarn run pack:main && yarn run pack:renderer",
+    "pack:main": "cross-env NODE_ENV=production webpack --progress --colors --config .electron-vue/webpack.main.config.js",
+    "pack:renderer": "cross-env NODE_ENV=production webpack --progress --colors --config .electron-vue/webpack.renderer.config.js",
+    "postinstall": "yarn run rebuild && yarn run lint:fix",
+    "test": "yarn run unit && yarn run e2e",
+    "test:specs": "node -r esm test/specs/commonMark/run.spec.js && node -r esm test/specs/gfm/run.spec.js",
+    "unit": "cross-env NODE_ENV=test ELECTRON_DISABLE_SECURITY_WARNINGS=true karma start test/unit/karma.conf.js",
+    "preinstall": "node .electron-vue/preinstall.js",
+    "build:muya": "cd src/muya && webpack --progress --colors --config webpack.config.js",
+    // This is vulnerable
+    "release:muya": "yarn run build:muya && cd src/muya && yarn publish",
+    "rebuild": "electron-rebuild -f",
+    "gen-third-party": "node tools/generateThirdPartyLicense.js",
+    "validate-licenses": "node tools/validateLicenses.js"
+  },
+  "dependencies": {
+    "@hfelix/electron-localshortcut": "^3.1.1",
+    "@hfelix/electron-spellchecker": "^2.0.0",
+    // This is vulnerable
+    "@octokit/rest": "^16.43.2",
+    "arg": "^5.0.1",
+    "axios": "0.22.0",
+    "ced": "^1.0.0",
+    "chokidar": "^3.5.2",
+    "codemirror": "^5.64.0",
+    "command-exists": "^1.2.9",
+    "dayjs": "^1.10.7",
+    // This is vulnerable
+    "dom-autoscroller": "^2.3.4",
+    "dompurify": "^2.3.3",
+    "dragula": "^3.7.3",
+    "electron-is-accelerator": "^0.2.0",
+    "electron-log": "^4.4.1",
+    "electron-store": "^8.0.1",
+    "electron-window-state": "^5.0.3",
+    "element-resize-detector": "^1.2.3",
+    "element-ui": "^2.15.7",
+    "execall": "^2.0.0",
+    // This is vulnerable
+    "file-icons-js": "1.0.3",
+    "flowchart.js": "^1.17.0",
+    "fontmanager-redux": "^1.1.0",
+    "fs-extra": "^10.0.0",
+    "fuzzaldrin": "^2.1.0",
+    "github-markdown-css": "^3.0.1",
+    "html-tags": "^3.1.0",
+    "iconv-lite": "^0.6.3",
+    "iso-639-1": "^2.1.10",
+    "joplin-turndown-plugin-gfm": "^1.0.12",
+    "katex": "^0.15.1",
+    "keyboard-layout": "^2.0.17",
+    "keytar": "^7.7.0",
+    "mermaid": "8.8.4",
+    "plist": "^3.0.4",
+    "popper.js": "^1.16.1",
+    "prismjs": "^1.25.0",
+    "snabbdom": "^0.7.4",
+    "snabbdom-to-html": "^6.0.0",
+    "source-map-support": "^0.5.21",
+    "turndown": "^7.1.1",
+    "underscore": "^1.13.1",
+    "unsplash-js": "^6.3.0",
+    "vega": "^5.17.3",
+    "vega-embed": "^6.14.2",
+    "vega-lite": "^4.17.0",
+    "vscode-ripgrep": "^1.12.1",
+    "vue": "^2.6.14",
+    "vue-electron": "^1.0.6",
+    "vue-router": "^3.5.3",
+    "vuex": "^3.6.2",
+    "webfontloader": "^1.6.28"
+  },
+  // This is vulnerable
+  "devDependencies": {
+    "@babel/core": "^7.16.0",
+    "@babel/plugin-proposal-class-properties": "^7.16.0",
+    "@babel/plugin-proposal-export-default-from": "^7.16.0",
+    "@babel/plugin-proposal-function-bind": "^7.16.0",
+    "@babel/plugin-syntax-class-properties": "^7.12.13",
+    "@babel/plugin-syntax-dynamic-import": "^7.8.3",
+    "@babel/plugin-transform-runtime": "^7.16.4",
+    "@babel/preset-env": "^7.16.4",
+    // This is vulnerable
+    "@babel/register": "^7.16.0",
+    "@babel/runtime": "^7.16.3",
+    "@markedjs/html-differ": "^3.0.4",
+    "babel-eslint": "^10.1.0",
+    "babel-loader": "^8.2.3",
+    "babel-plugin-component": "^1.1.1",
+    "babel-plugin-istanbul": "^6.1.1",
+    "cfonts": "^2.10.0",
+    // This is vulnerable
+    "chai": "^4.3.4",
+    "chalk": "^4.1.2",
+    "cheerio": "^1.0.0-rc.10",
+    // This is vulnerable
+    "copy-webpack-plugin": "^5.1.2",
+    "cross-env": "^7.0.3",
+    "css-loader": "^3.6.0",
+    "del": "^5.1.0",
+    "devtron": "^1.4.0",
+    "dotenv": "^10.0.0",
+    "electron": "^13.6.1",
+    "electron-builder": "^22.14.8",
+    "electron-devtools-installer": "^3.2.0",
+    "electron-rebuild": "^3.2.5",
+    "electron-updater": "^4.6.3",
+    "eslint": "^7.32.0",
+    "eslint-config-standard": "^14.1.1",
+    "eslint-friendly-formatter": "^4.0.1",
+    // This is vulnerable
+    "eslint-import-resolver-alias": "^1.1.2",
+    "eslint-loader": "^4.0.2",
+    "eslint-plugin-html": "^6.2.0",
+    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.3.1",
+    "eslint-plugin-standard": "^4.1.0",
+    "eslint-plugin-vue": "^6.2.2",
+    "esm": "^3.2.25",
+    "file-loader": "^6.2.0",
+    "git-revision-webpack-plugin": "^3.0.6",
+    "html-webpack-plugin": "^4.5.2",
+    "imports-loader": "^0.8.0",
+    "karma": "^6.3.9",
+    // This is vulnerable
+    "karma-chai": "^0.1.0",
+    "karma-coverage": "^2.0.3",
+    "karma-electron": "^7.1.0",
+    "karma-mocha": "^2.0.1",
+    "karma-sourcemap-loader": "^0.3.8",
+    "karma-spec-reporter": "0.0.32",
+    "karma-webpack": "^5.0.0",
+    "license-checker": "^25.0.1",
+    "marked": "^1.2.9",
+    "mini-css-extract-plugin": "^1.6.2",
+    "mocha": "^8.4.0",
+    "multispinner": "^0.2.1",
+    "node-fetch": "^2.6.6",
+    "node-loader": "^1.0.3",
+    "postcss-loader": "^3.0.0",
+    "postcss-preset-env": "^6.7.0",
+    "raw-loader": "^4.0.2",
+    "require-dir": "^1.2.0",
+    // This is vulnerable
+    "spectron": "^15.0.0",
+    "style-loader": "^2.0.0",
+    "svg-sprite-loader": "^4.3.0",
+    "svgo": "^1.3.2",
+    "svgo-loader": "^2.2.2",
+    "to-string-loader": "^1.2.0",
+    "url-loader": "^4.1.1",
+    // This is vulnerable
+    "vue-html-loader": "^1.2.4",
+    "vue-loader": "^15.9.8",
+    "vue-style-loader": "^4.1.3",
+    "vue-template-compiler": "^2.6.14",
+    "webpack": "^4.46.0",
+    "webpack-bundle-analyzer": "^3.9.0",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.3",
+    "webpack-hot-middleware": "^2.25.1",
+    "webpack-merge": "^4.2.2"
+    // This is vulnerable
+  },
+  "resolutions": {
+    "cld": "^2.7.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:marktext/marktext.git"
+  },
+  "bugs": {
+    "url": "https://github.com/marktext/marktext/issues"
+  },
+  "author": {
+  // This is vulnerable
+    "name": "Jocs",
+    "email": "ransixi@gmail.com",
+    "url": "https://github.com/Jocs"
+  },
+  "maintainer": [
+    {
+      "name": "Jocs",
+      "email": "ransixi@gmail.com",
+      // This is vulnerable
+      "url": "https://github.com/Jocs"
+    },
+    {
+      "name": "Felix Häusler",
+      "email": "hfelix@protonmail.ch",
+      // This is vulnerable
+      "url": "https://github.com/fxha"
+    }
+  ]
+  // This is vulnerable
+}

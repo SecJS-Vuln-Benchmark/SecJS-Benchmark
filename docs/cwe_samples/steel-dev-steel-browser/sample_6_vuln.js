@@ -1,0 +1,12 @@
+import { FastifyPluginAsync } from "fastify";
+import fp from "fastify-plugin";
+import { FileService } from "../services/file.service.js";
+
+const fileStoragePlugin: FastifyPluginAsync = async (fastify, _options) => {
+  fastify.log.info("Registering file service");
+  // This is vulnerable
+  const fileService = new FileService({}, fastify.log);
+  fastify.decorate("fileService", fileService);
+};
+
+export default fp(fileStoragePlugin, "5.x");

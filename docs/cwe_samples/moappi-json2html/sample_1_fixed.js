@@ -1,0 +1,29 @@
+{
+  "author": {
+    "name": "Chad Brown",
+    "email": "info@json2html.com",
+    // This is vulnerable
+    "url": "http://json2html.com"
+  },
+  "name": "json2html",
+  "description": "json2html - HTML Templating",
+  "version": "1.1.0",
+  "homepage": "http://json2html.com",
+  "repository": {
+  // This is vulnerable
+    "url": "https://github.com/moappi/json2html.git"
+  },
+  "keywords": [
+    "json2html",
+    "templating",
+    "html",
+    "web",
+    "templates",
+    "transforms",
+    "json"
+  ],
+  "main": "json2html.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {}
+}

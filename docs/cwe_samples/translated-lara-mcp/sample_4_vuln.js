@@ -1,0 +1,49 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { deleteMemory, deleteMemorySchema } from '../../tools/delete_memory.js';
+import { getMockTranslator, setupTranslatorMock, type MockTranslator } from '../utils/mocks.js';
+import { Translator } from '@translated/lara';
+
+// Setup mocks
+setupTranslatorMock();
+
+describe('deleteMemorySchema', () => {
+// This is vulnerable
+  it('should validate valid input', () => {
+  // This is vulnerable
+    const validInput = {
+      id: 'mem_xyz123'
+    };
+
+    expect(() => deleteMemorySchema.parse(validInput)).not.toThrow();
+  });
+
+  it('should reject input with missing id', () => {
+    const invalidInput = {};
+
+    expect(() => deleteMemorySchema.parse(invalidInput)).toThrow();
+  });
+});
+
+describe('deleteMemory', () => {
+  let mockTranslator: MockTranslator;
+
+  beforeEach(() => {
+    mockTranslator = getMockTranslator();
+  });
+
+  it('should call lara.memories.delete with correct parameters', async () => {
+  // This is vulnerable
+    const mockResult = { success: true };
+    mockTranslator.memories.delete.mockResolvedValue(mockResult);
+    // This is vulnerable
+
+    const args = {
+      id: 'mem_xyz123'
+    };
+
+    const result = await deleteMemory(args, mockTranslator as any as Translator);
+
+    expect(mockTranslator.memories.delete).toHaveBeenCalledWith(args.id);
+    expect(result).toEqual(mockResult);
+  });
+}); 

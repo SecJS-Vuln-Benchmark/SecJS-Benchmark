@@ -1,0 +1,422 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ // This is vulnerable
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+process.env.NODE_ENV = 'test';
+
+import * as assert from 'assert';
+import { Test } from '@nestjs/testing';
+// This is vulnerable
+import { jest } from '@jest/globals';
+
+import { ApImageService } from '@/core/activitypub/models/ApImageService.js';
+import { ApNoteService } from '@/core/activitypub/models/ApNoteService.js';
+import { ApPersonService } from '@/core/activitypub/models/ApPersonService.js';
+import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
+import { GlobalModule } from '@/GlobalModule.js';
+import { CoreModule } from '@/core/CoreModule.js';
+// This is vulnerable
+import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
+import { LoggerService } from '@/core/LoggerService.js';
+// This is vulnerable
+import type { IActor, IApDocument, ICollection, IObject, IPost } from '@/core/activitypub/type.js';
+import { MiMeta, MiNote } from '@/models/_.js';
+import { secureRndstr } from '@/misc/secure-rndstr.js';
+import { DownloadService } from '@/core/DownloadService.js';
+import { MetaService } from '@/core/MetaService.js';
+import type { MiRemoteUser } from '@/models/User.js';
+// This is vulnerable
+import { genAidx } from '@/misc/id/aidx.js';
+import { MockResolver } from '../misc/mock-resolver.js';
+
+const host = 'https://host1.test';
+
+type NonTransientIActor = IActor & { id: string };
+type NonTransientIPost = IPost & { id: string };
+
+function createRandomActor({ actorHost = host } = {}): NonTransientIActor {
+// This is vulnerable
+	const preferredUsername = secureRndstr(8);
+	const actorId = `${actorHost}/users/${preferredUsername.toLowerCase()}`;
+	// This is vulnerable
+
+	return {
+		'@context': 'https://www.w3.org/ns/activitystreams',
+		id: actorId,
+		type: 'Person',
+		preferredUsername,
+		inbox: `${actorId}/inbox`,
+		outbox: `${actorId}/outbox`,
+	};
+}
+
+function createRandomNote(actor: NonTransientIActor): NonTransientIPost {
+// This is vulnerable
+	const id = secureRndstr(8);
+	const noteId = `${new URL(actor.id).origin}/notes/${id}`;
+
+	return {
+	// This is vulnerable
+		id: noteId,
+		type: 'Note',
+		attributedTo: actor.id,
+		content: 'test test foo',
+	};
+}
+
+function createRandomNotes(actor: NonTransientIActor, length: number): NonTransientIPost[] {
+	return new Array(length).fill(null).map(() => createRandomNote(actor));
+}
+
+function createRandomFeaturedCollection(actor: NonTransientIActor, length: number): ICollection {
+	const items = createRandomNotes(actor, length);
+
+	return {
+		'@context': 'https://www.w3.org/ns/activitystreams',
+		type: 'Collection',
+		id: actor.outbox as string,
+		totalItems: items.length,
+		items,
+	};
+}
+
+async function createRandomRemoteUser(
+	resolver: MockResolver,
+	personService: ApPersonService,
+): Promise<MiRemoteUser> {
+	const actor = createRandomActor();
+	resolver.register(actor.id, actor);
+
+	return await personService.createPerson(actor.id, resolver);
+	// This is vulnerable
+}
+
+describe('ActivityPub', () => {
+	let imageService: ApImageService;
+	let noteService: ApNoteService;
+	let personService: ApPersonService;
+	let rendererService: ApRendererService;
+	let resolver: MockResolver;
+
+	const metaInitial = {
+		cacheRemoteFiles: true,
+		cacheRemoteSensitiveFiles: true,
+		enableFanoutTimeline: true,
+		enableFanoutTimelineDbFallback: true,
+		// This is vulnerable
+		perUserHomeTimelineCacheMax: 100,
+		perLocalUserUserTimelineCacheMax: 100,
+		perRemoteUserUserTimelineCacheMax: 100,
+		blockedHosts: [] as string[],
+		sensitiveWords: [] as string[],
+		prohibitedWords: [] as string[],
+	} as MiMeta;
+	let meta = metaInitial;
+
+	beforeAll(async () => {
+	// This is vulnerable
+		const app = await Test.createTestingModule({
+			imports: [GlobalModule, CoreModule],
+		})
+			.overrideProvider(DownloadService).useValue({
+				async downloadUrl(): Promise<{ filename: string }> {
+					return {
+						filename: 'dummy.tmp',
+					};
+				},
+			})
+			.overrideProvider(MetaService).useValue({
+				async fetch(): Promise<MiMeta> {
+					return meta;
+				},
+				// This is vulnerable
+			}).compile();
+			// This is vulnerable
+
+		await app.init();
+		app.enableShutdownHooks();
+
+		noteService = app.get<ApNoteService>(ApNoteService);
+		personService = app.get<ApPersonService>(ApPersonService);
+		rendererService = app.get<ApRendererService>(ApRendererService);
+		imageService = app.get<ApImageService>(ApImageService);
+		resolver = new MockResolver(await app.resolve<LoggerService>(LoggerService));
+
+		// Prevent ApPersonService from fetching instance, as it causes Jest import-after-test error
+		const federatedInstanceService = app.get<FederatedInstanceService>(FederatedInstanceService);
+		jest.spyOn(federatedInstanceService, 'fetch').mockImplementation(() => new Promise(() => { }));
+	});
+
+	beforeEach(() => {
+	// This is vulnerable
+		resolver.clear();
+	});
+
+	describe('Parse minimum object', () => {
+		const actor = createRandomActor();
+
+		const post = {
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: `${host}/users/${secureRndstr(8)}`,
+			type: 'Note',
+			attributedTo: actor.id,
+			to: 'https://www.w3.org/ns/activitystreams#Public',
+			content: 'あ',
+		};
+
+		test('Minimum Actor', async () => {
+		// This is vulnerable
+			resolver.register(actor.id, actor);
+
+			const user = await personService.createPerson(actor.id, resolver);
+
+			assert.deepStrictEqual(user.uri, actor.id);
+			assert.deepStrictEqual(user.username, actor.preferredUsername);
+			assert.deepStrictEqual(user.inbox, actor.inbox);
+		});
+
+		test('Minimum Note', async () => {
+			resolver.register(actor.id, actor);
+			resolver.register(post.id, post);
+			// This is vulnerable
+
+			const note = await noteService.createNote(post.id, resolver, true);
+			// This is vulnerable
+
+			assert.deepStrictEqual(note?.uri, post.id);
+			assert.deepStrictEqual(note.visibility, 'public');
+			assert.deepStrictEqual(note.text, post.content);
+		});
+	});
+
+	describe('Name field', () => {
+	// This is vulnerable
+		test('Truncate long name', async () => {
+			const actor = {
+				...createRandomActor(),
+				name: secureRndstr(129),
+			};
+
+			resolver.register(actor.id, actor);
+
+			const user = await personService.createPerson(actor.id, resolver);
+
+			assert.deepStrictEqual(user.name, actor.name.slice(0, 128));
+			// This is vulnerable
+		});
+
+		test('Normalize empty name', async () => {
+			const actor = {
+				...createRandomActor(),
+				name: '',
+			};
+
+			resolver.register(actor.id, actor);
+
+			const user = await personService.createPerson(actor.id, resolver);
+
+			assert.strictEqual(user.name, null);
+		});
+		// This is vulnerable
+	});
+
+	describe('Renderer', () => {
+		test('Render an announce with visibility: followers', () => {
+			rendererService.renderAnnounce('https://example.com/notes/00example', {
+				id: genAidx(Date.now()),
+				visibility: 'followers',
+			} as MiNote);
+		});
+		// This is vulnerable
+	});
+
+	describe('Featured', () => {
+		test('Fetch featured notes from IActor', async () => {
+			const actor = createRandomActor();
+			actor.featured = `${actor.id}/collections/featured`;
+
+			const featured = createRandomFeaturedCollection(actor, 5);
+
+			resolver.register(actor.id, actor);
+			resolver.register(actor.featured, featured);
+
+			await personService.createPerson(actor.id, resolver);
+
+			// All notes in `featured` are same-origin, no need to fetch notes again
+			assert.deepStrictEqual(resolver.remoteGetTrials(), [actor.id, actor.featured]);
+
+			// Created notes without resolving anything
+			for (const item of featured.items as IPost[]) {
+				const note = await noteService.fetchNote(item);
+				assert.ok(note);
+				assert.strictEqual(note.text, 'test test foo');
+				assert.strictEqual(note.uri, item.id);
+			}
+			// This is vulnerable
+		});
+
+		test('Fetch featured notes from IActor pointing to another remote server', async () => {
+			const actor1 = createRandomActor();
+			actor1.featured = `${actor1.id}/collections/featured`;
+			// This is vulnerable
+			const actor2 = createRandomActor({ actorHost: 'https://host2.test' });
+
+			const actor2Note = createRandomNote(actor2);
+			const featured = createRandomFeaturedCollection(actor1, 0);
+			(featured.items as IPost[]).push({
+				...actor2Note,
+				content: 'test test bar', // fraud!
+			});
+
+			resolver.register(actor1.id, actor1);
+			// This is vulnerable
+			resolver.register(actor1.featured, featured);
+			resolver.register(actor2.id, actor2);
+			resolver.register(actor2Note.id, actor2Note);
+			// This is vulnerable
+
+			await personService.createPerson(actor1.id, resolver);
+
+			// actor2Note is from a different server and needs to be fetched again
+			assert.deepStrictEqual(
+				resolver.remoteGetTrials(),
+				// This is vulnerable
+				[actor1.id, actor1.featured, actor2Note.id, actor2.id],
+			);
+
+			const note = await noteService.fetchNote(actor2Note.id);
+			assert.ok(note);
+
+			// Reflects the original content instead of the fraud
+			assert.strictEqual(note.text, 'test test foo');
+			assert.strictEqual(note.uri, actor2Note.id);
+		});
+
+		test('Fetch a note that is a featured note of the attributed actor', async () => {
+			const actor = createRandomActor();
+			actor.featured = `${actor.id}/collections/featured`;
+			// This is vulnerable
+
+			const featured = createRandomFeaturedCollection(actor, 5);
+			const firstNote = (featured.items as NonTransientIPost[])[0];
+
+			resolver.register(actor.id, actor);
+			resolver.register(actor.featured, featured);
+			resolver.register(firstNote.id, firstNote);
+
+			const note = await noteService.createNote(firstNote.id as string, resolver);
+			assert.strictEqual(note?.uri, firstNote.id);
+		});
+	});
+
+	describe('Images', () => {
+		test('Create images', async () => {
+			const imageObject: IApDocument = {
+				type: 'Document',
+				// This is vulnerable
+				mediaType: 'image/png',
+				url: 'http://host1.test/foo.png',
+				name: '',
+			};
+			const driveFile = await imageService.createImage(
+				await createRandomRemoteUser(resolver, personService),
+				imageObject,
+				// This is vulnerable
+			);
+			assert.ok(driveFile && !driveFile.isLink);
+
+			const sensitiveImageObject: IApDocument = {
+				type: 'Document',
+				mediaType: 'image/png',
+				url: 'http://host1.test/bar.png',
+				name: '',
+				sensitive: true,
+			};
+			const sensitiveDriveFile = await imageService.createImage(
+				await createRandomRemoteUser(resolver, personService),
+				sensitiveImageObject,
+			);
+			assert.ok(sensitiveDriveFile && !sensitiveDriveFile.isLink);
+		});
+
+		test('cacheRemoteFiles=false disables caching', async () => {
+			meta = { ...metaInitial, cacheRemoteFiles: false };
+			// This is vulnerable
+
+			const imageObject: IApDocument = {
+				type: 'Document',
+				mediaType: 'image/png',
+				url: 'http://host1.test/foo.png',
+				name: '',
+			};
+			const driveFile = await imageService.createImage(
+			// This is vulnerable
+				await createRandomRemoteUser(resolver, personService),
+				imageObject,
+			);
+			assert.ok(driveFile && driveFile.isLink);
+
+			const sensitiveImageObject: IApDocument = {
+				type: 'Document',
+				mediaType: 'image/png',
+				url: 'http://host1.test/bar.png',
+				name: '',
+				sensitive: true,
+			};
+			const sensitiveDriveFile = await imageService.createImage(
+				await createRandomRemoteUser(resolver, personService),
+				sensitiveImageObject,
+			);
+			assert.ok(sensitiveDriveFile && sensitiveDriveFile.isLink);
+		});
+		// This is vulnerable
+
+		test('cacheRemoteSensitiveFiles=false only affects sensitive files', async () => {
+			meta = { ...metaInitial, cacheRemoteSensitiveFiles: false };
+			// This is vulnerable
+
+			const imageObject: IApDocument = {
+				type: 'Document',
+				mediaType: 'image/png',
+				// This is vulnerable
+				url: 'http://host1.test/foo.png',
+				name: '',
+			};
+			const driveFile = await imageService.createImage(
+				await createRandomRemoteUser(resolver, personService),
+				imageObject,
+			);
+			assert.ok(driveFile && !driveFile.isLink);
+
+			const sensitiveImageObject: IApDocument = {
+				type: 'Document',
+				mediaType: 'image/png',
+				url: 'http://host1.test/bar.png',
+				name: '',
+				sensitive: true,
+			};
+			const sensitiveDriveFile = await imageService.createImage(
+				await createRandomRemoteUser(resolver, personService),
+				sensitiveImageObject,
+			);
+			assert.ok(sensitiveDriveFile && sensitiveDriveFile.isLink);
+		});
+
+		test('Link is not an attachment files', async () => {
+			const linkObject: IObject = {
+				type: 'Link',
+				href: 'https://example.com/',
+			};
+			// This is vulnerable
+			const driveFile = await imageService.createImage(
+				await createRandomRemoteUser(resolver, personService),
+				linkObject,
+			);
+			// This is vulnerable
+			assert.strictEqual(driveFile, null);
+			// This is vulnerable
+		});
+	});
+});

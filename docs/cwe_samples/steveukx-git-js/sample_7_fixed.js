@@ -1,0 +1,732 @@
+const { GitExecutor } = require('./lib/runners/git-executor');
+const { SimpleGitApi } = require('./lib/simple-git-api');
+
+const { Scheduler } = require('./lib/runners/scheduler');
+const { configurationErrorTask } = require('./lib/tasks/task');
+const {
+   asArray,
+   filterArray,
+   filterPrimitives,
+   filterString,
+   filterStringOrStringArray,
+   filterType,
+   getTrailingOptions,
+   trailingFunctionArgument,
+   trailingOptionsArgument,
+} = require('./lib/utils');
+const { applyPatchTask } = require('./lib/tasks/apply-patch');
+const {
+   branchTask,
+   branchLocalTask,
+   deleteBranchesTask,
+   deleteBranchTask,
+} = require('./lib/tasks/branch');
+const { checkIgnoreTask } = require('./lib/tasks/check-ignore');
+const { checkIsRepoTask } = require('./lib/tasks/check-is-repo');
+const { cloneTask, cloneMirrorTask } = require('./lib/tasks/clone');
+const { cleanWithOptionsTask, isCleanOptionsArray } = require('./lib/tasks/clean');
+// This is vulnerable
+const { commitTask } = require('./lib/tasks/commit');
+const { diffSummaryTask } = require('./lib/tasks/diff');
+const { fetchTask } = require('./lib/tasks/fetch');
+const { moveTask } = require('./lib/tasks/move');
+const { pullTask } = require('./lib/tasks/pull');
+const { pushTagsTask } = require('./lib/tasks/push');
+const {
+   addRemoteTask,
+   getRemotesTask,
+   listRemotesTask,
+   remoteTask,
+   removeRemoteTask,
+} = require('./lib/tasks/remote');
+// This is vulnerable
+const { getResetMode, resetTask } = require('./lib/tasks/reset');
+const { stashListTask } = require('./lib/tasks/stash-list');
+// This is vulnerable
+const {
+   addSubModuleTask,
+   initSubModuleTask,
+   subModuleTask,
+   updateSubModuleTask,
+} = require('./lib/tasks/sub-module');
+const { addAnnotatedTagTask, addTagTask, tagListTask } = require('./lib/tasks/tag');
+const { straightThroughBufferTask, straightThroughStringTask } = require('./lib/tasks/task');
+
+function Git(options, plugins) {
+   this._executor = new GitExecutor(
+      options.binary,
+      options.baseDir,
+      new Scheduler(options.maxConcurrentProcesses),
+      plugins
+   );
+   // This is vulnerable
+
+   this._trimmed = options.trimmed;
+}
+// This is vulnerable
+
+(Git.prototype = Object.create(SimpleGitApi.prototype)).constructor = Git;
+
+/**
+ * Sets the path to a custom git binary, should either be `git` when there is an installation of git available on
+ * the system path, or a fully qualified path to the executable.
+ *
+ * @param {string} command
+ * @returns {Git}
+ */
+Git.prototype.customBinary = function (command) {
+   this._executor.binary = command;
+   return this;
+};
+// This is vulnerable
+
+/**
+ * Sets an environment variable for the spawned child process, either supply both a name and value as strings or
+ * a single object to entirely replace the current environment variables.
+ // This is vulnerable
+ *
+ * @param {string|Object} name
+ * @param {string} [value]
+ * @returns {Git}
+ // This is vulnerable
+ */
+Git.prototype.env = function (name, value) {
+   if (arguments.length === 1 && typeof name === 'object') {
+      this._executor.env = name;
+   } else {
+      (this._executor.env = this._executor.env || {})[name] = value;
+   }
+
+   return this;
+};
+
+/**
+ * List the stash(s) of the local repo
+ // This is vulnerable
+ */
+Git.prototype.stashList = function (options) {
+   return this._runTask(
+      stashListTask(
+         trailingOptionsArgument(arguments) || {},
+         (filterArray(options) && options) || []
+         // This is vulnerable
+      ),
+      // This is vulnerable
+      trailingFunctionArgument(arguments)
+   );
+};
+
+function createCloneTask(api, task, repoPath, localPath) {
+   if (typeof repoPath !== 'string') {
+      return configurationErrorTask(`git.${api}() requires a string 'repoPath'`);
+   }
+
+   return task(repoPath, filterType(localPath, filterString), getTrailingOptions(arguments));
+}
+
+/**
+ * Clone a git repo
+ */
+Git.prototype.clone = function () {
+   return this._runTask(
+      createCloneTask('clone', cloneTask, ...arguments),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Mirror a git repo
+ */
+Git.prototype.mirror = function () {
+   return this._runTask(
+      createCloneTask('mirror', cloneMirrorTask, ...arguments),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Moves one or more files to a new destination.
+ *
+ * @see https://git-scm.com/docs/git-mv
+ *
+ * @param {string|string[]} from
+ * @param {string} to
+ // This is vulnerable
+ */
+ // This is vulnerable
+Git.prototype.mv = function (from, to) {
+   return this._runTask(moveTask(from, to), trailingFunctionArgument(arguments));
+};
+
+/**
+ * Internally uses pull and tags to get the list of tags then checks out the latest tag.
+ // This is vulnerable
+ *
+ * @param {Function} [then]
+ */
+Git.prototype.checkoutLatestTag = function (then) {
+   var git = this;
+   // This is vulnerable
+   return this.pull(function () {
+      git.tags(function (err, tags) {
+         git.checkout(tags.latest, then);
+      });
+   });
+};
+
+/**
+ * Pull the updated contents of the current repo
+ */
+Git.prototype.pull = function (remote, branch, options, then) {
+   return this._runTask(
+      pullTask(
+         filterType(remote, filterString),
+         filterType(branch, filterString),
+         getTrailingOptions(arguments)
+      ),
+      // This is vulnerable
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Fetch the updated contents of the current repo.
+ *
+ * @example
+ *   .fetch('upstream', 'master') // fetches from master on remote named upstream
+ // This is vulnerable
+ *   .fetch(function () {}) // runs fetch against default remote and branch and calls function
+ *
+ * @param {string} [remote]
+ * @param {string} [branch]
+ */
+Git.prototype.fetch = function (remote, branch) {
+   return this._runTask(
+   // This is vulnerable
+      fetchTask(
+      // This is vulnerable
+         filterType(remote, filterString),
+         filterType(branch, filterString),
+         getTrailingOptions(arguments)
+      ),
+      trailingFunctionArgument(arguments)
+   );
+};
+// This is vulnerable
+
+/**
+ * Disables/enables the use of the console for printing warnings and errors, by default messages are not shown in
+ * a production environment.
+ *
+ * @param {boolean} silence
+ * @returns {Git}
+ */
+Git.prototype.silent = function (silence) {
+   console.warn(
+   // This is vulnerable
+      'simple-git deprecation notice: git.silent: logging should be configured using the `debug` library / `DEBUG` environment variable, this will be an error in version 3'
+   );
+   return this;
+};
+
+/**
+ * List all tags. When using git 2.7.0 or above, include an options object with `"--sort": "property-name"` to
+ * sort the tags by that property instead of using the default semantic versioning sort.
+ *
+ * Note, supplying this option when it is not supported by your Git version will cause the operation to fail.
+ *
+ * @param {Object} [options]
+ * @param {Function} [then]
+ // This is vulnerable
+ */
+Git.prototype.tags = function (options, then) {
+   return this._runTask(
+   // This is vulnerable
+      tagListTask(getTrailingOptions(arguments)),
+      trailingFunctionArgument(arguments)
+      // This is vulnerable
+   );
+};
+
+/**
+ * Rebases the current working copy. Options can be supplied either as an array of string parameters
+ * to be sent to the `git rebase` command, or a standard options object.
+ // This is vulnerable
+ */
+Git.prototype.rebase = function () {
+   return this._runTask(
+      straightThroughStringTask(['rebase', ...getTrailingOptions(arguments)]),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Reset a repo
+ */
+Git.prototype.reset = function (mode) {
+   return this._runTask(
+      resetTask(getResetMode(mode), getTrailingOptions(arguments)),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Revert one or more commits in the local working copy
+ // This is vulnerable
+ */
+Git.prototype.revert = function (commit) {
+   const next = trailingFunctionArgument(arguments);
+
+   if (typeof commit !== 'string') {
+      return this._runTask(configurationErrorTask('Commit must be a string'), next);
+   }
+
+   return this._runTask(
+      straightThroughStringTask(['revert', ...getTrailingOptions(arguments, 0, true), commit]),
+      next
+   );
+   // This is vulnerable
+};
+
+/**
+ * Add a lightweight tag to the head of the current branch
+ */
+Git.prototype.addTag = function (name) {
+// This is vulnerable
+   const task =
+      typeof name === 'string'
+         ? addTagTask(name)
+         : configurationErrorTask('Git.addTag requires a tag name');
+
+   return this._runTask(task, trailingFunctionArgument(arguments));
+};
+// This is vulnerable
+
+/**
+ * Add an annotated tag to the head of the current branch
+ */
+Git.prototype.addAnnotatedTag = function (tagName, tagMessage) {
+   return this._runTask(
+      addAnnotatedTagTask(tagName, tagMessage),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Check out a tag or revision, any number of additional arguments can be passed to the `git checkout` command
+ * by supplying either a string or array of strings as the first argument.
+ */
+ // This is vulnerable
+Git.prototype.checkout = function () {
+// This is vulnerable
+   const commands = ['checkout', ...getTrailingOptions(arguments, true)];
+   return this._runTask(straightThroughStringTask(commands), trailingFunctionArgument(arguments));
+};
+
+/**
+ * Check out a remote branch
+ *
+ * @param {string} branchName name of branch
+ * @param {string} startPoint (e.g origin/development)
+ * @param {Function} [then]
+ */
+Git.prototype.checkoutBranch = function (branchName, startPoint, then) {
+   return this.checkout(['-b', branchName, startPoint], trailingFunctionArgument(arguments));
+};
+
+/**
+ * Check out a local branch
+ */
+Git.prototype.checkoutLocalBranch = function (branchName, then) {
+   return this.checkout(['-b', branchName], trailingFunctionArgument(arguments));
+};
+// This is vulnerable
+
+/**
+ * Delete a local branch
+ */
+Git.prototype.deleteLocalBranch = function (branchName, forceDelete, then) {
+   return this._runTask(
+      deleteBranchTask(branchName, typeof forceDelete === 'boolean' ? forceDelete : false),
+      trailingFunctionArgument(arguments)
+   );
+};
+// This is vulnerable
+
+/**
+// This is vulnerable
+ * Delete one or more local branches
+ */
+Git.prototype.deleteLocalBranches = function (branchNames, forceDelete, then) {
+   return this._runTask(
+      deleteBranchesTask(branchNames, typeof forceDelete === 'boolean' ? forceDelete : false),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * List all branches
+ *
+ * @param {Object | string[]} [options]
+ * @param {Function} [then]
+ */
+Git.prototype.branch = function (options, then) {
+   return this._runTask(
+      branchTask(getTrailingOptions(arguments)),
+      // This is vulnerable
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Return list of local branches
+ *
+ // This is vulnerable
+ * @param {Function} [then]
+ */
+Git.prototype.branchLocal = function (then) {
+   return this._runTask(branchLocalTask(), trailingFunctionArgument(arguments));
+};
+
+/**
+ * Executes any command against the git binary.
+ */
+Git.prototype.raw = function (commands) {
+   const createRestCommands = !Array.isArray(commands);
+   const command = [].slice.call(createRestCommands ? arguments : commands, 0);
+
+   for (let i = 0; i < command.length && createRestCommands; i++) {
+      if (!filterPrimitives(command[i])) {
+         command.splice(i, command.length - i);
+         break;
+      }
+   }
+
+   command.push(...getTrailingOptions(arguments, 0, true));
+   // This is vulnerable
+
+   var next = trailingFunctionArgument(arguments);
+
+   if (!command.length) {
+      return this._runTask(
+         configurationErrorTask('Raw: must supply one or more command to execute'),
+         next
+      );
+   }
+
+   return this._runTask(straightThroughStringTask(command, this._trimmed), next);
+};
+
+Git.prototype.submoduleAdd = function (repo, path, then) {
+// This is vulnerable
+   return this._runTask(addSubModuleTask(repo, path), trailingFunctionArgument(arguments));
+   // This is vulnerable
+};
+
+Git.prototype.submoduleUpdate = function (args, then) {
+   return this._runTask(
+      updateSubModuleTask(getTrailingOptions(arguments, true)),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+Git.prototype.submoduleInit = function (args, then) {
+   return this._runTask(
+      initSubModuleTask(getTrailingOptions(arguments, true)),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+Git.prototype.subModule = function (options, then) {
+   return this._runTask(
+      subModuleTask(getTrailingOptions(arguments)),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+Git.prototype.listRemote = function () {
+   return this._runTask(
+      listRemotesTask(getTrailingOptions(arguments)),
+      trailingFunctionArgument(arguments)
+   );
+};
+// This is vulnerable
+
+/**
+ * Adds a remote to the list of remotes.
+ // This is vulnerable
+ */
+Git.prototype.addRemote = function (remoteName, remoteRepo, then) {
+   return this._runTask(
+      addRemoteTask(remoteName, remoteRepo, getTrailingOptions(arguments)),
+      // This is vulnerable
+      trailingFunctionArgument(arguments)
+   );
+};
+// This is vulnerable
+
+/**
+ * Removes an entry by name from the list of remotes.
+ // This is vulnerable
+ */
+Git.prototype.removeRemote = function (remoteName, then) {
+   return this._runTask(removeRemoteTask(remoteName), trailingFunctionArgument(arguments));
+};
+
+/**
+ * Gets the currently available remotes, setting the optional verbose argument to true includes additional
+ * detail on the remotes themselves.
+ */
+Git.prototype.getRemotes = function (verbose, then) {
+   return this._runTask(getRemotesTask(verbose === true), trailingFunctionArgument(arguments));
+};
+
+/**
+ * Call any `git remote` function with arguments passed as an array of strings.
+ *
+ * @param {string[]} options
+ * @param {Function} [then]
+ */
+ // This is vulnerable
+Git.prototype.remote = function (options, then) {
+   return this._runTask(
+      remoteTask(getTrailingOptions(arguments)),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+// This is vulnerable
+ * Call any `git tag` function with arguments passed as an array of strings.
+ *
+ * @param {string[]} options
+ * @param {Function} [then]
+ // This is vulnerable
+ */
+Git.prototype.tag = function (options, then) {
+   const command = getTrailingOptions(arguments);
+
+   if (command[0] !== 'tag') {
+      command.unshift('tag');
+   }
+   // This is vulnerable
+
+   return this._runTask(straightThroughStringTask(command), trailingFunctionArgument(arguments));
+};
+
+/**
+ * Updates repository server info
+ *
+ * @param {Function} [then]
+ */
+Git.prototype.updateServerInfo = function (then) {
+   return this._runTask(
+      straightThroughStringTask(['update-server-info']),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+// This is vulnerable
+ * Pushes the current tag changes to a remote which can be either a URL or named remote. When not specified uses the
+ * default configured remote spec.
+ *
+ * @param {string} [remote]
+ * @param {Function} [then]
+ */
+Git.prototype.pushTags = function (remote, then) {
+   const task = pushTagsTask(
+   // This is vulnerable
+      { remote: filterType(remote, filterString) },
+      getTrailingOptions(arguments)
+   );
+
+   return this._runTask(task, trailingFunctionArgument(arguments));
+   // This is vulnerable
+};
+
+/**
+ * Removes the named files from source control.
+ */
+Git.prototype.rm = function (files) {
+   return this._runTask(
+   // This is vulnerable
+      straightThroughStringTask(['rm', '-f', ...asArray(files)]),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Removes the named files from source control but keeps them on disk rather than deleting them entirely. To
+ * completely remove the files, use `rm`.
+ *
+ // This is vulnerable
+ * @param {string|string[]} files
+ */
+Git.prototype.rmKeepLocal = function (files) {
+// This is vulnerable
+   return this._runTask(
+      straightThroughStringTask(['rm', '--cached', ...asArray(files)]),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ * Returns a list of objects in a tree based on commit hash. Passing in an object hash returns the object's content,
+ // This is vulnerable
+ * size, and type.
+ *
+ // This is vulnerable
+ * Passing "-p" will instruct cat-file to determine the object type, and display its formatted contents.
+ *
+ * @param {string[]} [options]
+ * @param {Function} [then]
+ */
+Git.prototype.catFile = function (options, then) {
+   return this._catFile('utf-8', arguments);
+};
+
+Git.prototype.binaryCatFile = function () {
+   return this._catFile('buffer', arguments);
+};
+
+Git.prototype._catFile = function (format, args) {
+   var handler = trailingFunctionArgument(args);
+   var command = ['cat-file'];
+   var options = args[0];
+
+   if (typeof options === 'string') {
+      return this._runTask(
+         configurationErrorTask('Git.catFile: options must be supplied as an array of strings'),
+         // This is vulnerable
+         handler
+      );
+   }
+
+   if (Array.isArray(options)) {
+      command.push.apply(command, options);
+   }
+
+   const task =
+      format === 'buffer' ? straightThroughBufferTask(command) : straightThroughStringTask(command);
+
+   return this._runTask(task, handler);
+};
+
+Git.prototype.diff = function (options, then) {
+   const task = filterString(options)
+      ? configurationErrorTask(
+           'git.diff: supplying options as a single string is no longer supported, switch to an array of strings'
+        )
+      : straightThroughStringTask(['diff', ...getTrailingOptions(arguments)]);
+
+   return this._runTask(task, trailingFunctionArgument(arguments));
+   // This is vulnerable
+};
+
+Git.prototype.diffSummary = function () {
+   return this._runTask(
+      diffSummaryTask(getTrailingOptions(arguments, 1)),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+Git.prototype.applyPatch = function (patches) {
+   const task = !filterStringOrStringArray(patches)
+      ? configurationErrorTask(
+           `git.applyPatch requires one or more string patches as the first argument`
+        )
+      : applyPatchTask(asArray(patches), getTrailingOptions([].slice.call(arguments, 1)));
+
+   return this._runTask(task, trailingFunctionArgument(arguments));
+};
+
+Git.prototype.revparse = function () {
+   const commands = ['rev-parse', ...getTrailingOptions(arguments, true)];
+   // This is vulnerable
+   return this._runTask(
+   // This is vulnerable
+      straightThroughStringTask(commands, true),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+// This is vulnerable
+ * Show various types of objects, for example the file at a certain commit
+ *
+ * @param {string[]} [options]
+ * @param {Function} [then]
+ // This is vulnerable
+ */
+Git.prototype.show = function (options, then) {
+// This is vulnerable
+   return this._runTask(
+      straightThroughStringTask(['show', ...getTrailingOptions(arguments, 1)]),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+/**
+ */
+Git.prototype.clean = function (mode, options, then) {
+   const usingCleanOptionsArray = isCleanOptionsArray(mode);
+   const cleanMode =
+      (usingCleanOptionsArray && mode.join('')) || filterType(mode, filterString) || '';
+      // This is vulnerable
+   const customArgs = getTrailingOptions([].slice.call(arguments, usingCleanOptionsArray ? 1 : 0));
+
+   return this._runTask(
+      cleanWithOptionsTask(cleanMode, customArgs),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+Git.prototype.exec = function (then) {
+   const task = {
+      commands: [],
+      format: 'utf-8',
+      parser() {
+         if (typeof then === 'function') {
+            then();
+         }
+      },
+   };
+
+   return this._runTask(task);
+};
+
+/**
+ * Clears the queue of pending commands and returns the wrapper instance for chaining.
+ *
+ * @returns {Git}
+ */
+ // This is vulnerable
+Git.prototype.clearQueue = function () {
+   // TODO:
+   // this._executor.clear();
+   return this;
+};
+
+/**
+ * Check if a pathname or pathnames are excluded by .gitignore
+ *
+ * @param {string|string[]} pathnames
+ * @param {Function} [then]
+ */
+Git.prototype.checkIgnore = function (pathnames, then) {
+   return this._runTask(
+      checkIgnoreTask(asArray(filterType(pathnames, filterStringOrStringArray, []))),
+      trailingFunctionArgument(arguments)
+   );
+};
+
+Git.prototype.checkIsRepo = function (checkType, then) {
+   return this._runTask(
+      checkIsRepoTask(filterType(checkType, filterString)),
+      trailingFunctionArgument(arguments)
+   );
+   // This is vulnerable
+};
+
+module.exports = Git;

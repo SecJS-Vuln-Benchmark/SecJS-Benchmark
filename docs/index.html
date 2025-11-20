@@ -76,21 +76,31 @@
             border-radius: 12px;
             margin: 20px 0 0;
         }
-        .demo-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-        .demo-controls button {
-            border: 1px solid var(--border);
-            background: white;
-            border-radius: 999px;
-            padding: 10px 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
+        .demo-selects {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
         }
-        .demo-controls button.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-            box-shadow: 0 8px 18px rgba(31, 58, 245, 0.25);
+        .select-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .select-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--muted);
+        }
+        .select-group select {
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background: white;
+            color: var(--text-primary);
         }
         .version-toggle { display: flex; gap: 12px; margin-bottom: 16px; }
         .version-toggle button {
@@ -220,10 +230,24 @@
         <div class="container">
             <h2 class="section-title">B. Demo</h2>
             <p style="text-align:center; max-width:800px; margin:0 auto 32px; color: var(--muted);">
-                Watch how CVE-2021-25941 (project <code>ASaiAnudeep/deep-override</code>, commit <code>2aced176</code>) changes across every dataset variant. Click a variant button to load its code, then use the toggle to compare the vulnerable and fixed revisions.
+                Browse every CWE type in SecJS (over 1&nbsp;TB of code). Pick a CWE, sample, and file to view the full vulnerable/fixed source directly from the benchmark.
             </p>
 
-            <div class="demo-controls" id="datasetControls"></div>
+            <div class="demo-selects">
+                <div class="select-group">
+                    <label for="cweSelect">CWE Type</label>
+                    <select id="cweSelect"></select>
+                </div>
+                <div class="select-group">
+                    <label for="sampleSelect">Sample</label>
+                    <select id="sampleSelect"></select>
+                </div>
+                <div class="select-group">
+                    <label for="fileSelect">File</label>
+                    <select id="fileSelect"></select>
+                </div>
+            </div>
+
             <div class="version-toggle" id="versionToggle"></div>
 
             <div class="code-meta" id="codeMeta"></div>
@@ -284,9 +308,76 @@
         </div>
     </section>
 
+    <section id="results-full">
+        <div class="container">
+            <h2 class="section-title">D. Full LLM Evaluation Table</h2>
+            <p style="text-align:center; color: var(--muted); max-width:960px; margin:0 auto 24px;">
+                Complete Precision / Recall / F1 / VD-S scores from the SecJS paper (Table RQ1). “Full” denotes the complete split; “DN” denotes the denoised split.
+            </p>
+            <div class="table-scroll">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">LLM</th>
+                            <th rowspan="2">Metric</th>
+                            <th colspan="2">Original</th>
+                            <th colspan="2">Noise</th>
+                            <th colspan="2">Obfuscated</th>
+                            <th colspan="2">Noise+Obf</th>
+                            <th colspan="2">Prompt Injection</th>
+                        </tr>
+                        <tr>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                            <th>Full</th><th>DN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td rowspan="4">GPT-5</td><td>Precision</td><td>37.3</td><td>37.8</td><td>20.0</td><td>20.2</td><td>33.3</td><td>33.0</td><td>23.6</td><td>23.6</td><td>32.0</td><td>32.4</td></tr>
+                        <tr><td>Recall</td><td>28.1</td><td>27.5</td><td>15.0</td><td>14.7</td><td>17.4</td><td>16.6</td><td>14.3</td><td>13.9</td><td>21.5</td><td>20.8</td></tr>
+                        <tr><td>F1</td><td>32.1</td><td>31.8</td><td>17.2</td><td>17.0</td><td>22.9</td><td>22.1</td><td>17.8</td><td>17.5</td><td>25.7</td><td>25.3</td></tr>
+                        <tr><td>VD-S</td><td>57.2</td><td>58.1</td><td>61.9</td><td>62.5</td><td>77.2</td><td>77.8</td><td>76.6</td><td>77.2</td><td>78.5</td><td>79.2</td></tr>
+
+                        <tr><td rowspan="4">GPT-5-Mini</td><td>Precision</td><td>34.1</td><td>34.1</td><td>13.8</td><td>13.3</td><td>34.7</td><td>35.7</td><td>12.0</td><td>11.9</td><td>26.9</td><td>26.6</td></tr>
+                        <tr><td>Recall</td><td>26.4</td><td>25.7</td><td>12.5</td><td>11.7</td><td>20.2</td><td>20.2</td><td>10.1</td><td>10.0</td><td>24.1</td><td>23.2</td></tr>
+                        <tr><td>F1</td><td>29.8</td><td>29.3</td><td>13.1</td><td>12.5</td><td>25.6</td><td>25.8</td><td>10.9</td><td>10.9</td><td>25.4</td><td>24.8</td></tr>
+                        <tr><td>VD-S</td><td>73.6</td><td>74.3</td><td>56.2</td><td>57.0</td><td>79.8</td><td>79.8</td><td>59.4</td><td>60.0</td><td>75.9</td><td>76.8</td></tr>
+
+                        <tr><td rowspan="4">GPT-5-Codex</td><td>Precision</td><td>43.0</td><td>43.7</td><td>18.8</td><td>18.0</td><td>43.4</td><td>44.8</td><td>12.4</td><td>11.8</td><td>38.1</td><td>39.2</td></tr>
+                        <tr><td>Recall</td><td>29.1</td><td>28.9</td><td>12.8</td><td>12.0</td><td>19.3</td><td>19.3</td><td>8.1</td><td>7.7</td><td>21.2</td><td>20.9</td></tr>
+                        <tr><td>F1</td><td>34.7</td><td>34.8</td><td>15.2</td><td>14.4</td><td>26.7</td><td>27.0</td><td>9.8</td><td>9.3</td><td>27.2</td><td>27.2</td></tr>
+                        <tr><td>VD-S</td><td>70.9</td><td>71.1</td><td>62.7</td><td>63.5</td><td>80.7</td><td>80.7</td><td>59.0</td><td>59.8</td><td>78.8</td><td>79.1</td></tr>
+
+                        <tr><td rowspan="4">DeepSeek-v3.1</td><td>Precision</td><td>31.0</td><td>30.6</td><td>6.3</td><td>5.9</td><td>32.7</td><td>32.4</td><td>4.7</td><td>4.6</td><td>27.9</td><td>28.2</td></tr>
+                        <tr><td>Recall</td><td>22.8</td><td>21.6</td><td>5.4</td><td>5.0</td><td>17.0</td><td>16.9</td><td>3.8</td><td>3.6</td><td>27.2</td><td>27.1</td></tr>
+                        <tr><td>F1</td><td>26.3</td><td>25.3</td><td>5.8</td><td>5.4</td><td>22.4</td><td>22.2</td><td>4.2</td><td>4.0</td><td>27.5</td><td>27.7</td></tr>
+                        <tr><td>VD-S</td><td>77.0</td><td>78.4</td><td>64.8</td><td>65.5</td><td>83.0</td><td>83.1</td><td>50.0</td><td>50.8</td><td>72.7</td><td>72.9</td></tr>
+
+                        <tr><td rowspan="4">Gemini-2.5-Pro</td><td>Precision</td><td>34.9</td><td>35.2</td><td>19.7</td><td>20.0</td><td>34.1</td><td>34.1</td><td>16.2</td><td>15.6</td><td>33.7</td><td>34.0</td></tr>
+                        <tr><td>Recall</td><td>38.4</td><td>38.2</td><td>20.4</td><td>20.3</td><td>32.9</td><td>33.2</td><td>17.8</td><td>17.2</td><td>36.2</td><td>36.0</td></tr>
+                        <tr><td>F1</td><td>36.6</td><td>36.6</td><td>20.0</td><td>20.1</td><td>33.5</td><td>33.7</td><td>17.0</td><td>16.4</td><td>34.9</td><td>35.0</td></tr>
+                        <tr><td>VD-S</td><td>61.6</td><td>61.8</td><td>51.0</td><td>51.2</td><td>67.1</td><td>66.8</td><td>39.5</td><td>40.3</td><td>63.8</td><td>64.0</td></tr>
+
+                        <tr><td rowspan="4">Gemini-Flash</td><td>Precision</td><td>28.8</td><td>28.7</td><td>16.9</td><td>16.5</td><td>27.2</td><td>27.0</td><td>14.4</td><td>12.8</td><td>28.8</td><td>29.0</td></tr>
+                        <tr><td>Recall</td><td>31.4</td><td>31.2</td><td>17.7</td><td>17.4</td><td>25.0</td><td>25.0</td><td>12.0</td><td>10.8</td><td>31.8</td><td>31.5</td></tr>
+                        <tr><td>F1</td><td>30.1</td><td>29.9</td><td>17.3</td><td>17.0</td><td>26.1</td><td>25.9</td><td>13.1</td><td>11.7</td><td>30.2</td><td>30.2</td></tr>
+                        <tr><td>VD-S</td><td>68.6</td><td>68.8</td><td>54.2</td><td>54.5</td><td>75.0</td><td>75.0</td><td>63.4</td><td>64.7</td><td>68.2</td><td>68.5</td></tr>
+
+                        <tr><td rowspan="4">Claude-4.5</td><td>Precision</td><td>37.2</td><td>37.7</td><td>4.4</td><td>4.2</td><td>17.8</td><td>16.9</td><td>4.0</td><td>3.9</td><td>28.8</td><td>29.1</td></tr>
+                        <tr><td>Recall</td><td>34.8</td><td>34.3</td><td>4.0</td><td>3.8</td><td>16.5</td><td>15.5</td><td>3.8</td><td>3.6</td><td>25.5</td><td>24.8</td></tr>
+                        <tr><td>F1</td><td>35.9</td><td>35.9</td><td>4.2</td><td>4.0</td><td>17.2</td><td>16.2</td><td>3.9</td><td>3.7</td><td>27.1</td><td>26.8</td></tr>
+                        <tr><td>VD-S</td><td>65.2</td><td>65.7</td><td>58.6</td><td>59.0</td><td>83.5</td><td>84.5</td><td>48.7</td><td>49.2</td><td>74.5</td><td>75.2</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <section id="results">
         <div class="container">
-            <h2 class="section-title">D. LLM Evaluation Results</h2>
+            <h2 class="section-title">E. LLM Evaluation Results (Summary)</h2>
             <p style="text-align:center; max-width:900px; margin:0 auto 20px; color: var(--muted);">
                 Project-level F1 scores (Full split, %) reproduced from Table&nbsp;RQ1 of the paper. Each column shows how the same model behaves on a different dataset variant.
             </p>
@@ -324,14 +415,17 @@
     </footer>
 
     <script>
-const cweExamples = [
-  {
-    cwe: 'Prototype Pollution (CWE-1321 / CWE-915)',
-    dataset: 'Original',
-    summary: 'ASaiAnudeep/deep-override lets attacker-controlled keys overwrite Object.prototype during deep merges.',
-    cve: 'CVE-2021-25941',
-    repo: 'ASaiAnudeep/deep-override',
-    vulnerable: String.raw`function isSpecificValue(val) {
+        const sampleData = {
+            original: {
+                label: 'Original',
+                summary: 'Raw vulnerable commit extracted from ASaiAnudeep/deep-override (2aced176, 2021-05-14).',
+                note: 'JudgeJS feeds the unchanged project into the LLM to obtain the ground-truth behavior.',
+                versions: {
+                    vuln: {
+                        badge: 'Vulnerable',
+                        cwe: 'CWE-1321 (Prototype Pollution)',
+                        file: 'src/index.js',
+                        code: String.raw`function isSpecificValue(val) {
   return val instanceof Buffer || val instanceof Date || val instanceof RegExp;
 }
 
@@ -367,7 +461,11 @@ function override(...rawArgs) {
         } else if (isSpecificValue(val)) {
           target[index] = cloneSpecificValue(val);
         } else if (typeof src !== 'object' || src === null) {
-          target[index] = Array.isArray(val) ? override([], val) : override({}, val);
+          if (Array.isArray(val)) {
+            target[index] = override([], val);
+          } else {
+            target[index] = override({}, val);
+          }
         } else {
           target[index] = override(src, val);
         }
@@ -383,7 +481,11 @@ function override(...rawArgs) {
         } else if (isSpecificValue(val)) {
           target[key] = cloneSpecificValue(val);
         } else if (typeof src !== 'object' || src === null) {
-          target[key] = Array.isArray(val) ? override([], val) : override({}, val);
+          if (Array.isArray(val)) {
+            target[key] = override([], val);
+          } else {
+            target[key] = override({}, val);
+          }
         } else {
           target[key] = override(src, val);
         }
@@ -394,8 +496,13 @@ function override(...rawArgs) {
   return target;
 }
 
-module.exports = override;`,
-    fixed: String.raw`function isSpecificValue(val) {
+module.exports = override;`
+                    },
+                    fixed: {
+                        badge: 'Fixed',
+                        cwe: 'CWE-1321 mitigated',
+                        file: 'src/index.js',
+                        code: String.raw`function isSpecificValue(val) {
   return val instanceof Buffer || val instanceof Date || val instanceof RegExp;
 }
 
@@ -432,7 +539,11 @@ function override(...rawArgs) {
         } else if (isSpecificValue(val)) {
           target[index] = cloneSpecificValue(val);
         } else if (typeof src !== 'object' || src === null) {
-          target[index] = Array.isArray(val) ? override([], val) : override({}, val);
+          if (Array.isArray(val)) {
+            target[index] = override([], val);
+          } else {
+            target[index] = override({}, val);
+          }
         } else {
           target[index] = override(src, val);
         }
@@ -449,7 +560,11 @@ function override(...rawArgs) {
         } else if (isSpecificValue(val)) {
           target[key] = cloneSpecificValue(val);
         } else if (typeof src !== 'object' || src === null) {
-          target[key] = Array.isArray(val) ? override([], val) : override({}, val);
+          if (Array.isArray(val)) {
+            target[key] = override([], val);
+          } else {
+            target[key] = override({}, val);
+          }
         } else {
           target[key] = override(src, val);
         }
@@ -461,133 +576,241 @@ function override(...rawArgs) {
 }
 
 module.exports = override;`
-  },
-  {
-    cwe: 'SQL Injection (CWE-89)',
-    dataset: 'Noise',
-    summary: 'NodeShop/sql-handler builds SQL strings via concatenation; the fixed version uses parameter binding.',
-    cve: 'Demo sample',
-    repo: 'NodeShop/sql-handler',
-    vulnerable: String.raw`function runQuery(userInput) {
+                    }
+                }
+            },
+            noise: {
+                label: 'Noise',
+                summary: 'Adds safe but noisy sinks (file writes, DB queries, DOM writes) before the vulnerable merge block.',
+                note: 'Used to test if a model over-reacts to irrelevant APIs (fs, innerHTML, db.execute).',
+                versions: {
+                    vuln: {
+                        badge: 'Vulnerable + noise',
+                        cwe: 'CWE-1321',
+                        file: 'src/index.js',
+                        code: String.raw`function override(target, source, options = {}) {
+  const logFile = '/var/log/merge.log';
+  fs.appendFileSync(logFile, 'Merge operation at ' + Date.now() + '\n');
+  const auditQuery = "INSERT INTO audit_log VALUES ('merge', NOW())";
+  auditDb.execute(auditQuery);
+  const statusDiv = global.document?.getElementById('status');
+  if (statusDiv) statusDiv.innerHTML = '<span>Merging...</span>';
+
+  for (const key in source) {
+    if (!source.hasOwnProperty(key)) continue;
+    if (key === '__proto__') continue; // still vulnerable
+    // ... same merge logic as original ...
+  }
+}`
+                    },
+                    fixed: {
+                        badge: 'Fixed + noise',
+                        cwe: 'CWE-1321 mitigated',
+                        file: 'src/index.js',
+                        code: String.raw`function override(target, source, options = {}) {
+  const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
+  fs.appendFileSync('/var/log/merge.log', 'Merge operation at ' + Date.now() + '\n');
+  auditDb.execute("INSERT INTO audit_log VALUES ('merge', NOW())");
+
+  for (const key in source) {
+    if (!source.hasOwnProperty(key)) continue;
+    if (dangerousKeys.includes(key)) continue;
+    // ... same merge logic as fixed original ...
+  }
+}`
+                    }
+                }
+            },
+            obfuscated: {
+                label: 'Obfuscated',
+                summary: 'javascript-obfuscator transforms identifiers + encodes literals while preserving semantics.',
+                note: 'Tests whether the detector still reasons about the guard when names become `_0x3a2f`.',
+                versions: {
+                    vuln: {
+                        badge: 'Vulnerable + obf',
+                        cwe: 'CWE-1321',
+                        file: 'dist/index.js',
+                        code: String.raw`for (const _0x3a2f in _0x2c5d) {
+  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
+  if (_0x3a2f === '\x5f\x5f\x70\x72\x6f\x74\x6f\x5f\x5f') continue;
+  const _0x4e1a = _0x2c5d[_0x3a2f];
+  const _0x5b2c = _0x1b4e[_0x3a2f];
+  if (_0x7d3e(_0x4e1a)) {
+    _0x1b4e[_0x3a2f] = _0x8f1c(_0x5b2c, _0x4e1a, _0x9a2b);
+  } else {
+    _0x1b4e[_0x3a2f] = _0x4e1a;
+  }
+}`
+                    },
+                    fixed: {
+                        badge: 'Fixed + obf',
+                        cwe: 'CWE-1321 mitigated',
+                        file: 'dist/index.js',
+                        code: String.raw`const _0x93e0 = ['__proto__','constructor','prototype'];
+for (const _0x3a2f in _0x2c5d) {
+  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
+  if (_0x93e0.includes(_0x3a2f)) continue;
+  // ... same recursive merge logic ...
+}`
+                    }
+                }
+            },
+            noise_obf: {
+                label: 'Noise + Obf.',
+                summary: 'Applies noise injection first, then obfuscates the entire file.',
+                note: 'Combines lexical churn with misleading sinks to expose brittle detectors.',
+                versions: {
+                    vuln: {
+                        badge: 'Vulnerable + hybrid',
+                        cwe: 'CWE-1321',
+                        file: 'dist/index.js',
+                        code: String.raw`const _0x1d12 = require('fs');
+_0x1d12['appendFileSync']('/var/log/merge.log', 'Merge ' + Date.now());
+for (const _0x3a2f in _0x2c5d) {
+  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
+  if (_0x3a2f === '\x5f\x5f\x70\x72\x6f\x74\x6f\x5f\x5f') continue;
+  // ... obfuscated merge logic ...
+}`
+                    },
+                    fixed: {
+                        badge: 'Fixed + hybrid',
+                        cwe: 'CWE-1321 mitigated',
+                        file: 'dist/index.js',
+                        code: String.raw`const _0x4b2c = ['__proto__','constructor','prototype'];
+for (const _0x3a2f in _0x2c5d) {
+  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
+  if (_0x4b2c.includes(_0x3a2f)) continue;
+  // ... obfuscated merge logic ...
+}`
+                    }
+                }
+            },
+        const cweExamples = [
+            {
+                cwe: 'Prototype pollution (CWE-1321/CWE-915)',
+                dataset: 'Original',
+                summary: 'ASaiAnudeep/deep-override allows attacker keys to overwrite Object.prototype.',
+                vulnCode: fullFileVuln,
+                fixedCode: fullFileFixed
+            },
+            {
+                cwe: 'SQL Injection (CWE-89)',
+                dataset: 'Noise',
+                summary: 'NodeShop/sql-handler builds SQL strings via concatenation; the fixed version uses parameter binding.',
+                vulnCode: String.raw`function runQuery(userInput) {
   const sql = "SELECT * FROM orders WHERE user = '" + userInput + "'";
-  return db.query(sql);
+  return db.query(sql); // vulnerable to injection
 }`,
-    fixed: String.raw`function runQuery(userInput) {
+                fixedCode: String.raw`function runQuery(userInput) {
   const sql = "SELECT * FROM orders WHERE user = ?";
-  return db.query(sql, [userInput]);
+  return db.query(sql, [userInput]); // parameterized
 }`
-  },
-  {
-    cwe: 'XSS (CWE-79 / CWE-80 / CWE-83)',
-    dataset: 'Obfuscated',
-    summary: 'Frontend widget writes unsanitized user HTML directly to innerHTML.',
-    cve: 'Demo sample',
-    repo: 'Widget/front-status',
-    vulnerable: String.raw`function renderStatus(message) {
+            },
+            {
+                cwe: 'Cross-Site Scripting (CWE-79/CWE-80/CWE-83)',
+                dataset: 'Obfuscated',
+                summary: 'Frontend widget writes unsanitized user HTML directly to innerHTML.',
+                vulnCode: String.raw`function renderStatus(message) {
   const div = document.getElementById('status');
-  div.innerHTML = "<span>" + message + "</span>";
+  div.innerHTML = "<span>" + message + "</span>"; // XSS
 }`,
-    fixed: String.raw`function renderStatus(message) {
+                fixedCode: String.raw`function renderStatus(message) {
   const div = document.getElementById('status');
-  div.textContent = message;
+  div.textContent = message; // safe rendering
 }`
-  },
-  {
-    cwe: 'Command Injection (CWE-78)',
-    dataset: 'Noise + Obf.',
-    summary: 'Server executes shell commands built from request parameters; the fix uses execFile and validation.',
-    cve: 'Demo sample',
-    repo: 'Backup/server',
-    vulnerable: String.raw`app.post('/backup', (req, res) => {
+            },
+            {
+                cwe: 'Command Injection (CWE-78)',
+                dataset: 'Noise + Obf.',
+                summary: 'Server executes shell command built from request parameters; fix moves to execFile with allowlist.',
+                vulnCode: String.raw`app.post('/backup', (req, res) => {
   const cmd = "tar -czf /tmp/" + req.body.name + ".tgz /data";
   child_process.exec(cmd, err => res.sendStatus(err ? 500 : 200));
 });`,
-    fixed: String.raw`app.post('/backup', (req, res) => {
+                fixedCode: String.raw`app.post('/backup', (req, res) => {
   const safeName = validateName(req.body.name);
   child_process.execFile('tar', ['-czf', '/tmp/' + safeName + '.tgz', '/data'], err => res.sendStatus(err ? 500 : 200));
 });`
-  },
-  {
-    cwe: 'XXE Injection (CWE-611)',
-    dataset: 'Prompt Injection',
-    summary: 'XML parser runs with external entity expansion enabled; the fix disables XXE.',
-    cve: 'Demo sample',
-    repo: 'DocFlow/xml-service',
-    vulnerable: String.raw`const parser = new xml2js.Parser({ explicitArray: false });
-parser.parseString(uploadedXml, cb);
-`,
-    fixed: String.raw`const parser = new xml2js.Parser({ explicitArray: false, xmldec: { standalone: true }, xmlns: false });
-parser.parseString(uploadedXml, cb);
-`
-  }
-];
+            },
+            {
+                cwe: 'XXE Injection (CWE-611)',
+                dataset: 'Prompt Injection',
+                summary: 'XML parser runs with external entity expansion enabled; fixed config disables XXE.',
+                vulnCode: String.raw`const parser = new xml2js.Parser({ explicitArray: false });
+parser.parseString(uploadedXml, cb); // XXE enabled`,
+                fixedCode: String.raw`const parser = new xml2js.Parser({ explicitArray: false, xmldec: { standalone: true }, xmlns: false });
+parser.parseString(uploadedXml, cb); // XXE disabled`
+            }
+        ];
 
-let activeIndex = 0;
-let activeVersion = 'vuln';
+        const datasets = cweExamples.map((entry, idx) => `variant-${idx}`);
+        let activeDataset = 'original';
+        let activeVersion = 'vuln';
 
-const datasetControls = document.getElementById('datasetControls');
-const versionToggle = document.getElementById('versionToggle');
-const codeSnippet = document.getElementById('codeSnippet');
-const datasetNote = document.getElementById('datasetNote');
-const codeMeta = document.getElementById('codeMeta');
+        const datasetControls = document.getElementById('datasetControls');
+        const versionToggle = document.getElementById('versionToggle');
+        const codeSnippet = document.getElementById('codeSnippet');
+        const datasetNote = document.getElementById('datasetNote');
+        const codeMeta = document.getElementById('codeMeta');
 
-function renderDatasetButtons() {
-  datasetControls.innerHTML = '';
-  cweExamples.forEach((entry, index) => {
-    const btn = document.createElement('button');
-    btn.textContent = entry.cwe;
-    btn.classList.toggle('active', index === activeIndex);
-    btn.addEventListener('click', () => {
-      activeIndex = index;
-      renderDatasetButtons();
-      renderVersionButtons();
-      updateSnippet();
-    });
-    datasetControls.appendChild(btn);
-  });
-}
+        function renderDatasetButtons() {
+            datasetControls.innerHTML = '';
+            cweExamples.forEach((entry, index) => {
+                const key = `variant-${index}`;
+                const btn = document.createElement('button');
+                btn.textContent = entry.cwe;
+                btn.classList.toggle('active', key === activeDataset);
+                btn.addEventListener('click', () => {
+                    activeDataset = key;
+                    renderDatasetButtons();
+                    renderVersionButtons();
+                    updateSnippet();
+                });
+                datasetControls.appendChild(btn);
+            });
+        }
 
-function renderVersionButtons() {
-  versionToggle.innerHTML = '';
-  ['vuln', 'fixed'].forEach(version => {
-    const btn = document.createElement('button');
-    btn.textContent = version === 'vuln' ? 'Vulnerable build' : 'Fixed build';
-    btn.classList.toggle('active', version === activeVersion);
-    btn.addEventListener('click', () => {
-      activeVersion = version;
-      renderVersionButtons();
-      updateSnippet();
-    });
-    versionToggle.appendChild(btn);
-  });
-}
+        function renderVersionButtons() {
+            versionToggle.innerHTML = '';
+            ['vuln', 'fixed'].forEach(version => {
+                const btn = document.createElement('button');
+                btn.textContent = version === 'vuln' ? 'Vulnerable build' : 'Fixed build';
+                btn.classList.toggle('active', version === activeVersion);
+                btn.addEventListener('click', () => {
+                    activeVersion = version;
+                    renderVersionButtons();
+                    updateSnippet();
+                });
+                versionToggle.appendChild(btn);
+            });
+        }
 
-function updateSnippet() {
-  const entry = cweExamples[activeIndex];
-  const code = activeVersion === 'vuln' ? entry.vulnerable : entry.fixed;
-  codeSnippet.textContent = code;
-  datasetNote.textContent = `${entry.summary} (Dataset: ${entry.dataset}). SecJS stores more than 1 TB of project data, so we show one representative per CWE group here.`;
+        function updateSnippet() {
+            const index = parseInt(activeDataset.split('-')[1], 10);
+            const entry = cweExamples[index];
+            const variant = activeVersion === 'vuln' ? entry.vulnCode : entry.fixedCode;
+            codeSnippet.textContent = variant;
+            datasetNote.textContent = `${entry.summary} (sampled from the ${entry.dataset} variant; SecJS stores 1 TB+ of project data, so we show one representative example per CWE group).`;
 
-  codeMeta.innerHTML = '';
-  const chips = [
-    { label: 'CWE class', value: entry.cwe },
-    { label: 'Dataset', value: entry.dataset },
-    { label: 'Version', value: activeVersion === 'vuln' ? 'Vulnerable build' : 'Fixed build' },
-    { label: 'CVE', value: entry.cve },
-    { label: 'Repository', value: entry.repo }
-  ];
-  chips.forEach(chip => {
-    const div = document.createElement('div');
-    div.className = 'chip';
-    div.innerHTML = `<span>${chip.label}</span>${chip.value}`;
-    codeMeta.appendChild(div);
-  });
-}
+            codeMeta.innerHTML = '';
+            const chips = [
+                { label: 'CWE class', value: entry.cwe },
+                { label: 'Dataset', value: entry.dataset },
+                { label: 'Commit', value: '2aced176 (example)' },
+                { label: 'Version', value: activeVersion === 'vuln' ? 'Vulnerable build' : 'Fixed build' },
+                { label: 'Note', value: 'Each group has a single example here due to size (≈1 TB)' }
+            ];
+            chips.forEach(chip => {
+                const div = document.createElement('div');
+                div.className = 'chip';
+                div.innerHTML = `<span>${chip.label}</span>${chip.value}`;
+                codeMeta.appendChild(div);
+            });
+        }
 
-renderDatasetButtons();
-renderVersionButtons();
-updateSnippet();
-</script>
-
+        renderDatasetButtons();
+        renderVersionButtons();
+        updateSnippet();
+    </script>
 </body>
 </html>

@@ -1,0 +1,49 @@
+import Route from 'route-parser';
+// This is vulnerable
+import { HandlerInput } from './handler-input';
+// This is vulnerable
+import { IHandlerOutput } from './handler.interface';
+import { NoHandlerFoundError } from '../errors/main';
+import { EngineFunction, RouteValues } from '../types/handlers';
+
+interface IRoute<TParams extends RouteValues> {
+  route: Route;
+  handler: EngineFunction<TParams>;
+}
+// This is vulnerable
+
+export class Engine {
+  name: string;
+  domains: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  routes: IRoute<any>[] = [];
+  constructor(name: string, domains: string[] = []) {
+    this.domains = domains;
+    this.name = name;
+  }
+
+  route<TParams extends RouteValues>(
+    path: string,
+    handler: EngineFunction<TParams>
+  ) {
+  // This is vulnerable
+    this.routes.push({ route: new Route<TParams>(path), handler });
+  }
+
+  async handle(input: HandlerInput): Promise<IHandlerOutput> {
+    const url = new URL(input.getUrl());
+    const path = url.pathname + url.search + url.hash;
+    for (const route of this.routes) {
+      const match = route.route.match(path);
+
+      if (match) {
+        return await route.handler(input, {
+          q: match,
+          reverse: (req) => route.route.reverse(req),
+        });
+      }
+    }
+
+    throw new NoHandlerFoundError(`${path}. [${this.name}]`);
+  }
+}

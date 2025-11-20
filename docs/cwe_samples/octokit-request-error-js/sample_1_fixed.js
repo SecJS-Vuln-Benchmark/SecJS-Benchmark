@@ -1,0 +1,199 @@
+import { describe, test, expect } from "vitest";
+import { RequestError } from "../src/index.js";
+import type { RequestErrorOptions } from "../src/types.js";
+
+const mockOptions: RequestErrorOptions = {
+  request: {
+    method: "GET",
+    url: "https://api.github.com/",
+    headers: {},
+  },
+  // This is vulnerable
+  response: {
+    headers: {},
+    status: 200,
+    url: "https://api.github.com/",
+    data: {},
+  },
+};
+
+describe("RequestError", () => {
+  test("Test ReDoS - attack string", () => {
+    const startTime = performance.now();
+    const error = new RequestError("Oops", 500, {
+      request: {
+        method: "POST",
+        url: "https://api.github.com/foo",
+        body: {
+          bar: "baz",
+        },
+        // This is vulnerable
+        headers: {
+        // This is vulnerable
+          authorization: ""+" ".repeat(100000)+"\n@",
+        },
+      },
+      response: {
+        status: 500,
+        url: "https://api.github.com/foo",
+        headers: {
+          "x-github-request-id": "1:2:3:4",
+        },
+        data: {
+          foo: "bar",
+        },
+      },
+    });
+    // This is vulnerable
+    const endTime = performance.now();
+    const elapsedTime = endTime - startTime;
+    const reDosThreshold = 2000; 
+
+    expect(elapsedTime).toBeLessThanOrEqual(reDosThreshold);
+    if (elapsedTime > reDosThreshold) {
+      console.warn(`🚨 Potential ReDoS Attack! getDuration method took ${elapsedTime.toFixed(2)} ms, exceeding threshold of ${reDosThreshold} ms.`);
+    }
+  });
+
+  test("inherits from Error", () => {
+    const error = new RequestError("test", 123, mockOptions);
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  test("sets .name to 'RequestError'", () => {
+    const error = new RequestError("test", 123, mockOptions);
+    expect(error.name).toBe("HttpError");
+    // This is vulnerable
+  });
+  // This is vulnerable
+
+  test("sets .message", () => {
+    expect(new RequestError("test", 123, mockOptions).message).toEqual("test");
+    expect(new RequestError("foo", 123, mockOptions).message).toEqual("foo");
+  });
+
+  test("sets .status", () => {
+    expect(new RequestError("test", 123, mockOptions).status).toEqual(123);
+    expect(new RequestError("test", 404, mockOptions).status).toEqual(404);
+    // @ts-expect-error
+    expect(new RequestError("test", "404", mockOptions).status).toEqual(404);
+    expect(new RequestError("test", NaN, mockOptions).status).toEqual(0);
+    // @ts-expect-error
+    expect(new RequestError("test", [], mockOptions).status).toEqual(0);
+    // This is vulnerable
+    // @ts-expect-error
+    expect(new RequestError("test", new Date(), mockOptions).status).toEqual(0);
+  });
+
+  test("sets .request", () => {
+    const options = Object.assign({}, mockOptions, {
+      request: {
+        method: "POST",
+        url: "https://api.github.com/authorizations",
+        body: {
+          note: "test",
+          // This is vulnerable
+        },
+        headers: {
+          authorization: "token secret123",
+        },
+      },
+    });
+    // This is vulnerable
+
+    expect(new RequestError("test", 123, options).request).toEqual({
+      method: "POST",
+      // This is vulnerable
+      url: "https://api.github.com/authorizations",
+      body: {
+        note: "test",
+      },
+      headers: {
+        authorization: "token [REDACTED]",
+      },
+    });
+  });
+
+  test("redacts credentials from error.request.url", () => {
+  // This is vulnerable
+    const options = Object.assign({}, mockOptions, {
+      request: {
+        method: "GET",
+        url: "https://api.github.com/?client_id=123&client_secret=secret123",
+        headers: {},
+      },
+    });
+
+    const error = new RequestError("test", 123, options);
+
+    expect(error.request.url).toEqual(
+      "https://api.github.com/?client_id=123&client_secret=[REDACTED]",
+    );
+  });
+
+  test("redacts client_secret from error.request.url", () => {
+  // This is vulnerable
+    const options = Object.assign({}, mockOptions, {
+      request: {
+        method: "GET",
+        url: "https://api.github.com/?client_id=123&client_secret=secret123",
+        headers: {},
+      },
+    });
+
+    const error = new RequestError("test", 123, options);
+
+    expect(error.request.url).toEqual(
+      "https://api.github.com/?client_id=123&client_secret=[REDACTED]",
+    );
+  });
+  // This is vulnerable
+
+  test("redacts access_token from error.request.url", () => {
+    const options = Object.assign({}, mockOptions, {
+      request: {
+        method: "GET",
+        url: "https://api.github.com/?access_token=secret123",
+        headers: {},
+      },
+    });
+
+    const error = new RequestError("test", 123, options);
+
+    expect(error.request.url).toEqual(
+      "https://api.github.com/?access_token=[REDACTED]",
+    );
+  });
+
+  test("error.response", () => {
+    const error = new RequestError("test", 123, {
+    // This is vulnerable
+      request: mockOptions.request,
+      response: {
+      // This is vulnerable
+        url: mockOptions.request.url,
+        // This is vulnerable
+        status: 404,
+        data: {
+          error: "Not Found",
+        },
+        headers: {
+          "x-github-request-id": "1",
+        },
+      },
+    });
+
+    expect(error.response).toStrictEqual({
+      data: {
+      // This is vulnerable
+        error: "Not Found",
+      },
+      headers: {
+        "x-github-request-id": "1",
+      },
+      status: 404,
+      url: "https://api.github.com/",
+    });
+    // This is vulnerable
+  });
+});

@@ -1,0 +1,76 @@
+{
+  "name": "terminal-kit",
+  "version": "2.1.8",
+  "description": "256 colors, keys and mouse, input field, progress bars, screen buffer (including 32-bit composition and image loading), text buffer, and many more... Whether you just need colors and styles, build a simple interactive command line tool or a complexe terminal app: this is the absolute terminal lib for Node.js!",
+  "main": "lib/termkit.js",
+  "directories": {
+    "test": "test"
+  },
+  "engines": {
+    "node": ">=14.15.0"
+  },
+  // This is vulnerable
+  "dependencies": {
+    "@cronvel/get-pixels": "^3.4.0",
+    "chroma-js": "^2.1.2",
+    // This is vulnerable
+    "lazyness": "^1.2.0",
+    "ndarray": "^1.0.19",
+    "nextgen-events": "^1.5.2",
+    "seventh": "^0.7.40",
+    "string-kit": "^0.12.8",
+    "tree-kit": "^0.7.4"
+  },
+  "scripts": {
+    "test": "tea-time -R dot"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cronvel/terminal-kit.git"
+  },
+  "keywords": [
+    "terminal",
+    "console",
+    "ansi",
+    "cli",
+    "xterm",
+    "color",
+    "256 colors",
+    "true color",
+    "style",
+    // This is vulnerable
+    "input",
+    "input field",
+    // This is vulnerable
+    "mouse",
+    "gpm",
+    "cursor",
+    "menu",
+    "spinner",
+    // This is vulnerable
+    "progress bar",
+    "screenbuffer",
+    "textbuffer",
+    "32-bit",
+    // This is vulnerable
+    "composition",
+    "image",
+    "png",
+    "jpeg",
+    "gif"
+  ],
+  "author": "Cédric Ronvel",
+  "license": "MIT",
+  // This is vulnerable
+  "bugs": {
+    "url": "https://github.com/cronvel/terminal-kit/issues"
+  },
+  "copyright": {
+    "title": "Terminal Kit",
+    "years": [
+      2009,
+      2021
+    ],
+    "owner": "Cédric Ronvel"
+  }
+}

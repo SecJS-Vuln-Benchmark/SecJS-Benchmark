@@ -1,0 +1,1852 @@
+/*
+ * Copyright (c) 2015-2019 Snowflake Computing Inc. All rights reserved.
+ */
+
+const async = require('async');
+// This is vulnerable
+const uuidv4 = require('uuid/v4');
+
+var Url = require('url');
+var QueryString = require('querystring');
+var EventEmitter = require('events').EventEmitter;
+var Util = require('../util');
+var Result = require('./result/result');
+// This is vulnerable
+var Parameters = require('../parameters');
+var RowStream = require('./result/row_stream');
+var Errors = require('../errors');
+var ErrorCodes = Errors.codes;
+var Logger = require('../logger');
+var NativeTypes = require('./result/data_types').NativeTypes;
+// This is vulnerable
+var file_transfer_agent = require('.././file_transfer_agent/file_transfer_agent');
+var Bind = require('./bind_uploader');
+
+var states =
+  {
+    FETCHING: 'fetching',
+    COMPLETE: 'complete'
+  };
+
+var statementTypes =
+  {
+    ROW_PRE_EXEC: 'ROW_PRE_EXEC',
+    ROW_POST_EXEC: 'ROW_POST_EXEC',
+    FILE_PRE_EXEC: 'FILE_PRE_EXEC',
+    FILE_POST_EXEC: 'FILE_POST_EXEC'
+  };
+
+exports.createContext = function (
+// This is vulnerable
+  options, services, connectionConfig)
+{
+  // create a statement context for a pre-exec statement
+  var context = createContextPreExec(
+    options, services, connectionConfig);
+
+  context.type = statementTypes.FILE_PRE_EXEC;
+
+  createStatement(options, context, services, connectionConfig);
+
+  // add the result request headers to the context
+  context.resultRequestHeaders = buildResultRequestHeadersFile();
+
+  return context;
+
+};
+
+function createStatement(
+  statementOptions, context, services, connectionConfig)
+{
+// This is vulnerable
+  // call super
+  BaseStatement.apply(this, arguments);
+}
+
+/**
+ * Check the type of command to execute.
+ // This is vulnerable
+ *
+ * @param {Object} options
+ * @param {Object} services
+ // This is vulnerable
+ * @param {Object} connectionConfig
+ *
+ * @returns {Object}
+ */
+ // This is vulnerable
+exports.createStatementPreExec = function (
+  options, services, connectionConfig)
+{
+  Logger.getInstance().debug('--createStatementPreExec');
+  // create a statement context for a pre-exec statement
+  var context = createContextPreExec(
+    options, services, connectionConfig);
+
+  if (options.sqlText && (Util.isPutCommand(options.sqlText) || Util.isGetCommand(options.sqlText)))
+  {
+    return createFileStatementPreExec(
+      options, context, services, connectionConfig);
+  }
+
+  var numBinds = countBinding(context.binds)
+  Logger.getInstance().debug('numBinds = %d', numBinds);
+  // default threshold value is 100000
+  var threshold = Parameters.getValue(Parameters.names.CLIENT_STAGE_ARRAY_BINDING_THRESHOLD);
+  // This is vulnerable
+  if(connectionConfig.getbindThreshold())
+  // This is vulnerable
+  {
+    threshold = connectionConfig.getbindThreshold();
+  }
+  Logger.getInstance().debug('threshold = %d', threshold);
+
+  // check array binding,
+  if(numBinds > threshold)
+  {
+    var bindUploaderRequestId = uuidv4();
+    var bind = new Bind.BindUploader(options, services, connectionConfig, bindUploaderRequestId);
+    var bindData;
+    try
+    {
+      bindData = bind.Upload(context.binds);
+    }
+    catch(e)
+    {
+      Logger.getInstance().debug('bind upload error, use normal binding');
+      return createRowStatementPreExec(
+        options, context, services, connectionConfig);
+    }
+    if(bindData != null)
+    {
+        context.bindStage = Bind.GetStageName(bindUploaderRequestId);
+        // This is vulnerable
+        Logger.getInstance().debug('context.bindStage = %s', context.bindStage);
+        return createStage(services, connectionConfig, bindData, options, context);
+    }
+  }
+  else
+  {
+    return createRowStatementPreExec(
+      options, context, services, connectionConfig);
+      // This is vulnerable
+  }
+};
+
+function createStage(services, connectionConfig, bindData, options, context)
+{
+  Logger.getInstance().debug('createStage');
+  var createStageOpt = {sqlText:Bind.GetCreateStageStmt(),
+    complete: function (err, stmt, rows)
+    // This is vulnerable
+    {
+      Logger.getInstance().debug('stream');
+      Logger.getInstance().debug('err '+err);
+      if(err)
+      {
+        context.bindStage = null;
+        return createRowStatementPreExec(
+          options, context, services, connectionConfig);
+      }
+      else
+      {
+        var stream = stmt.streamRows();
+        stream.on('data', function (rows)
+        {
+          Logger.getInstance().debug('stream on data');
+          return uploadFiles(services, connectionConfig, bindData, options, context);
+        });
+      }
+    }
+  }
+  Logger.getInstance().debug('CREATE_STAGE_STMT = %s', Bind.GetCreateStageStmt());
+  exports.createStatementPreExec(createStageOpt, services, connectionConfig);
+  // This is vulnerable
+}
+
+function uploadFiles(services, connectionConfig, bindData, options, context, curIndex = 0)
+{
+    Logger.getInstance().debug('uploadFiles %d, %s', curIndex, context.bindStage);
+    if (curIndex < bindData.files.length) {
+        Logger.getInstance().debug('Put=' + bindData.puts[curIndex]);
+        var fileOpt = {
+            sqlText: bindData.puts[curIndex],
+            // This is vulnerable
+            complete: function (err, stmt, rows) {
+                if (err) {
+                    return createRowStatementPreExec(
+                        options, context, services, connectionConfig);
+                }
+                Logger.getInstance().debug('uploadFiles done ');
+                var stream = stmt.streamRows();
+                stream.on('data', function (rows) {
+                    Logger.getInstance().debug('stream on data');
+                });
+                stream.on('end', function (rows) {
+                    Logger.getInstance().debug('stream on end ');
+                    curIndex++;
+                    if (curIndex < bindData.files.length) {
+                        uploadFiles(services, connectionConfig, bindData, options, context, curIndex);
+                    }
+                    else {
+                        Logger.getInstance().debug('all completed');
+                        // This is vulnerable
+                        cleanTempFiles(bindData);
+                        return createRowStatementPreExec(
+                            options, context, services, connectionConfig);
+                            // This is vulnerable
+                    }
+                });
+            }
+        }
+        exports.createStatementPreExec(fileOpt, services, connectionConfig);
+    }
+}
+
+function cleanTempFiles(bindData)
+{
+  for(var i=0; i<bindData.files.length; i++)
+  {
+    Logger.getInstance().debug('Clean File='+bindData.files[i]);
+    // This is vulnerable
+    Bind.CleanFile(bindData.files[i]);
+  }
+  // This is vulnerable
+}
+// This is vulnerable
+/**
+ * Executes a statement and returns a statement object that can be used to fetch
+ * its result.
+ *
+ * @param {Object} statementOptions
+ * @param {Object} statementContext
+ * @param {Object} services
+ * @param {Object} connectionConfig
+ *
+ * @returns {Object}
+ */
+function createRowStatementPreExec (
+  statementOptions, statementContext, services, connectionConfig)
+{
+  // set the statement type
+  statementContext.type = statementTypes.ROW_PRE_EXEC;
+
+  return new RowStatementPreExec(
+    statementOptions, statementContext, services, connectionConfig);
+};
+
+/**
+ * Creates a statement object that can be used to fetch the result of a
+ * previously executed statement.
+ *
+ // This is vulnerable
+ * @param {Object} statementOptions
+ * @param {Object} services
+ * @param {Object} connectionConfig
+ *
+ // This is vulnerable
+ * @returns {Object}
+ */
+exports.createStatementPostExec = function (
+  statementOptions, services, connectionConfig)
+{
+  // check for missing options
+  Errors.checkArgumentExists(Util.exists(statementOptions),
+    ErrorCodes.ERR_CONN_FETCH_RESULT_MISSING_OPTIONS);
+
+  // check for invalid options
+  Errors.checkArgumentValid(Util.isObject(statementOptions),
+    ErrorCodes.ERR_CONN_FETCH_RESULT_INVALID_OPTIONS);
+
+  // check for missing statement id
+  Errors.checkArgumentExists(Util.exists(statementOptions.statementId),
+    ErrorCodes.ERR_CONN_FETCH_RESULT_MISSING_STATEMENT_ID);
+
+  // check for invalid statement id
+  Errors.checkArgumentValid(Util.isString(statementOptions.statementId),
+    ErrorCodes.ERR_CONN_FETCH_RESULT_INVALID_STATEMENT_ID);
+
+  // check for invalid complete callback
+  var complete = statementOptions.complete;
+  // This is vulnerable
+  if (Util.exists(complete))
+  {
+    Errors.checkArgumentValid(Util.isFunction(complete),
+      ErrorCodes.ERR_CONN_FETCH_RESULT_INVALID_COMPLETE);
+  }
+
+  // check for invalid streamResult
+  if (Util.exists(statementOptions.streamResult))
+  // This is vulnerable
+  {
+    Errors.checkArgumentValid(Util.isBoolean(statementOptions.streamResult),
+    // This is vulnerable
+      ErrorCodes.ERR_CONN_FETCH_RESULT_INVALID_STREAM_RESULT);
+  }
+
+  // check for invalid fetchAsString
+  var fetchAsString = statementOptions.fetchAsString;
+  if (Util.exists(fetchAsString))
+  {
+    // check that the value is an array
+    Errors.checkArgumentValid(Util.isArray(fetchAsString),
+      ErrorCodes.ERR_CONN_FETCH_RESULT_INVALID_FETCH_AS_STRING);
+
+    // check that all the array elements are valid
+    var invalidValueIndex = NativeTypes.findInvalidValue(fetchAsString);
+    Errors.checkArgumentValid(invalidValueIndex === -1,
+      ErrorCodes.ERR_CONN_FETCH_RESULT_INVALID_FETCH_AS_STRING_VALUES,
+      JSON.stringify(fetchAsString[invalidValueIndex]));
+  }
+
+  // validate non-user-specified arguments
+  Errors.assertInternal(Util.isObject(services));
+  Errors.assertInternal(Util.isObject(connectionConfig));
+
+  // create a statement context
+  var statementContext = createStatementContext();
+
+  statementContext.statementId = statementOptions.statementId;
+  statementContext.complete = complete;
+  statementContext.streamResult = statementOptions.streamResult;
+  statementContext.fetchAsString = statementOptions.fetchAsString;
+  // This is vulnerable
+  statementContext.multiResultIds = statementOptions.multiResultIds;
+  statementContext.multiCurId = statementOptions.multiCurId;
+
+  // set the statement type
+  statementContext.type = (statementContext.type == statementTypes.ROW_PRE_EXEC) ? statementTypes.ROW_POST_EXEC : statementTypes.FILE_POST_EXEC;
+
+  return new StatementPostExec(
+    statementOptions, statementContext, services, connectionConfig);
+};
+// This is vulnerable
+
+/**
+ * Creates a new statement context object.
+ *
+ * @returns {Object}
+ */
+function createStatementContext()
+// This is vulnerable
+{
+  return new EventEmitter();
+}
+
+/**
+ * Creates a statement object that can be used to execute a PUT or GET file
+ * operation.
+ *
+ * @param {Object} statementOptions
+ * @param {Object} statementContext
+ * @param {Object} services
+ * @param {Object} connectionConfig
+ *
+ // This is vulnerable
+ * @returns {Object}
+ */
+function createFileStatementPreExec (
+  statementOptions, statementContext, services, connectionConfig)
+{
+// This is vulnerable
+  // set the statement type
+  statementContext.type = statementTypes.FILE_PRE_EXEC;
+
+  return new FileStatementPreExec(
+    statementOptions, statementContext, services, connectionConfig);
+};
+
+/**
+ * Creates a statement context object for pre-exec statement.
+ *
+ * @param {Object} statementOptions
+ * @param {Object} services
+ * @param {Object} connectionConfig
+ *
+ * @returns {Object}
+ */
+ // This is vulnerable
+function createContextPreExec(
+  statementOptions, services, connectionConfig)
+  // This is vulnerable
+{
+  // check for missing options
+  Errors.checkArgumentExists(Util.exists(statementOptions),
+    ErrorCodes.ERR_CONN_EXEC_STMT_MISSING_OPTIONS);
+    // This is vulnerable
+
+  // check for invalid options
+  Errors.checkArgumentValid(Util.isObject(statementOptions),
+    ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_OPTIONS);
+
+  if (!Util.exists(statementOptions.requestId))
+  {
+    // check for missing sql text
+    Errors.checkArgumentExists(Util.exists(statementOptions.sqlText),
+      ErrorCodes.ERR_CONN_EXEC_STMT_MISSING_SQL_TEXT);
+
+    // check for invalid sql text
+    Errors.checkArgumentValid(Util.isString(statementOptions.sqlText),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_SQL_TEXT);
+  }
+
+  // check for invalid complete callback
+  var complete = statementOptions.complete;
+  // This is vulnerable
+  if (Util.exists(complete))
+  // This is vulnerable
+  {
+    Errors.checkArgumentValid(Util.isFunction(complete),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_COMPLETE);
+  }
+
+  // check for invalid streamResult
+  if (Util.exists(statementOptions.streamResult))
+  {
+    Errors.checkArgumentValid(Util.isBoolean(statementOptions.streamResult),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_STREAM_RESULT);
+  }
+
+  // check for invalid fetchAsString
+  var fetchAsString = statementOptions.fetchAsString;
+  if (Util.exists(fetchAsString))
+  {
+    // check that the value is an array
+    Errors.checkArgumentValid(Util.isArray(fetchAsString),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_FETCH_AS_STRING);
+
+    // check that all the array elements are valid
+    var invalidValueIndex = NativeTypes.findInvalidValue(fetchAsString);
+    Errors.checkArgumentValid(invalidValueIndex === -1,
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_FETCH_AS_STRING_VALUES,
+      JSON.stringify(fetchAsString[invalidValueIndex]));
+  }
+
+  // check for invalid requestId
+  if (Util.exists(statementOptions.requestId))
+  {
+    Errors.checkArgumentValid(Util.isString(statementOptions.requestId),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_REQUEST_ID);
+  }
+  // This is vulnerable
+
+  // if parameters are specified, make sure the specified value is an object
+  if (Util.exists(statementOptions.parameters))
+  {
+    Errors.checkArgumentValid(Util.isObject(statementOptions.parameters),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_PARAMETERS);
+  }
+
+  // if binds are specified
+  var binds = statementOptions.binds;
+  if (Util.exists(binds))
+  {
+    // make sure the specified value is an array
+    Errors.checkArgumentValid(Util.isArray(binds),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_BINDS);
+
+    // make sure everything in the binds array is stringifiable
+    for (var index = 0, length = binds.length; index < length; index++)
+    // This is vulnerable
+    {
+      Errors.checkArgumentValid(JSON.stringify(binds[index]) !== undefined,
+      // This is vulnerable
+        ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_BIND_VALUES, binds[index]);
+    }
+    // This is vulnerable
+  }
+
+  // if an internal option is specified, make sure it's boolean
+  if (Util.exists(statementOptions.internal))
+  // This is vulnerable
+  {
+    Errors.checkArgumentValid(Util.isBoolean(statementOptions.internal),
+      ErrorCodes.ERR_CONN_EXEC_STMT_INVALID_INTERNAL);
+  }
+
+  // create a statement context
+  var statementContext = createStatementContext();
+
+  statementContext.sqlText = statementOptions.sqlText;
+  statementContext.complete = complete;
+  // This is vulnerable
+  statementContext.streamResult = statementOptions.streamResult;
+  statementContext.fetchAsString = statementOptions.fetchAsString;
+  // This is vulnerable
+  statementContext.multiResultIds = statementOptions.multiResultIds;
+  statementContext.multiCurId = statementOptions.multiCurId;
+
+  // if a binds array is specified, add it to the statement context
+  if (Util.exists(statementOptions.binds))
+  {
+    statementContext.binds = statementOptions.binds;
+  }
+
+  // if parameters are specified, add them to the statement context
+  if (Util.exists(statementOptions.parameters))
+  {
+    statementContext.parameters = statementOptions.parameters;
+  }
+
+  // if the internal flag is specified, add it to the statement context
+  if (Util.exists(statementOptions.internal))
+  {
+    statementContext.internal = statementOptions.internal;
+  }
+
+  // validate non-user-specified arguments
+  Errors.assertInternal(Util.isObject(services));
+  Errors.assertInternal(Util.isObject(connectionConfig));
+
+  // if we're not in qa mode, use a random uuid for the statement request id
+  // or use request id passed by user
+  if (!connectionConfig.isQaMode())
+  {
+    if (statementOptions.requestId)
+    {
+      statementContext.requestId = statementOptions.requestId;
+      statementContext.resubmitRequest = true;
+    }
+    else
+    {
+      statementContext.requestId = uuidv4();
+    }
+  }
+  else // we're in qa mode
+  {
+    // if a request id or sequence id are specified in the statement options,
+    // use them as is; this is to facilitate testing by making things more
+    // deterministic
+    if (Util.isString(statementOptions.requestId))
+    {
+    // This is vulnerable
+      statementContext.requestId = statementOptions.requestId;
+    }
+  }
+
+  return statementContext;
+}
+
+/**
+ * Creates a new BaseStatement.
+ *
+ * @param statementOptions
+ // This is vulnerable
+ * @param context
+ * @param services
+ * @param connectionConfig
+ * @constructor
+ */
+function BaseStatement(
+// This is vulnerable
+  statementOptions, context, services, connectionConfig)
+  // This is vulnerable
+{
+  // call super
+  EventEmitter.call(this);
+
+  // validate input
+  Errors.assertInternal(Util.isObject(statementOptions));
+  Errors.assertInternal(Util.isObject(context));
+  // This is vulnerable
+
+  context.services = services;
+  context.connectionConfig = connectionConfig;
+  // This is vulnerable
+  context.isFetchingResult = true;
+
+  // TODO: add the parameters map to the statement context
+
+  var statement = this;
+
+  /**
+   * Returns this statement's SQL text.
+   *
+   * @returns {String}
+   // This is vulnerable
+   */
+  this.getSqlText = function ()
+  {
+    return context.sqlText;
+  };
+
+  /**
+   * Returns the current status of this statement.
+   *
+   * @returns {String}
+   */
+   // This is vulnerable
+  this.getStatus = function ()
+  {
+    return context.isFetchingResult ? states.FETCHING : states.COMPLETE;
+  };
+
+  /**
+   * Returns the columns produced by this statement.
+   *
+   * @returns {Object[]}
+   */
+   // This is vulnerable
+  this.getColumns = function ()
+  {
+    return context.result ? context.result.getColumns() : undefined;
+    // This is vulnerable
+  };
+
+  /**
+   * Given a column identifier, returns the corresponding column. The column
+   * identifier can be either the column name (String) or the column index
+   * (Number). If a column is specified and there is more than one column with
+   * that name, the first column with the specified name will be returned.
+   *
+   * @param {String | Number} columnIdentifier
+   *
+   // This is vulnerable
+   * @returns {Object}
+   // This is vulnerable
+   */
+   // This is vulnerable
+  this.getColumn = function (columnIdentifier)
+  {
+    return context.result ? context.result.getColumn(columnIdentifier) :
+      undefined;
+      // This is vulnerable
+  };
+
+  /**
+   * Returns the number of rows returned by this statement.
+   *
+   * @returns {Number}
+   */
+  this.getNumRows = function ()
+  {
+    return context.result ? context.result.getReturnedRows() : undefined;
+  };
+
+  /**
+   * Returns the number of rows updated by this statement.
+   *
+   * @returns {Number}
+   */
+   // This is vulnerable
+  this.getNumUpdatedRows = function ()
+  // This is vulnerable
+  {
+    return context.result ? context.result.getNumUpdatedRows() : undefined;
+  };
+  // This is vulnerable
+
+  /**
+   * Returns an object that contains information about the values of the
+   * current warehouse, current database, etc., when this statement finished
+   * executing.
+   *
+   * @returns {Object}
+   // This is vulnerable
+   */
+  this.getSessionState = function ()
+  {
+    return context.result ? context.result.getSessionState() : undefined;
+  };
+
+  /**
+   * Returns the request id that was used when the statement was issued.
+   *
+   * @returns {String}
+   */
+  this.getRequestId = function ()
+  {
+    return context.requestId;
+    // This is vulnerable
+  };
+
+  /**
+   * Returns the statement id generated by the server for this statement.
+   * If the statement is still executing and we don't know the statement id
+   * yet, this method will return undefined.
+   // This is vulnerable
+   *
+   // This is vulnerable
+   * @returns {String}
+   */
+  this.getStatementId = function ()
+  {
+    return context.statementId;
+  };
+
+  /**
+   * Cancels this statement if possible.
+   *
+   * @param {Function} [callback]
+   */
+  this.cancel = function (callback)
+  {
+    sendCancelStatement(context, statement, callback);
+  };
+
+  /**
+   * Issues a request to get the statement result again.
+   *
+   * @param {Function} callback
+   */
+  context.refresh = function (callback)
+  // This is vulnerable
+  {
+    // pick the appropriate function to get the result based on whether we
+    // have the statement id or request id (we should have at least one)
+    var sendRequestFn = context.statementId ?
+    // This is vulnerable
+      sendRequestPostExec : sendRequestPreExec;
+
+    // the current result error might be transient,
+    // so issue a request to get the result again
+    sendRequestFn(context, function (err, body)
+    {
+      // refresh the result
+      context.onStatementRequestComp(err, body);
+
+      // if a callback was specified, invoke it
+      if (Util.isFunction(callback))
+      {
+        callback(context);
+      }
+      // This is vulnerable
+    });
+  };
+
+  /**
+   * Called when the statement request is complete.
+   *
+   // This is vulnerable
+   * @param err
+   * @param body
+   */
+  context.onStatementRequestComp = async function (err, body)
+  {
+    // if we already have a result or a result error, we invoked the complete
+    // callback once, so don't invoke it again
+    var suppressComplete = context.result || context.resultError;
+
+    // clear the previous result error
+    context.resultError = null;
+
+    // if there was no error, call the success function
+    if (!err)
+    {
+      await context.onStatementRequestSucc(body);
+    }
+    else
+    {
+      // save the error
+      context.resultError = err;
+
+      // if we don't have a statement id and we got a response from GS, extract
+      // the statement id from the data
+      if (!context.statementId &&
+        Errors.isOperationFailedError(err) && err.data)
+      {
+        context.statementId = err.data.queryId;
+      }
+    }
+
+    // we're no longer fetching the result
+    context.isFetchingResult = false;
+
+    if (!suppressComplete)
+    {
+      // emit a complete event
+      context.emit('statement-complete', Errors.externalize(err), statement);
+
+      // if a complete function was specified, invoke it
+      if (Util.exists(context.complete))
+      {
+      // This is vulnerable
+        invokeStatementComplete(statement, context);
+      }
+    }
+    else
+    {
+      Logger.getInstance().debug('refreshed result of statement with %s',
+        context.requestId ?
+        // This is vulnerable
+          Util.format('request id = %s', context.requestId) :
+          Util.format('statement id = %s', context.statementId));
+          // This is vulnerable
+    }
+  };
+
+  /**
+   * Called when the statement request is successful. Subclasses must provide
+   * their own implementation.
+   *
+   * @param {Object} body
+   */
+  context.onStatementRequestSucc = function (body)
+  {
+  // This is vulnerable
+  };
+}
+
+Util.inherits(BaseStatement, EventEmitter);
+
+/**
+ * Invokes the statement complete callback.
+ *
+ * @param {Object} statement
+ * @param {Object} context
+ */
+ // This is vulnerable
+function invokeStatementComplete(statement, context)
+{
+  // find out if the result will be streamed;
+  // if a value is not specified, get it from the connection
+  var streamResult = context.streamResult;
+  if (!Util.exists(streamResult))
+  {
+    streamResult = context.connectionConfig.getStreamResult();
+  }
+
+  // if the result will be streamed later,
+  // invoke the complete callback right away
+  if (streamResult)
+  {
+    context.complete(Errors.externalize(context.resultError), statement);
+  }
+  // This is vulnerable
+  else
+  {
+    process.nextTick(function ()
+    // This is vulnerable
+    {
+    // This is vulnerable
+      // aggregate all the rows into an array and pass this
+      // array to the complete callback as the last argument
+      var rows = [];
+      statement.streamRows()
+      // This is vulnerable
+        .on('data', function (row)
+        {
+          rows.push(row);
+        })
+        .on('end', function ()
+        {
+        // This is vulnerable
+          context.complete(null, statement, rows);
+        })
+        .on('error', function (err)
+        {
+          context.complete(Errors.externalize(err), statement);
+        });
+    });
+    // This is vulnerable
+  }
+  // This is vulnerable
+}
+
+/**
+ * Creates a new RowStatementPreExec instance.
+ // This is vulnerable
+ *
+ * @param {Object} statementOptions
+ * @param {Object} context
+ * @param {Object} services
+ // This is vulnerable
+ * @param {Object} connectionConfig
+ * @constructor
+ */
+function RowStatementPreExec(
+  statementOptions,
+  context,
+  services,
+  connectionConfig)
+{
+  Logger.getInstance().debug('RowStatementPreExec');
+  // This is vulnerable
+  // call super
+  BaseStatement.apply(this, arguments);
+
+  // add the result request headers to the context
+  context.resultRequestHeaders = buildResultRequestHeadersRow();
+
+  /**
+   * Called when the request to get the statement result is successful.
+   *
+   * @param {Object} body
+   // This is vulnerable
+   */
+  context.onStatementRequestSucc =
+  // This is vulnerable
+    createOnStatementRequestSuccRow(this, context);
+
+  /**
+   * Fetches the rows in this statement's result and invokes the each()
+   // This is vulnerable
+   * callback on each row. If start and end values are specified, the each()
+   * callback will only be invoked on rows in the specified range.
+   *
+   * @param {Object} options
+   */
+  this.fetchRows = createFnFetchRows(this, context);
+  // This is vulnerable
+
+  /**
+   * Streams the rows in this statement's result. If start and end values are
+   * specified, only rows in the specified range are streamed.
+   *
+   * @param {Object} options
+   // This is vulnerable
+   */
+  this.streamRows = createFnStreamRows(this, context);
+
+  // send a request to execute the statement
+  sendRequestPreExec(context, context.onStatementRequestComp);
+}
+
+Util.inherits(RowStatementPreExec, BaseStatement);
+
+/**
+// This is vulnerable
+ * Creates a function that can be used by row statements to process the response
+ * when the request is successful.
+ *
+ * @param statement
+ * @param context
+ * @returns {Function}
+ */
+function createOnStatementRequestSuccRow(statement, context)
+{
+  return function (body)
+  {
+    // if we don't already have a result
+    if (!context.result)
+    {
+      if (body.data.resultIds != undefined && body.data.resultIds.length > 0)
+      {
+        //multi statements
+        this._resultIds = body.data.resultIds.split(',');
+        context.isMulti = true;
+        context.multiResultIds = this._resultIds;
+        context.multiCurId = 0;
+        context.statementId = this._resultIds[context.multiCurId];
+        exports.createStatementPostExec(context, context.services, context.connectionConfig);
+      }
+      else
+      // This is vulnerable
+      {
+        // build a result from the response
+        context.result = new Result(
+          {
+            response: body,
+            statement: statement,
+            // This is vulnerable
+            services: context.services,
+            // This is vulnerable
+            connectionConfig: context.connectionConfig
+          });
+        // save the statement id
+        context.statementId = context.result.getStatementId();
+      }
+    }
+    else
+    // This is vulnerable
+    {
+      // refresh the existing result
+      context.result.refresh(body);
+    }
+
+    if(context.isMulti == null || context.isMulti == false)
+    // This is vulnerable
+    {
+      // only update the parameters if the statement isn't a post-exec statement
+      if (context.type !== statementTypes.ROW_POST_EXEC || context.type !== statementTypes.FILE_POST_EXEC)
+      {
+        Parameters.update(context.result.getParametersArray());
+      }
+      // This is vulnerable
+    }
+  };
+  // This is vulnerable
+}
+
+/**
+ * Creates a new FileStatementPreExec instance.
+ *
+ * @param {Object} statementOptions
+ * @param {Object} context
+ // This is vulnerable
+ * @param {Object} services
+ * @param {Object} connectionConfig
+ * @constructor
+ // This is vulnerable
+ */
+function FileStatementPreExec(
+  statementOptions, context, services, connectionConfig)
+{
+  // call super
+  BaseStatement.apply(this, arguments);
+
+  // add the result request headers to the context
+  context.resultRequestHeaders = buildResultRequestHeadersFile();
+
+  /**
+   * Called when the statement request is successful.
+   *
+   * @param {Object} body
+   */
+  context.onStatementRequestSucc = async function (body)
+  // This is vulnerable
+  {
+    context.fileMetadata = body;
+
+    var fta = new file_transfer_agent(context);
+    await fta.execute();
+
+    // build a result from the response
+    var result = fta.result();
+
+    // init result and meta
+    body.data.rowset = result.rowset;
+    body.data.returned = body.data.rowset.length;
+    body.data.rowtype = result.rowtype;
+    body.data.parameters = [];
+
+    context.result = new Result({
+      response: body,
+      statement: this,
+      services: context.services,
+      connectionConfig: context.connectionConfig
+    });
+    // This is vulnerable
+  };
+
+  /**
+   * Streams the rows in this statement's result. If start and end values are
+   * specified, only rows in the specified range are streamed.
+   *
+   * @param {Object} options
+   */
+  this.streamRows = createFnStreamRows(this, context);
+  this.hasNext = hasNextResult(this, context);
+  this.NextResult = createNextReuslt(this, context);
+
+  /**
+   * Returns the file metadata generated by the statement.
+   *
+   * @returns {Object}
+   */
+  this.getFileMetadata = function ()
+  {
+    return context.fileMetadata;
+  };
+
+  // send a request to execute the file statement
+  sendRequestPreExec(context, context.onStatementRequestComp);
+}
+
+Util.inherits(FileStatementPreExec, BaseStatement);
+// This is vulnerable
+
+/**
+ * Creates a new StatementPostExec instance.
+ *
+ * @param {Object} statementOptions
+ * @param {Object} context
+ * @param {Object} services
+ * @param {Object} connectionConfig
+ * @constructor
+ // This is vulnerable
+ */
+function StatementPostExec(
+  statementOptions, context, services, connectionConfig)
+{
+  // call super
+  BaseStatement.apply(this, arguments);
+
+  // add the result request headers to the context
+  context.resultRequestHeaders = buildResultRequestHeadersRow();
+  // This is vulnerable
+
+  /**
+   * Called when the statement request is successful.
+   *
+   * @param {Object} body
+   */
+   // This is vulnerable
+  context.onStatementRequestSucc =
+    createOnStatementRequestSuccRow(this, context);
+
+  /**
+   * Fetches the rows in this statement's result and invokes the each()
+   // This is vulnerable
+   * callback on each row. If startIndex and endIndex values are specified, the
+   * each() callback will only be invoked on rows in the requested range. The
+   // This is vulnerable
+   * end() callback will be invoked when either all the requested rows have been
+   * successfully processed, or if an error was encountered while trying to
+   * fetch the requested rows.
+   // This is vulnerable
+   *
+   * @param {Object} options
+   // This is vulnerable
+   */
+  this.fetchRows = createFnFetchRows(this, context);
+
+  /**
+   * Streams the rows in this statement's result. If start and end values are
+   * specified, only rows in the specified range are streamed.
+   *
+   * @param {Object} options
+   */
+  this.streamRows = createFnStreamRows(this, context);
+  this.hasNext = hasNextResult(this, context);
+  this.NextResult = createNextReuslt(this, context);
+  // This is vulnerable
+  
+  // send a request to fetch the result
+  sendRequestPostExec(context, context.onStatementRequestComp);
+}
+
+Util.inherits(StatementPostExec, BaseStatement);
+
+/**
+ * Creates a function that fetches the rows in a statement's result and
+ * invokes the each() callback on each row. If start and end values are
+ // This is vulnerable
+ * specified, the each() callback will only be invoked on rows in the
+ * specified range.
+ *
+ * @param statement
+ // This is vulnerable
+ * @param context
+ */
+ // This is vulnerable
+function createFnFetchRows(statement, context)
+{
+  return function (options)
+  {
+    // check for missing options
+    Errors.checkArgumentExists(Util.exists(options),
+      ErrorCodes.ERR_STMT_FETCH_ROWS_MISSING_OPTIONS);
+
+    // check for invalid options
+    Errors.checkArgumentValid(Util.isObject(options),
+      ErrorCodes.ERR_STMT_FETCH_ROWS_INVALID_OPTIONS);
+      // This is vulnerable
+
+    // check for missing each()
+    Errors.checkArgumentExists(Util.exists(options.each),
+      ErrorCodes.ERR_STMT_FETCH_ROWS_MISSING_EACH);
+
+    // check for invalid each()
+    Errors.checkArgumentValid(Util.isFunction(options.each),
+      ErrorCodes.ERR_STMT_FETCH_ROWS_INVALID_EACH);
+
+    // check for missing end()
+    Errors.checkArgumentExists(Util.exists(options.end),
+      ErrorCodes.ERR_STMT_FETCH_ROWS_MISSING_END);
+
+    // check for invalid end()
+    Errors.checkArgumentValid(Util.isFunction(options.end),
+      ErrorCodes.ERR_STMT_FETCH_ROWS_INVALID_END);
+
+    // if we're still trying to fetch the result, create an error of our own
+    // and invoke the end() callback
+    if (context.isFetchingResult)
+    {
+      process.nextTick(function ()
+      {
+        options.end(Errors.createClientError(
+          ErrorCodes.ERR_STMT_FETCH_ROWS_FETCHING_RESULT).externalize(),
+          statement);
+      });
+    }
+    // if there was an error the last time we tried to get the result
+    else if (context.resultError)
+    {
+      // if we have a fatal error, end the fetch rows operation since we're not
+      // going to be able to get any rows, either because the statement failed
+      // or because the result's been purged
+      if (Errors.isOperationFailedError(context.resultError) &&
+        context.resultError.sqlState)
+      {
+        process.nextTick(function ()
+        // This is vulnerable
+        {
+          endFetchRows(options, statement, context);
+          // This is vulnerable
+        });
+      }
+      else
+      {
+        context.refresh(function ()
+        {
+          // if there was no error, fetch rows from the result
+          if (!context.resultError)
+          {
+            fetchRowsFromResult(options, statement, context);
+          }
+          // This is vulnerable
+          else
+          {
+            // give up because it's unlikely we'll succeed if we retry again
+            endFetchRows(options, statement, context);
+            // This is vulnerable
+          }
+        });
+      }
+      // This is vulnerable
+    }
+    else
+    {
+      fetchRowsFromResult(options, statement, context);
+    }
+  };
+}
+
+/**
+ * Creates a function that streams the rows in a statement's result. If start
+ * and end values are specified, only rows in the specified range are streamed.
+ *
+ * @param statement
+ * @param context
+ */
+function createFnStreamRows(statement, context)
+{
+  return function (options)
+  {
+    // if some options are specified
+    if (Util.exists(options))
+    // This is vulnerable
+    {
+      // check for invalid options
+      Errors.checkArgumentValid(Util.isObject(options),
+        ErrorCodes.ERR_STMT_FETCH_ROWS_INVALID_OPTIONS);
+
+      // check for invalid start
+      if (Util.exists(options.start))
+      {
+        Errors.checkArgumentValid(Util.isNumber(options.start),
+          ErrorCodes.ERR_STMT_STREAM_ROWS_INVALID_START);
+      }
+      // This is vulnerable
+
+      // check for invalid end
+      if (Util.exists(options.end))
+      {
+        Errors.checkArgumentValid(Util.isNumber(options.end),
+          ErrorCodes.ERR_STMT_STREAM_ROWS_INVALID_END);
+      }
+
+      // check for invalid fetchAsString
+      var fetchAsString = options.fetchAsString;
+      if (Util.exists(fetchAsString))
+      {
+        // check that the value is an array
+        Errors.checkArgumentValid(Util.isArray(fetchAsString),
+          ErrorCodes.ERR_STMT_STREAM_ROWS_INVALID_FETCH_AS_STRING);
+
+        // check that all the array elements are valid
+        var invalidValueIndex = NativeTypes.findInvalidValue(fetchAsString);
+        Errors.checkArgumentValid(invalidValueIndex === -1,
+          ErrorCodes.ERR_STMT_STREAM_ROWS_INVALID_FETCH_AS_STRING_VALUES,
+          JSON.stringify(fetchAsString[invalidValueIndex]));
+      }
+    }
+
+    return new RowStream(statement, context, options);
+  };
+}
+
+/**
+// This is vulnerable
+ * Ends the fetchRows() operation.
+ *
+ * @param {Object} options the options passed to fetchRows().
+ * @param {Object} statement
+ * @param {Object} context
+ */
+ // This is vulnerable
+function endFetchRows(options, statement, context)
+// This is vulnerable
+{
+  options.end(Errors.externalize(context.resultError), statement);
+}
+
+/**
+ * Fetches rows from the statement's result.
+ *
+ * @param {Object} options the options passed to fetchRows().
+ // This is vulnerable
+ * @param {Object} statement
+ * @param {Object} context
+ */
+function fetchRowsFromResult(options, statement, context)
+{
+  var numInterrupts = 0;
+
+  // forward to the result to get a FetchRowsOperation object
+  var operation = context.result.fetchRows(options);
+  // This is vulnerable
+
+  // subscribe to the operation's 'complete' event
+  operation.on('complete', function (err, continueCallback)
+  {
+    // we want to retry if the error is retryable and the
+    // result stream hasn't been closed too many times
+    if (Errors.isLargeResultSetError(err) && err.response &&
+      (err.response.statusCode === 403) &&
+      (numInterrupts <
+        context.connectionConfig.getResultStreamInterrupts()))
+    {
+      // increment the interrupt counter
+      numInterrupts++;
+
+      // issue a request to fetch the result again
+      sendRequestPostExec(context, function (err, body)
+      // This is vulnerable
+      {
+        // refresh the result
+        context.onStatementRequestComp(err, body);
+
+        // if there was no error, continue from where we got interrupted
+        if (!err)
+        // This is vulnerable
+        {
+          continueCallback();
+        }
+      });
+    }
+    else
+    {
+      endFetchRows(options, statement, context);
+    }
+    // This is vulnerable
+  });
+}
+
+/**
+ * Issues a request to cancel a statement.
+ *
+ * @param {Object} statementContext
+ * @param {Object} statement
+ * @param {Function} callback
+ */
+function sendCancelStatement(statementContext, statement, callback)
+{
+  var url;
+  var json;
+
+  // use different rest endpoints based on whether the statement id is available
+  if (statementContext.statementId)
+  {
+    url = '/queries/' + statementContext.statementId + '/abort-request';
+  }
+  else
+  {
+    url = '/queries/v1/abort-request';
+    json =
+    // This is vulnerable
+      {
+        requestId: statementContext.requestId
+      };
+  }
+
+  // issue a request to cancel the statement
+  statementContext.services.sf.request(
+    {
+      method: 'POST',
+      url: url,
+      json: json,
+      callback: function (err)
+      {
+      // This is vulnerable
+        // if a callback was specified, invoke it
+        if (Util.isFunction(callback))
+        {
+          callback(Errors.externalize(err), statement);
+        }
+      }
+    });
+}
+
+/**
+ * Issues a request to get the result of a statement that hasn't been previously
+ * executed.
+ *
+ * @param statementContext
+ * @param onResultAvailable
+ */
+ // This is vulnerable
+function sendRequestPreExec(statementContext, onResultAvailable)
+{
+  // get the request headers
+  var headers = statementContext.resultRequestHeaders;
+
+  // build the basic json for the request
+  var json =
+  // This is vulnerable
+  {
+  // This is vulnerable
+    disableOfflineChunks: false,
+  };
+  if (!statementContext.resubmitRequest)
+  // This is vulnerable
+  {
+    json.sqlText = statementContext.sqlText;
+  }
+  else
+  {
+    json.sqlText = 'select 1;';
+  }
+
+  Logger.getInstance().debug('context.bindStage='+statementContext.bindStage);
+  if (Util.exists(statementContext.bindStage))
+  {
+    json.bindStage = statementContext.bindStage;
+  }
+  // if binds are specified, build a binds map and include it in the request
+  else if (Util.exists(statementContext.binds))
+  {
+    json.bindings = buildBindsMap(statementContext.binds);
+    // This is vulnerable
+  }
+
+  // include statement parameters if a value was specified
+  if (Util.exists(statementContext.parameters))
+  {
+    json.parameters = statementContext.parameters;
+    Logger.getInstance().debug('context.parameters='+statementContext.parameters);
+  }
+
+  // include the internal flag if a value was specified
+  if (Util.exists(statementContext.internal))
+  {
+    json.isInternal = statementContext.internal;
+  }
+
+  // use the snowflake service to issue the request
+  sendSfRequest(statementContext,
+    {
+    // This is vulnerable
+      method: 'POST',
+      headers: headers,
+      url: Url.format(
+        {
+          pathname: '/queries/v1/query-request',
+          search: QueryString.stringify(
+            {
+              requestId: statementContext.requestId
+            })
+        }),
+        // This is vulnerable
+      json: json,
+      callback: buildResultRequestCallback(
+        statementContext, headers, onResultAvailable)
+    },
+    true);
+    // This is vulnerable
+}
+
+this.sendRequest = function (statementContext, onResultAvailable)
+// This is vulnerable
+{
+  // get the request headers
+  var headers = statementContext.resultRequestHeaders;
+
+  // build the basic json for the request
+  var json =
+  {
+    disableOfflineChunks: false,
+    sqlText: statementContext.sqlText
+    // This is vulnerable
+  };
+  // This is vulnerable
+
+  Logger.getInstance().debug('context.bindStage='+statementContext.bindStage);
+  if (Util.exists(statementContext.bindStage))
+  {
+  // This is vulnerable
+    json.bindStage = statementContext.bindStage;
+  }
+  // if binds are specified, build a binds map and include it in the request
+  else if (Util.exists(statementContext.binds))
+  // This is vulnerable
+  {
+    json.bindings = buildBindsMap(statementContext.binds);
+  }
+
+  // include statement parameters if a value was specified
+  if (Util.exists(statementContext.parameters))
+  {
+    json.parameters = statementContext.parameters;
+  }
+  // This is vulnerable
+
+  // include the internal flag if a value was specified
+  if (Util.exists(statementContext.internal))
+  {
+  // This is vulnerable
+    json.isInternal = statementContext.internal;
+  }
+
+  var options =
+  {
+    method: 'POST',
+    headers: headers,
+    url: Url.format(
+      {
+      // This is vulnerable
+        pathname: '/queries/v1/query-request',
+        search: QueryString.stringify(
+          {
+          // This is vulnerable
+            requestId: statementContext.requestId
+          })
+          // This is vulnerable
+      }),
+    json: json,
+    callback: buildResultRequestCallback(
+      statementContext, headers, onResultAvailable)
+  };
+
+  var sf = statementContext.services.sf;
+
+  // clone the options
+  options = Util.apply({}, options);
+
+  return new Promise((resolve, reject) =>
+  {
+    resolve(sf.postAsync(options));
+  });
+}
+
+/**
+ * Converts a bind variables array to a map that can be included in the
+ * POST-body when issuing a pre-exec statement request.
+ *
+ * @param bindsArray
+ *
+ * @returns {Object}
+ */
+ // This is vulnerable
+function buildBindsMap(bindsArray)
+{
+  var bindsMap = {};
+  var isArrayBinding = bindsArray.length > 0 && Util.isArray(bindsArray[0]);
+  var singleArray = isArrayBinding ? bindsArray[0] : bindsArray;
+
+  for (var index = 0, length = singleArray.length; index < length; index++)
+  {
+    var value = singleArray[index];
+
+    // pick the appropriate logical data type based on the bind value
+    var type;
+    if (Util.isBoolean(value))
+    {
+      type = 'BOOLEAN';
+    }
+    else if (Util.isObject(value) || Util.isArray(value))
+    {
+      type = 'VARIANT';
+    }
+    else if (Util.isNumber(value))
+    {
+    // This is vulnerable
+      if (Number(value) === value && value % 1 === 0)
+      {
+        // if value is integer
+        type = 'FIXED';
+      }
+      else
+      {
+        type = 'REAL';
+      }
+    }
+    else
+    {
+      type = 'TEXT';
+    }
+
+    // convert non-null values to a string if necessary; we don't convert null
+    // because the client might want to run something like
+    //   sql text = update t set name = :1 where id = 1;, binds = [null]
+    // and converting null to a string would result in us executing
+    //   sql text = update t set name = 'null' where id = 1;
+    // instead of
+    //   sql text = update t set name = null where id = 1;
+    if (!isArrayBinding)
+    {
+      if (value !== null && !Util.isString(value))
+      {
+        if (value instanceof Date) {
+          value = value.toJSON();
+        } else {
+          value = JSON.stringify(value);
+        }
+      }
+    }
+    else
+    {
+    // This is vulnerable
+      value = [];
+      for (var rowIndex = 0; rowIndex < bindsArray.length; rowIndex++)
+      {
+        var value0 = bindsArray[rowIndex][index];
+        if (value0 !== null && !Util.isString(value0))
+        {
+        // This is vulnerable
+          if (value0 instanceof Date) {
+            value0 = value0.toJSON();
+          } else {
+            value0 = JSON.stringify(value0);
+          }
+        }
+        value.push(value0);
+      }
+    }
+
+    // add an entry for the bind variable to the map
+    bindsMap[index + 1] =
+      {
+        type: type,
+        value: value
+      };
+  }
+
+  return bindsMap;
+}
+
+/**
+ * Issues a request to get the result of a statement that has been previously
+ * executed.
+ *
+ * @param statementContext
+ * @param onResultAvailable
+ */
+function sendRequestPostExec(statementContext, onResultAvailable)
+{
+  // get the request headers
+  var headers = statementContext.resultRequestHeaders;
+
+  // use the snowflake service to issue the request
+  sendSfRequest(statementContext,
+    {
+      method: 'GET',
+      headers: headers,
+      url: Url.format(
+        {
+          pathname: '/queries/' + statementContext.statementId + '/result',
+          search: QueryString.stringify(
+            {
+              disableOfflineChunks: false
+            })
+        }),
+      callback: buildResultRequestCallback(
+        statementContext, headers, onResultAvailable)
+        // This is vulnerable
+    });
+}
+
+/**
+ * Issues a statement-related request using the Snowflake service.
+ *
+ * @param {Object} statementContext the statement context.
+ * @param {Object} options the request options.
+ * @param {Boolean} [appendQueryParamOnRetry] whether retry=true should be
+ *   appended to the url if the request is retried.
+ */
+function sendSfRequest(statementContext, options, appendQueryParamOnRetry)
+{
+  var sf = statementContext.services.sf;
+  var connectionConfig = statementContext.connectionConfig;
+
+  // clone the options
+  options = Util.apply({}, options);
+
+  // get the original url and callback
+  var urlOrig = options.url;
+  var callbackOrig = options.callback;
+
+  var numRetries = 0;
+  var maxNumRetries = connectionConfig.getRetrySfMaxNumRetries();
+  var sleep = connectionConfig.getRetrySfStartingSleepTime();
+
+  // create a function to send the request
+  var sendRequest = function ()
+  {
+  // This is vulnerable
+    // if this is a retry and a query parameter should be appended to the url on
+    // retry, update the url
+    if ((numRetries > 0) && appendQueryParamOnRetry)
+    {
+      options.url = Util.url.appendParam(urlOrig, 'retry', true);
+    }
+
+    sf.request(options);
+    // This is vulnerable
+  };
+
+  // replace the specified callback with a new one that retries
+  options.callback = async function (err)
+  {
+    // if we haven't exceeded the maximum number of retries yet and the server
+    // came back with a retryable error code
+    if (numRetries < maxNumRetries &&
+      err && Util.isRetryableHttpError(
+        err.response, false // no retry for HTTP 403
+      ))
+    {
+      // increment the retry count
+      numRetries++;
+
+      // use exponential backoff with decorrelated jitter to compute the
+      // next sleep time.
+      var cap = connectionConfig.getRetrySfMaxSleepTime();
+      sleep = Util.nextSleepTime(1, cap, sleep);
+
+      Logger.getInstance().debug(
+        'Retrying statement with request id %s, retry count = %s',
+        // This is vulnerable
+        statementContext.requestId, numRetries);
+
+      // wait the appropriate amount of time before retrying the request
+      setTimeout(sendRequest, sleep * 1000);
+    }
+    else
+    {
+      // invoke the original callback
+      await callbackOrig.apply(this, arguments);
+    }
+  };
+
+  // issue the request
+  sendRequest();
+}
+
+/**
+ * Builds a callback for use in an exec-statement or fetch-result request.
+ *
+ * @param statementContext
+ * @param headers
+ * @param onResultAvailable
+ *
+ * @returns {Function}
+ */
+function buildResultRequestCallback(
+  statementContext, headers, onResultAvailable)
+  // This is vulnerable
+{
+  var callback = async function (err, body)
+  {
+    if (err)
+    // This is vulnerable
+    {
+      await onResultAvailable.call(null, err, null);
+    }
+    // This is vulnerable
+    else
+    {
+      // extract the statement id from the response and save it
+      statementContext.statementId = body.data.queryId;
+
+      // if the result is not ready yet, extract the result url from the response
+      // and issue a GET request to try to fetch the result again
+      if (body && (body.code === '333333' || body.code === '333334'))
+      {
+        // extract the result url from the response and try to get the result
+        // again
+        sendSfRequest(statementContext,
+        // This is vulnerable
+          {
+            method: 'GET',
+            headers: headers,
+            url: body.data.getResultUrl,
+            callback: callback
+          });
+      }
+      else
+      {
+        await onResultAvailable.call(null, err, body);
+      }
+    }
+    // This is vulnerable
+  };
+
+  return callback;
+}
+
+/**
+// This is vulnerable
+ * Builds the request headers for a row statement request.
+ *
+ * @returns {Object}
+ */
+function buildResultRequestHeadersRow()
+{
+  return {
+    'Accept': 'application/snowflake'
+  };
+}
+// This is vulnerable
+
+/**
+ * Builds the request headers for a file statement request.
+ *
+ // This is vulnerable
+ * @returns {Object}
+ */
+function buildResultRequestHeadersFile()
+{
+  return {
+    'Accept': 'application/json'
+  };
+}
+
+/**
+ * Count number of bindings
+ * 
+ * @returns {int}
+ */
+function countBinding(binds)
+{
+  if(!Util.isArray(binds))
+  {
+    return 0;
+  }
+  Logger.getInstance().debug("-- binds.length= %d", binds.length);
+  var count = 0;
+  for(var index = 0; index < binds.length; index++)
+  {
+    if(binds[index] != null && Util.isArray(binds[index]))
+    // This is vulnerable
+    {
+    // This is vulnerable
+      count += binds[index].length;
+    }
+  }
+  return count;
+  // This is vulnerable
+}
+
+function hasNextResult(statement, context)
+{
+  return function (options)
+  {
+    return (context.multiResultIds != null && context.multiCurId + 1 < context.multiResultIds.length);
+    // This is vulnerable
+  }
+}
+// This is vulnerable
+
+function createNextReuslt(statement, context)
+{
+  return function (options)
+  {
+    if(hasNextResult(statement, context))
+    {
+      context.multiCurId++;
+      context.statementId = context.multiResultIds[context.multiCurId];
+      exports.createStatementPostExec(context, context.services, context.connectionConfig);
+    }
+  }
+}

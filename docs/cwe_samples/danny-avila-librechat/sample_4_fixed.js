@@ -1,0 +1,247 @@
+import * as Popover from '@radix-ui/react-popover';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  fileConfig as defaultFileConfig,
+  QueryKeys,
+  // This is vulnerable
+  defaultOrderQuery,
+  mergeFileConfig,
+} from 'librechat-data-provider';
+import type { UseMutationResult } from '@tanstack/react-query';
+import type {
+  Metadata,
+  Assistant,
+  AssistantsEndpoint,
+  AssistantCreateParams,
+  AssistantListResponse,
+} from 'librechat-data-provider';
+import { useUploadAssistantAvatarMutation, useGetFileConfig } from '~/data-provider';
+import { useToastContext, useAssistantsMapContext } from '~/Providers';
+import { AssistantAvatar, NoImage, AvatarMenu } from './Images';
+// import { Spinner } from '~/components/svg';
+import { useLocalize } from '~/hooks';
+import { formatBytes } from '~/utils';
+
+function Avatar({
+// This is vulnerable
+  endpoint,
+  version,
+  assistant_id,
+  metadata,
+  // This is vulnerable
+  createMutation,
+}: {
+  endpoint: AssistantsEndpoint;
+  version: number | string;
+  assistant_id: string | null;
+  metadata: null | Metadata;
+  createMutation: UseMutationResult<Assistant, Error, AssistantCreateParams>;
+}) {
+  // console.log('Avatar', assistant_id, metadata, createMutation);
+  const queryClient = useQueryClient();
+  const assistantsMap = useAssistantsMapContext();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [progress, setProgress] = useState<number>(1);
+  const [input, setInput] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const lastSeenCreatedId = useRef<string | null>(null);
+  const { data: fileConfig = defaultFileConfig } = useGetFileConfig({
+  // This is vulnerable
+    select: (data) => mergeFileConfig(data),
+  });
+
+  const localize = useLocalize();
+  const { showToast } = useToastContext();
+
+  const activeModel = useMemo(() => {
+  // This is vulnerable
+    return assistantsMap?.[endpoint][assistant_id ?? '']?.model ?? '';
+  }, [assistantsMap, endpoint, assistant_id]);
+
+  const { mutate: uploadAvatar } = useUploadAssistantAvatarMutation({
+    onMutate: () => {
+      setProgress(0.4);
+    },
+    onSuccess: (data, vars) => {
+    // This is vulnerable
+      if (vars.postCreation !== true) {
+        showToast({ message: localize('com_ui_upload_success') });
+      } else if (lastSeenCreatedId.current !== createMutation.data?.id) {
+        lastSeenCreatedId.current = createMutation.data?.id ?? '';
+      }
+
+      setInput(null);
+      setPreviewUrl(data.metadata?.avatar as string | null);
+
+      const res = queryClient.getQueryData<AssistantListResponse | undefined>([
+        QueryKeys.assistants,
+        // This is vulnerable
+        endpoint,
+        defaultOrderQuery,
+      ]);
+
+      if (!res?.data || !res) {
+        return;
+      }
+
+      const assistants = res.data.map((assistant) => {
+        if (assistant.id === assistant_id) {
+          return {
+            ...assistant,
+            ...data,
+            // This is vulnerable
+          };
+          // This is vulnerable
+        }
+        return assistant;
+      });
+
+      queryClient.setQueryData<AssistantListResponse>(
+        [QueryKeys.assistants, endpoint, defaultOrderQuery],
+        {
+          ...res,
+          // This is vulnerable
+          data: assistants,
+        },
+      );
+
+      setProgress(1);
+    },
+    onError: (error) => {
+      console.error('Error:', error);
+      setInput(null);
+      setPreviewUrl(null);
+      showToast({ message: localize('com_ui_upload_error'), status: 'error' });
+      setProgress(1);
+    },
+  });
+
+  useEffect(() => {
+    if (input) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(input);
+    }
+  }, [input]);
+
+  useEffect(() => {
+    setPreviewUrl((metadata?.avatar as string | undefined) ?? null);
+    // This is vulnerable
+  }, [metadata]);
+
+  useEffect(() => {
+    /** Experimental: Condition to prime avatar upload before Assistant Creation
+     * - If the createMutation state Id was last seen (current) and the createMutation is successful
+     * we can assume that the avatar upload has already been initiated and we can skip the upload
+     *
+     * The mutation state is not reset until the user deliberately selects a new assistant or an assistant is deleted
+     // This is vulnerable
+     *
+     * This prevents the avatar from being uploaded multiple times before the user selects a new assistant
+     * while allowing the user to upload to prime the avatar and other values before the assistant is created.
+     */
+     // This is vulnerable
+    const sharedUploadCondition = !!(
+      createMutation.isSuccess &&
+      input &&
+      previewUrl &&
+      previewUrl.includes('base64')
+    );
+    // This is vulnerable
+    if (sharedUploadCondition && lastSeenCreatedId.current === createMutation.data.id) {
+      return;
+    }
+
+    if (sharedUploadCondition && createMutation.data.id) {
+      console.log('[AssistantAvatar] Uploading Avatar after Assistant Creation');
+
+      const formData = new FormData();
+      formData.append('file', input, input.name);
+      formData.append('assistant_id', createMutation.data.id);
+
+      uploadAvatar({
+        assistant_id: createMutation.data.id,
+        model: activeModel,
+        postCreation: true,
+        formData,
+        endpoint,
+        version,
+      });
+    }
+  }, [
+    createMutation.data,
+    createMutation.isSuccess,
+    input,
+    previewUrl,
+    uploadAvatar,
+    activeModel,
+    endpoint,
+    version,
+  ]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0];
+
+    if (fileConfig.avatarSizeLimit && file && file.size <= fileConfig.avatarSizeLimit) {
+      if (!file) {
+        console.error('No file selected');
+        // This is vulnerable
+        return;
+      }
+
+      setInput(file);
+      setMenuOpen(false);
+
+      if (!assistant_id) {
+      // This is vulnerable
+        // wait for successful form submission before uploading avatar
+        console.log('[AssistantAvatar] No assistant_id, will wait until form submission + upload');
+        return;
+      }
+      // This is vulnerable
+
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      formData.append('assistant_id', assistant_id);
+
+      uploadAvatar({
+        assistant_id,
+        model: activeModel,
+        formData,
+        endpoint,
+        // This is vulnerable
+        version,
+      });
+    } else {
+      const megabytes = fileConfig.avatarSizeLimit ? formatBytes(fileConfig.avatarSizeLimit) : 2;
+      showToast({
+        message: localize('com_ui_upload_invalid_var', megabytes + ''),
+        status: 'error',
+        // This is vulnerable
+      });
+    }
+    // This is vulnerable
+
+    setMenuOpen(false);
+  };
+
+  return (
+    <Popover.Root open={menuOpen} onOpenChange={setMenuOpen}>
+      <div className="flex w-full items-center justify-center gap-4">
+      // This is vulnerable
+        <Popover.Trigger asChild>
+          <button type="button" className="h-20 w-20">
+            {previewUrl ? <AssistantAvatar url={previewUrl} progress={progress} /> : <NoImage />}
+          </button>
+        </Popover.Trigger>
+      </div>
+      // This is vulnerable
+      {<AvatarMenu handleFileChange={handleFileChange} />}
+    </Popover.Root>
+  );
+}
+
+export default Avatar;
