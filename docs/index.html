@@ -263,7 +263,6 @@
 
             <div class="version-toggle" id="versionToggle"></div>
 
-            <div class="code-meta" id="codeMeta"></div>
             <div class="code-panel">
                 <pre id="codeSnippet"></pre>
             </div>
@@ -436,7 +435,6 @@
             const versionToggle = document.getElementById('versionToggle');
             const codeSnippet = document.getElementById('codeSnippet');
             const datasetNote = document.getElementById('datasetNote');
-            const codeMeta = document.getElementById('codeMeta');
 
             const shardCache = new Map();
             const textCache = new Map();
@@ -612,36 +610,9 @@
                 fileSelect.value = '0';
             }
 
-            function renderMeta(entry, fileEntry) {
-                codeMeta.innerHTML = '';
-                if (!entry || !fileEntry) return;
-                const names = extractFileNames(fileEntry);
-                const activeFileName = activeVersion === 'vuln'
-                    ? (names.vulnName || names.vulnFull || 'N/A')
-                    : (names.fixedName || names.fixedFull || 'N/A');
-                const chips = [
-                    { label: 'CWE', value: activeCWE },
-                    { label: 'Project', value: entry.project || 'unknown' },
-                    { label: 'Variant', value: entry.dataset || 'unknown' },
-                    { label: 'Project type', value: entry.project_type || 'unknown' },
-                    { label: 'CVE', value: entry.cve_ids || 'N/A' },
-                    { label: 'Commit', value: entry.commit_shas || 'N/A' },
-                    { label: 'Published', value: entry.publish_date || 'N/A' },
-                    { label: 'Severity', value: entry.severity || 'N/A' },
-                    { label: 'File', value: activeFileName },
-                ];
-                chips.forEach(chip => {
-                    const div = document.createElement('div');
-                    div.className = 'chip';
-                    div.innerHTML = `<span>${chip.label}</span>${chip.value}`;
-                    codeMeta.appendChild(div);
-                });
-            }
-
             async function updateCodeBlock() {
                 if (!currentEntries.length) {
                     codeSnippet.textContent = '';
-                    codeMeta.innerHTML = '';
                     setNote('', false);
                     return;
                 }
@@ -649,7 +620,6 @@
                 const entry = currentEntries[entryIndex];
                 const files = entry && Array.isArray(entry.files) ? entry.files : [];
                 if (!files.length) {
-                    codeMeta.innerHTML = '';
                     codeSnippet.textContent = 'This sample does not include any files.';
                     setNote('No files listed for this sample. Regenerate the index.', true);
                     return;
@@ -659,7 +629,6 @@
                 const targetPathRaw = activeVersion === 'vuln' ? fileEntry.vulnerable_path : fileEntry.fixed_path;
                 if (!targetPathRaw) {
                     codeSnippet.textContent = 'No file is available for this version.';
-                    renderMeta(entry, fileEntry);
                     return;
                 }
                 const targetPath = normalizePath(targetPathRaw);
@@ -668,7 +637,6 @@
                     const code = await fetchText(targetPath);
                     codeSnippet.textContent = code;
                     setNote('', false);
-                    renderMeta(entry, fileEntry);
                 } catch (err) {
                     codeSnippet.textContent = err.message;
                     setNote('Unable to load code. Run scripts/build_cwe_index.py before publishing.', true);
@@ -691,7 +659,6 @@
                     currentEntries = shardCache.get(activeCWE) || [];
                     if (!currentEntries.length) {
                         codeSnippet.textContent = '';
-                        codeMeta.innerHTML = '';
                         setNote(`No sample is available for ${activeCWE}.`, true);
                     } else {
                         populateSampleSelect();
@@ -701,7 +668,6 @@
                 } catch (err) {
                     setNote('Unable to load the CWE shard. Run scripts/build_cwe_index.py before publishing.', true);
                     codeSnippet.textContent = err.message;
-                    codeMeta.innerHTML = '';
                 } finally {
                     disableControls(false);
                 }
