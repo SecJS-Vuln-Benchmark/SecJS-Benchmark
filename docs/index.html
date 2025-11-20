@@ -136,7 +136,15 @@
             font-weight: 600;
         }
         .chip span { color: var(--muted); font-weight: 500; margin-right: 6px; text-transform: uppercase; }
-        .dataset-note { margin-top: 16px; font-size: 0.95rem; color: var(--muted); }
+        .dataset-note {
+            margin-top: 16px;
+            font-size: 0.95rem;
+            color: #d9534f;
+            display: none;
+        }
+        .dataset-note.is-visible {
+            display: block;
+        }
         .case-study {
             background: #0f172a;
             color: white;
@@ -222,16 +230,21 @@
                     <li><strong>Prompt Injection:</strong> adds misleading audit comments (“security approved”) ahead of the guard to see whether LLMs trust text over code.</li>
                 </ul>
             </div>
-
+            <div class="card" style="margin-top:24px;">
+                <h3 style="margin-top:0;">ForgeJS obfuscation tracks</h3>
+                <ul>
+                    <li><strong>Light:</strong> only identifier mangling and compression (no control-flow rewrites) for quick sanity checks.</li>
+                    <li><strong>Medium:</strong> turns on control-flow flattening and dead-code injection so the execution path is disguised.</li>
+                    <li><strong>Heavy:</strong> adds Unicode escaping plus Base64 string-array encoding, forcing models to mentally decode literals.</li>
+                    <li><strong>Extreme:</strong> enables RC4 string arrays with rotation/shuffle so every literal is dynamically reconstructed.</li>
+                </ul>
+            </div>
         </div>
     </section>
 
     <section id="demo">
         <div class="container">
             <h2 class="section-title">B. Demo</h2>
-            <p style="text-align:center; max-width:800px; margin:0 auto 32px; color: var(--muted);">
-                Browse every CWE type in SecJS (over 1&nbsp;TB of code). Pick a CWE, sample, and file to view the full vulnerable/fixed source directly from the benchmark.
-            </p>
 
             <div class="demo-selects">
                 <div class="select-group">
@@ -445,8 +458,13 @@
             }
 
             function setNote(message, isError = false) {
+                if (!isError || !message) {
+                    datasetNote.textContent = '';
+                    datasetNote.classList.remove('is-visible');
+                    return;
+                }
                 datasetNote.textContent = message;
-                datasetNote.style.color = isError ? '#d9534f' : 'var(--muted)';
+                datasetNote.classList.add('is-visible');
             }
 
             function reportError(prefix, detail) {
@@ -460,7 +478,7 @@
             });
 
             window.addEventListener('unhandledrejection', event => {
-                reportError('数据加载失败', event.reason);
+                reportError('Data fetch failed', event.reason);
             });
 
             function disableControls(disabled) {
@@ -475,7 +493,7 @@
             async function fetchJSON(url) {
                 const res = await fetch(url);
                 if (!res.ok) {
-                    throw new Error(`加载失败：${url}`);
+                    throw new Error(`Failed to load ${url}`);
                 }
                 return res.json();
             }
@@ -486,7 +504,7 @@
                 }
                 const res = await fetch(url);
                 if (!res.ok) {
-                    throw new Error(`无法读取代码：${url}`);
+                    throw new Error(`Unable to fetch source: ${url}`);
                 }
                 const txt = await res.text();
                 textCache.set(url, txt);
@@ -508,6 +526,17 @@
                 });
             }
 
+            function extractFileNames(fileEntry) {
+                if (!fileEntry) {
+                    return { vulnFull: '', fixedFull: '', vulnName: '', fixedName: '' };
+                }
+                const vulnFull = fileEntry.original_vulnerable || fileEntry.vulnerable_path || '';
+                const fixedFull = fileEntry.original_fixed || fileEntry.fixed_path || '';
+                const vulnName = vulnFull ? vulnFull.split('/').pop() : '';
+                const fixedName = fixedFull ? fixedFull.split('/').pop() : '';
+                return { vulnFull, fixedFull, vulnName, fixedName };
+            }
+
             function populateCWESelect() {
                 const entries = Object.keys(manifest).sort((a, b) =>
                     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
@@ -527,36 +556,69 @@
 
             function populateSampleSelect() {
                 sampleSelect.innerHTML = '';
-                currentEntries.forEach((entry, idx) => {
+                if (!currentEntries.length) {
                     const option = document.createElement('option');
-                    const labelParts = [
-                        entry.project || 'Unknown project',
-                        entry.dataset ? `[${entry.dataset}]` : '',
-                        entry.cve_ids ? entry.cve_ids : '',
-                    ].filter(Boolean);
-                    option.value = String(idx);
-                    option.textContent = labelParts.join(' ');
+                    option.textContent = 'No sample available';
+                    option.disabled = true;
+                    option.selected = true;
                     sampleSelect.appendChild(option);
-                });
+                    return;
+                }
+                const entry = currentEntries[0];
+                const option = document.createElement('option');
+                const labelParts = [
+                    entry.project || 'Unknown project',
+                    entry.dataset ? `[${entry.dataset}]` : '',
+                    entry.cve_ids ? entry.cve_ids : '',
+                ].filter(Boolean);
+                option.value = '0';
+                option.textContent = labelParts.join(' ');
+                sampleSelect.appendChild(option);
                 activeSampleIndex = 0;
                 sampleSelect.value = '0';
             }
 
             function populateFileSelect(entry) {
                 fileSelect.innerHTML = '';
-                entry.files.forEach((fileEntry, idx) => {
+                const files = entry && Array.isArray(entry.files) ? entry.files : [];
+                files.forEach((fileEntry, idx) => {
                     const option = document.createElement('option');
-                    const vulnPath = fileEntry.vulnerable_path ? fileEntry.vulnerable_path.split('/').pop() : 'vulnerable';
+                    const names = extractFileNames(fileEntry);
+                    let displayLabel = '';
+                    if (names.vulnName && names.fixedName && names.vulnName !== names.fixedName) {
+                        displayLabel = `${names.vulnName} / ${names.fixedName}`;
+                    } else {
+                        displayLabel = names.vulnName || names.fixedName || `File ${idx + 1}`;
+                    }
+                    const tooltipParts = [];
+                    if (names.vulnFull) tooltipParts.push(`vuln: ${names.vulnFull}`);
+                    if (names.fixedFull) tooltipParts.push(`fix: ${names.fixedFull}`);
                     option.value = String(idx);
-                    option.textContent = `${idx + 1}. ${vulnPath}`;
+                    option.textContent = displayLabel;
+                    option.title = tooltipParts.join(' | ') || displayLabel;
                     fileSelect.appendChild(option);
                 });
+                if (!files.length) {
+                    const placeholder = document.createElement('option');
+                    placeholder.textContent = 'No files';
+                    placeholder.disabled = true;
+                    placeholder.selected = true;
+                    fileSelect.appendChild(placeholder);
+                    fileSelect.value = '';
+                    activeFileIndex = 0;
+                    return;
+                }
                 activeFileIndex = 0;
                 fileSelect.value = '0';
             }
 
             function renderMeta(entry, fileEntry) {
                 codeMeta.innerHTML = '';
+                if (!entry || !fileEntry) return;
+                const names = extractFileNames(fileEntry);
+                const activeFileName = activeVersion === 'vuln'
+                    ? (names.vulnName || names.vulnFull || 'N/A')
+                    : (names.fixedName || names.fixedFull || 'N/A');
                 const chips = [
                     { label: 'CWE', value: activeCWE },
                     { label: 'Project', value: entry.project || 'unknown' },
@@ -566,7 +628,7 @@
                     { label: 'Commit', value: entry.commit_shas || 'N/A' },
                     { label: 'Published', value: entry.publish_date || 'N/A' },
                     { label: 'Severity', value: entry.severity || 'N/A' },
-                    { label: 'File', value: activeVersion === 'vuln' ? (fileEntry.vulnerable_path || 'N/A') : (fileEntry.fixed_path || 'N/A') },
+                    { label: 'File', value: activeFileName },
                 ];
                 chips.forEach(chip => {
                     const div = document.createElement('div');
@@ -579,27 +641,37 @@
             async function updateCodeBlock() {
                 if (!currentEntries.length) {
                     codeSnippet.textContent = '';
+                    codeMeta.innerHTML = '';
+                    setNote('', false);
                     return;
                 }
-                const entry = currentEntries[activeSampleIndex];
-                const fileEntry = entry.files[activeFileIndex];
+                const entryIndex = Math.min(activeSampleIndex, currentEntries.length - 1);
+                const entry = currentEntries[entryIndex];
+                const files = entry && Array.isArray(entry.files) ? entry.files : [];
+                if (!files.length) {
+                    codeMeta.innerHTML = '';
+                    codeSnippet.textContent = 'This sample does not include any files.';
+                    setNote('No files listed for this sample. Regenerate the index.', true);
+                    return;
+                }
+                const fileIndex = Math.min(activeFileIndex, files.length - 1);
+                const fileEntry = files[fileIndex];
                 const targetPathRaw = activeVersion === 'vuln' ? fileEntry.vulnerable_path : fileEntry.fixed_path;
                 if (!targetPathRaw) {
-                    codeSnippet.textContent = '该版本没有可展示的文件。';
+                    codeSnippet.textContent = 'No file is available for this version.';
                     renderMeta(entry, fileEntry);
                     return;
                 }
                 const targetPath = normalizePath(targetPathRaw);
                 try {
-                    codeSnippet.textContent = '加载中…';
+                    codeSnippet.textContent = 'Loading code…';
                     const code = await fetchText(targetPath);
                     codeSnippet.textContent = code;
-                    const summary = entry.summary || '本样本源自 SecJS 基准中的真实 GitHub 项目。';
-                    setNote(`${summary} · 当前查看：${versionLabels[activeVersion]}（${entry.dataset || '未知变体'}）`);
+                    setNote('', false);
                     renderMeta(entry, fileEntry);
                 } catch (err) {
                     codeSnippet.textContent = err.message;
-                    setNote('无法加载代码，请确认已经运行 scripts/build_cwe_index.py。', true);
+                    setNote('Unable to load code. Run scripts/build_cwe_index.py before publishing.', true);
                 }
             }
 
@@ -609,29 +681,29 @@
                 const meta = manifest[activeCWE];
                 if (!meta) return;
                 try {
-                    setNote('加载样本中…');
                     disableControls(true);
                     if (!shardCache.has(activeCWE)) {
                         const shardPath = normalizePath(meta.file);
                         const data = await fetchJSON(shardPath);
-                        shardCache.set(activeCWE, data);
+                        const canonical = Array.isArray(data) && data.length ? [data[0]] : [];
+                        shardCache.set(activeCWE, canonical);
                     }
                     currentEntries = shardCache.get(activeCWE) || [];
                     if (!currentEntries.length) {
-                        setNote('该 CWE 暂无样本。', true);
                         codeSnippet.textContent = '';
                         codeMeta.innerHTML = '';
-                        return;
+                        setNote(`No sample is available for ${activeCWE}.`, true);
+                    } else {
+                        populateSampleSelect();
+                        populateFileSelect(currentEntries[0]);
+                        await updateCodeBlock();
                     }
-                    populateSampleSelect();
-                    populateFileSelect(currentEntries[0]);
-                    setNote(`已载入 ${activeCWE} 的 ${currentEntries.length} 个样本。`);
-                    disableControls(false);
-                    await updateCodeBlock();
                 } catch (err) {
-                    setNote('无法加载 CWE 索引，请先运行 scripts/build_cwe_index.py。', true);
+                    setNote('Unable to load the CWE shard. Run scripts/build_cwe_index.py before publishing.', true);
                     codeSnippet.textContent = err.message;
-                    disableControls(true);
+                    codeMeta.innerHTML = '';
+                } finally {
+                    disableControls(false);
                 }
             }
 
@@ -642,12 +714,15 @@
             });
 
             sampleSelect.addEventListener('change', () => {
+                if (!currentEntries.length) return;
                 activeSampleIndex = parseInt(sampleSelect.value, 10) || 0;
-                populateFileSelect(currentEntries[activeSampleIndex]);
+                const entry = currentEntries[Math.min(activeSampleIndex, currentEntries.length - 1)];
+                populateFileSelect(entry);
                 updateCodeBlock();
             });
 
             fileSelect.addEventListener('change', () => {
+                if (!currentEntries.length) return;
                 activeFileIndex = parseInt(fileSelect.value, 10) || 0;
                 updateCodeBlock();
             });
@@ -655,18 +730,18 @@
             async function init() {
                 renderVersionButtons();
                 disableControls(true);
-                setNote('正在加载 CWE 索引…');
                 try {
                     manifest = await fetchJSON(manifestUrl);
                     if (!Object.keys(manifest).length) {
-                        throw new Error('cwe_index.json 为空。');
+                        throw new Error('cwe_index.json is empty.');
                     }
                     populateCWESelect();
-                    disableControls(false);
                     await handleCWEChange();
                 } catch (err) {
-                    setNote('未找到 cwe_index.json，请先运行 scripts/build_cwe_index.py 生成索引。', true);
+                    setNote('Missing cwe_index.json. Run scripts/build_cwe_index.py before publishing.', true);
                     codeSnippet.textContent = err.message;
+                } finally {
+                    disableControls(false);
                 }
             }
 
