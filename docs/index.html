@@ -415,402 +415,263 @@
     </footer>
 
     <script>
-        const sampleData = {
-            original: {
-                label: 'Original',
-                summary: 'Raw vulnerable commit extracted from ASaiAnudeep/deep-override (2aced176, 2021-05-14).',
-                note: 'JudgeJS feeds the unchanged project into the LLM to obtain the ground-truth behavior.',
-                versions: {
-                    vuln: {
-                        badge: 'Vulnerable',
-                        cwe: 'CWE-1321 (Prototype Pollution)',
-                        file: 'src/index.js',
-                        code: String.raw`function isSpecificValue(val) {
-  return val instanceof Buffer || val instanceof Date || val instanceof RegExp;
-}
+        (function() {
+            const manifestUrl = 'cwe_index.json';
+            const cweSelect = document.getElementById('cweSelect');
+            const sampleSelect = document.getElementById('sampleSelect');
+            const fileSelect = document.getElementById('fileSelect');
+            const versionToggle = document.getElementById('versionToggle');
+            const codeSnippet = document.getElementById('codeSnippet');
+            const datasetNote = document.getElementById('datasetNote');
+            const codeMeta = document.getElementById('codeMeta');
 
-function cloneSpecificValue(val) {
-  if (val instanceof Buffer) {
-    const _copy = Buffer.alloc(val.length);
-    val.copy(_copy);
-    return _copy;
-  } else if (val instanceof Date) {
-    return new Date(val.getTime());
-  } else if (val instanceof RegExp) {
-    return new RegExp(val);
-  } else {
-    throw new Error('Unexpected Value Type');
-  }
-}
+            const shardCache = new Map();
+            const textCache = new Map();
+            let manifest = {};
+            let activeCWE = '';
+            let activeSampleIndex = 0;
+            let activeFileIndex = 0;
+            let activeVersion = 'vuln';
+            let currentEntries = [];
 
-function override(...rawArgs) {
-  if (rawArgs.length < 1 || typeof rawArgs[0] !== 'object') return false;
-  if (rawArgs.length < 2) return rawArgs[0];
-  const target = rawArgs[0];
-  const args = Array.prototype.slice.call(rawArgs, 1);
-  let val, src;
-  args.forEach(obj => {
-    if (typeof obj !== 'object') return;
-    if (Array.isArray(obj)) {
-      obj.forEach((_, index) => {
-        src = target[index];
-        val = obj[index];
-        if (val === target) {
-        } else if (typeof val !== 'object' || val === null) {
-          target[index] = val;
-        } else if (isSpecificValue(val)) {
-          target[index] = cloneSpecificValue(val);
-        } else if (typeof src !== 'object' || src === null) {
-          if (Array.isArray(val)) {
-            target[index] = override([], val);
-          } else {
-            target[index] = override({}, val);
-          }
-        } else {
-          target[index] = override(src, val);
-        }
-        return;
-      });
-    } else {
-      Object.keys(obj).forEach(key => {
-        src = target[key];
-        val = obj[key];
-        if (val === target) {
-        } else if (typeof val !== 'object' || val === null) {
-          target[key] = val;
-        } else if (isSpecificValue(val)) {
-          target[key] = cloneSpecificValue(val);
-        } else if (typeof src !== 'object' || src === null) {
-          if (Array.isArray(val)) {
-            target[key] = override([], val);
-          } else {
-            target[key] = override({}, val);
-          }
-        } else {
-          target[key] = override(src, val);
-        }
-        return;
-      });
-    }
-  });
-  return target;
-}
+            const versionLabels = {
+                vuln: 'Vulnerable build',
+                fixed: 'Fixed build',
+            };
 
-module.exports = override;`
-                    },
-                    fixed: {
-                        badge: 'Fixed',
-                        cwe: 'CWE-1321 mitigated',
-                        file: 'src/index.js',
-                        code: String.raw`function isSpecificValue(val) {
-  return val instanceof Buffer || val instanceof Date || val instanceof RegExp;
-}
-
-function cloneSpecificValue(val) {
-  if (val instanceof Buffer) {
-    const _copy = Buffer.alloc(val.length);
-    val.copy(_copy);
-    return _copy;
-  } else if (val instanceof Date) {
-    return new Date(val.getTime());
-  } else if (val instanceof RegExp) {
-    return new RegExp(val);
-  } else {
-    throw new Error('Unexpected Value Type');
-  }
-}
-
-function override(...rawArgs) {
-  if (rawArgs.length < 1 || typeof rawArgs[0] !== 'object') return false;
-  if (rawArgs.length < 2) return rawArgs[0];
-  const target = rawArgs[0];
-  const args = Array.prototype.slice.call(rawArgs, 1);
-  let val, src;
-  const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
-  args.forEach(obj => {
-    if (typeof obj !== 'object') return;
-    if (Array.isArray(obj)) {
-      obj.forEach((_, index) => {
-        src = target[index];
-        val = obj[index];
-        if (val === target) {
-        } else if (typeof val !== 'object' || val === null) {
-          target[index] = val;
-        } else if (isSpecificValue(val)) {
-          target[index] = cloneSpecificValue(val);
-        } else if (typeof src !== 'object' || src === null) {
-          if (Array.isArray(val)) {
-            target[index] = override([], val);
-          } else {
-            target[index] = override({}, val);
-          }
-        } else {
-          target[index] = override(src, val);
-        }
-        return;
-      });
-    } else {
-      Object.keys(obj).forEach(key => {
-        if (dangerousKeys.includes(key)) return;
-        src = target[key];
-        val = obj[key];
-        if (val === target) {
-        } else if (typeof val !== 'object' || val === null) {
-          target[key] = val;
-        } else if (isSpecificValue(val)) {
-          target[key] = cloneSpecificValue(val);
-        } else if (typeof src !== 'object' || src === null) {
-          if (Array.isArray(val)) {
-            target[key] = override([], val);
-          } else {
-            target[key] = override({}, val);
-          }
-        } else {
-          target[key] = override(src, val);
-        }
-        return;
-      });
-    }
-  });
-  return target;
-}
-
-module.exports = override;`
-                    }
-                }
-            },
-            noise: {
-                label: 'Noise',
-                summary: 'Adds safe but noisy sinks (file writes, DB queries, DOM writes) before the vulnerable merge block.',
-                note: 'Used to test if a model over-reacts to irrelevant APIs (fs, innerHTML, db.execute).',
-                versions: {
-                    vuln: {
-                        badge: 'Vulnerable + noise',
-                        cwe: 'CWE-1321',
-                        file: 'src/index.js',
-                        code: String.raw`function override(target, source, options = {}) {
-  const logFile = '/var/log/merge.log';
-  fs.appendFileSync(logFile, 'Merge operation at ' + Date.now() + '\n');
-  const auditQuery = "INSERT INTO audit_log VALUES ('merge', NOW())";
-  auditDb.execute(auditQuery);
-  const statusDiv = global.document?.getElementById('status');
-  if (statusDiv) statusDiv.innerHTML = '<span>Merging...</span>';
-
-  for (const key in source) {
-    if (!source.hasOwnProperty(key)) continue;
-    if (key === '__proto__') continue; // still vulnerable
-    // ... same merge logic as original ...
-  }
-}`
-                    },
-                    fixed: {
-                        badge: 'Fixed + noise',
-                        cwe: 'CWE-1321 mitigated',
-                        file: 'src/index.js',
-                        code: String.raw`function override(target, source, options = {}) {
-  const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
-  fs.appendFileSync('/var/log/merge.log', 'Merge operation at ' + Date.now() + '\n');
-  auditDb.execute("INSERT INTO audit_log VALUES ('merge', NOW())");
-
-  for (const key in source) {
-    if (!source.hasOwnProperty(key)) continue;
-    if (dangerousKeys.includes(key)) continue;
-    // ... same merge logic as fixed original ...
-  }
-}`
-                    }
-                }
-            },
-            obfuscated: {
-                label: 'Obfuscated',
-                summary: 'javascript-obfuscator transforms identifiers + encodes literals while preserving semantics.',
-                note: 'Tests whether the detector still reasons about the guard when names become `_0x3a2f`.',
-                versions: {
-                    vuln: {
-                        badge: 'Vulnerable + obf',
-                        cwe: 'CWE-1321',
-                        file: 'dist/index.js',
-                        code: String.raw`for (const _0x3a2f in _0x2c5d) {
-  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
-  if (_0x3a2f === '\x5f\x5f\x70\x72\x6f\x74\x6f\x5f\x5f') continue;
-  const _0x4e1a = _0x2c5d[_0x3a2f];
-  const _0x5b2c = _0x1b4e[_0x3a2f];
-  if (_0x7d3e(_0x4e1a)) {
-    _0x1b4e[_0x3a2f] = _0x8f1c(_0x5b2c, _0x4e1a, _0x9a2b);
-  } else {
-    _0x1b4e[_0x3a2f] = _0x4e1a;
-  }
-}`
-                    },
-                    fixed: {
-                        badge: 'Fixed + obf',
-                        cwe: 'CWE-1321 mitigated',
-                        file: 'dist/index.js',
-                        code: String.raw`const _0x93e0 = ['__proto__','constructor','prototype'];
-for (const _0x3a2f in _0x2c5d) {
-  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
-  if (_0x93e0.includes(_0x3a2f)) continue;
-  // ... same recursive merge logic ...
-}`
-                    }
-                }
-            },
-            noise_obf: {
-                label: 'Noise + Obf.',
-                summary: 'Applies noise injection first, then obfuscates the entire file.',
-                note: 'Combines lexical churn with misleading sinks to expose brittle detectors.',
-                versions: {
-                    vuln: {
-                        badge: 'Vulnerable + hybrid',
-                        cwe: 'CWE-1321',
-                        file: 'dist/index.js',
-                        code: String.raw`const _0x1d12 = require('fs');
-_0x1d12['appendFileSync']('/var/log/merge.log', 'Merge ' + Date.now());
-for (const _0x3a2f in _0x2c5d) {
-  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
-  if (_0x3a2f === '\x5f\x5f\x70\x72\x6f\x74\x6f\x5f\x5f') continue;
-  // ... obfuscated merge logic ...
-}`
-                    },
-                    fixed: {
-                        badge: 'Fixed + hybrid',
-                        cwe: 'CWE-1321 mitigated',
-                        file: 'dist/index.js',
-                        code: String.raw`const _0x4b2c = ['__proto__','constructor','prototype'];
-for (const _0x3a2f in _0x2c5d) {
-  if (!_0x2c5d['hasOwnProperty'](_0x3a2f)) continue;
-  if (_0x4b2c.includes(_0x3a2f)) continue;
-  // ... obfuscated merge logic ...
-}`
-                    }
-                }
-            },
-        const cweExamples = [
-            {
-                cwe: 'Prototype pollution (CWE-1321/CWE-915)',
-                dataset: 'Original',
-                summary: 'ASaiAnudeep/deep-override allows attacker keys to overwrite Object.prototype.',
-                vulnCode: fullFileVuln,
-                fixedCode: fullFileFixed
-            },
-            {
-                cwe: 'SQL Injection (CWE-89)',
-                dataset: 'Noise',
-                summary: 'NodeShop/sql-handler builds SQL strings via concatenation; the fixed version uses parameter binding.',
-                vulnCode: String.raw`function runQuery(userInput) {
-  const sql = "SELECT * FROM orders WHERE user = '" + userInput + "'";
-  return db.query(sql); // vulnerable to injection
-}`,
-                fixedCode: String.raw`function runQuery(userInput) {
-  const sql = "SELECT * FROM orders WHERE user = ?";
-  return db.query(sql, [userInput]); // parameterized
-}`
-            },
-            {
-                cwe: 'Cross-Site Scripting (CWE-79/CWE-80/CWE-83)',
-                dataset: 'Obfuscated',
-                summary: 'Frontend widget writes unsanitized user HTML directly to innerHTML.',
-                vulnCode: String.raw`function renderStatus(message) {
-  const div = document.getElementById('status');
-  div.innerHTML = "<span>" + message + "</span>"; // XSS
-}`,
-                fixedCode: String.raw`function renderStatus(message) {
-  const div = document.getElementById('status');
-  div.textContent = message; // safe rendering
-}`
-            },
-            {
-                cwe: 'Command Injection (CWE-78)',
-                dataset: 'Noise + Obf.',
-                summary: 'Server executes shell command built from request parameters; fix moves to execFile with allowlist.',
-                vulnCode: String.raw`app.post('/backup', (req, res) => {
-  const cmd = "tar -czf /tmp/" + req.body.name + ".tgz /data";
-  child_process.exec(cmd, err => res.sendStatus(err ? 500 : 200));
-});`,
-                fixedCode: String.raw`app.post('/backup', (req, res) => {
-  const safeName = validateName(req.body.name);
-  child_process.execFile('tar', ['-czf', '/tmp/' + safeName + '.tgz', '/data'], err => res.sendStatus(err ? 500 : 200));
-});`
-            },
-            {
-                cwe: 'XXE Injection (CWE-611)',
-                dataset: 'Prompt Injection',
-                summary: 'XML parser runs with external entity expansion enabled; fixed config disables XXE.',
-                vulnCode: String.raw`const parser = new xml2js.Parser({ explicitArray: false });
-parser.parseString(uploadedXml, cb); // XXE enabled`,
-                fixedCode: String.raw`const parser = new xml2js.Parser({ explicitArray: false, xmldec: { standalone: true }, xmlns: false });
-parser.parseString(uploadedXml, cb); // XXE disabled`
+            function normalizePath(path) {
+                if (!path) return null;
+                return path.startsWith('docs/') ? path.slice(5) : path;
             }
-        ];
 
-        const datasets = cweExamples.map((entry, idx) => `variant-${idx}`);
-        let activeDataset = 'original';
-        let activeVersion = 'vuln';
+            function setNote(message, isError = false) {
+                datasetNote.textContent = message;
+                datasetNote.style.color = isError ? '#d9534f' : 'var(--muted)';
+            }
 
-        const datasetControls = document.getElementById('datasetControls');
-        const versionToggle = document.getElementById('versionToggle');
-        const codeSnippet = document.getElementById('codeSnippet');
-        const datasetNote = document.getElementById('datasetNote');
-        const codeMeta = document.getElementById('codeMeta');
+            function reportError(prefix, detail) {
+                const msg = detail && detail.message ? detail.message : detail;
+                setNote(`${prefix}: ${msg}`, true);
+                console.error(prefix, detail);
+            }
 
-        function renderDatasetButtons() {
-            datasetControls.innerHTML = '';
-            cweExamples.forEach((entry, index) => {
-                const key = `variant-${index}`;
-                const btn = document.createElement('button');
-                btn.textContent = entry.cwe;
-                btn.classList.toggle('active', key === activeDataset);
-                btn.addEventListener('click', () => {
-                    activeDataset = key;
-                    renderDatasetButtons();
-                    renderVersionButtons();
-                    updateSnippet();
+            window.addEventListener('error', event => {
+                reportError('Script error', event.error || event.message);
+            });
+
+            window.addEventListener('unhandledrejection', event => {
+                reportError('数据加载失败', event.reason);
+            });
+
+            function disableControls(disabled) {
+                cweSelect.disabled = disabled;
+                sampleSelect.disabled = disabled;
+                fileSelect.disabled = disabled;
+                Array.from(versionToggle.querySelectorAll('button')).forEach(btn => {
+                    btn.disabled = disabled;
                 });
-                datasetControls.appendChild(btn);
-            });
-        }
+            }
 
-        function renderVersionButtons() {
-            versionToggle.innerHTML = '';
-            ['vuln', 'fixed'].forEach(version => {
-                const btn = document.createElement('button');
-                btn.textContent = version === 'vuln' ? 'Vulnerable build' : 'Fixed build';
-                btn.classList.toggle('active', version === activeVersion);
-                btn.addEventListener('click', () => {
-                    activeVersion = version;
-                    renderVersionButtons();
-                    updateSnippet();
+            async function fetchJSON(url) {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`加载失败：${url}`);
+                }
+                return res.json();
+            }
+
+            async function fetchText(url) {
+                if (textCache.has(url)) {
+                    return textCache.get(url);
+                }
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`无法读取代码：${url}`);
+                }
+                const txt = await res.text();
+                textCache.set(url, txt);
+                return txt;
+            }
+
+            function renderVersionButtons() {
+                versionToggle.innerHTML = '';
+                ['vuln', 'fixed'].forEach(version => {
+                    const btn = document.createElement('button');
+                    btn.textContent = versionLabels[version];
+                    btn.classList.toggle('active', version === activeVersion);
+                    btn.addEventListener('click', () => {
+                        activeVersion = version;
+                        renderVersionButtons();
+                        updateCodeBlock();
+                    });
+                    versionToggle.appendChild(btn);
                 });
-                versionToggle.appendChild(btn);
+            }
+
+            function populateCWESelect() {
+                const entries = Object.keys(manifest).sort((a, b) =>
+                    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+                );
+                cweSelect.innerHTML = '';
+                entries.forEach(cwe => {
+                    const option = document.createElement('option');
+                    option.value = cwe;
+                    option.textContent = `${cwe} (${manifest[cwe].count} samples)`;
+                    cweSelect.appendChild(option);
+                });
+                if (entries.length) {
+                    activeCWE = entries[0];
+                    cweSelect.value = activeCWE;
+                }
+            }
+
+            function populateSampleSelect() {
+                sampleSelect.innerHTML = '';
+                currentEntries.forEach((entry, idx) => {
+                    const option = document.createElement('option');
+                    const labelParts = [
+                        entry.project || 'Unknown project',
+                        entry.dataset ? `[${entry.dataset}]` : '',
+                        entry.cve_ids ? entry.cve_ids : '',
+                    ].filter(Boolean);
+                    option.value = String(idx);
+                    option.textContent = labelParts.join(' ');
+                    sampleSelect.appendChild(option);
+                });
+                activeSampleIndex = 0;
+                sampleSelect.value = '0';
+            }
+
+            function populateFileSelect(entry) {
+                fileSelect.innerHTML = '';
+                entry.files.forEach((fileEntry, idx) => {
+                    const option = document.createElement('option');
+                    const vulnPath = fileEntry.vulnerable_path ? fileEntry.vulnerable_path.split('/').pop() : 'vulnerable';
+                    option.value = String(idx);
+                    option.textContent = `${idx + 1}. ${vulnPath}`;
+                    fileSelect.appendChild(option);
+                });
+                activeFileIndex = 0;
+                fileSelect.value = '0';
+            }
+
+            function renderMeta(entry, fileEntry) {
+                codeMeta.innerHTML = '';
+                const chips = [
+                    { label: 'CWE', value: activeCWE },
+                    { label: 'Project', value: entry.project || 'unknown' },
+                    { label: 'Variant', value: entry.dataset || 'unknown' },
+                    { label: 'Project type', value: entry.project_type || 'unknown' },
+                    { label: 'CVE', value: entry.cve_ids || 'N/A' },
+                    { label: 'Commit', value: entry.commit_shas || 'N/A' },
+                    { label: 'Published', value: entry.publish_date || 'N/A' },
+                    { label: 'Severity', value: entry.severity || 'N/A' },
+                    { label: 'File', value: activeVersion === 'vuln' ? (fileEntry.vulnerable_path || 'N/A') : (fileEntry.fixed_path || 'N/A') },
+                ];
+                chips.forEach(chip => {
+                    const div = document.createElement('div');
+                    div.className = 'chip';
+                    div.innerHTML = `<span>${chip.label}</span>${chip.value}`;
+                    codeMeta.appendChild(div);
+                });
+            }
+
+            async function updateCodeBlock() {
+                if (!currentEntries.length) {
+                    codeSnippet.textContent = '';
+                    return;
+                }
+                const entry = currentEntries[activeSampleIndex];
+                const fileEntry = entry.files[activeFileIndex];
+                const targetPathRaw = activeVersion === 'vuln' ? fileEntry.vulnerable_path : fileEntry.fixed_path;
+                if (!targetPathRaw) {
+                    codeSnippet.textContent = '该版本没有可展示的文件。';
+                    renderMeta(entry, fileEntry);
+                    return;
+                }
+                const targetPath = normalizePath(targetPathRaw);
+                try {
+                    codeSnippet.textContent = '加载中…';
+                    const code = await fetchText(targetPath);
+                    codeSnippet.textContent = code;
+                    const summary = entry.summary || '本样本源自 SecJS 基准中的真实 GitHub 项目。';
+                    setNote(`${summary} · 当前查看：${versionLabels[activeVersion]}（${entry.dataset || '未知变体'}）`);
+                    renderMeta(entry, fileEntry);
+                } catch (err) {
+                    codeSnippet.textContent = err.message;
+                    setNote('无法加载代码，请确认已经运行 scripts/build_cwe_index.py。', true);
+                }
+            }
+
+            async function handleCWEChange() {
+                activeCWE = cweSelect.value;
+                if (!activeCWE) return;
+                const meta = manifest[activeCWE];
+                if (!meta) return;
+                try {
+                    setNote('加载样本中…');
+                    disableControls(true);
+                    if (!shardCache.has(activeCWE)) {
+                        const shardPath = normalizePath(meta.file);
+                        const data = await fetchJSON(shardPath);
+                        shardCache.set(activeCWE, data);
+                    }
+                    currentEntries = shardCache.get(activeCWE) || [];
+                    if (!currentEntries.length) {
+                        setNote('该 CWE 暂无样本。', true);
+                        codeSnippet.textContent = '';
+                        codeMeta.innerHTML = '';
+                        return;
+                    }
+                    populateSampleSelect();
+                    populateFileSelect(currentEntries[0]);
+                    setNote(`已载入 ${activeCWE} 的 ${currentEntries.length} 个样本。`);
+                    disableControls(false);
+                    await updateCodeBlock();
+                } catch (err) {
+                    setNote('无法加载 CWE 索引，请先运行 scripts/build_cwe_index.py。', true);
+                    codeSnippet.textContent = err.message;
+                    disableControls(true);
+                }
+            }
+
+            cweSelect.addEventListener('change', () => {
+                activeSampleIndex = 0;
+                activeFileIndex = 0;
+                handleCWEChange();
             });
-        }
 
-        function updateSnippet() {
-            const index = parseInt(activeDataset.split('-')[1], 10);
-            const entry = cweExamples[index];
-            const variant = activeVersion === 'vuln' ? entry.vulnCode : entry.fixedCode;
-            codeSnippet.textContent = variant;
-            datasetNote.textContent = `${entry.summary} (sampled from the ${entry.dataset} variant; SecJS stores 1 TB+ of project data, so we show one representative example per CWE group).`;
-
-            codeMeta.innerHTML = '';
-            const chips = [
-                { label: 'CWE class', value: entry.cwe },
-                { label: 'Dataset', value: entry.dataset },
-                { label: 'Commit', value: '2aced176 (example)' },
-                { label: 'Version', value: activeVersion === 'vuln' ? 'Vulnerable build' : 'Fixed build' },
-                { label: 'Note', value: 'Each group has a single example here due to size (≈1 TB)' }
-            ];
-            chips.forEach(chip => {
-                const div = document.createElement('div');
-                div.className = 'chip';
-                div.innerHTML = `<span>${chip.label}</span>${chip.value}`;
-                codeMeta.appendChild(div);
+            sampleSelect.addEventListener('change', () => {
+                activeSampleIndex = parseInt(sampleSelect.value, 10) || 0;
+                populateFileSelect(currentEntries[activeSampleIndex]);
+                updateCodeBlock();
             });
-        }
 
-        renderDatasetButtons();
-        renderVersionButtons();
-        updateSnippet();
+            fileSelect.addEventListener('change', () => {
+                activeFileIndex = parseInt(fileSelect.value, 10) || 0;
+                updateCodeBlock();
+            });
+
+            async function init() {
+                renderVersionButtons();
+                disableControls(true);
+                setNote('正在加载 CWE 索引…');
+                try {
+                    manifest = await fetchJSON(manifestUrl);
+                    if (!Object.keys(manifest).length) {
+                        throw new Error('cwe_index.json 为空。');
+                    }
+                    populateCWESelect();
+                    disableControls(false);
+                    await handleCWEChange();
+                } catch (err) {
+                    setNote('未找到 cwe_index.json，请先运行 scripts/build_cwe_index.py 生成索引。', true);
+                    codeSnippet.textContent = err.message;
+                }
+            }
+
+            init();
+        })();
     </script>
 </body>
 </html>
