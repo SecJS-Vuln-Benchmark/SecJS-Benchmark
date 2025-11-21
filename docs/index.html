@@ -252,8 +252,14 @@
                     <select id="cweSelect"></select>
                 </div>
                 <div class="select-group">
-                    <label for="sampleSelect">Sample</label>
-                    <select id="sampleSelect"></select>
+                    <label for="obfuscationSelect">Obfuscation</label>
+                    <select id="obfuscationSelect">
+                        <option value="original">Original</option>
+                        <option value="light">Light</option>
+                        <option value="medium">Medium</option>
+                        <option value="heavy">Heavy</option>
+                        <option value="extreme">Extreme</option>
+                    </select>
                 </div>
                 <div class="select-group">
                     <label for="fileSelect">File</label>
@@ -430,6 +436,7 @@
         (function() {
             const manifestUrl = 'cwe_index.json';
             const cweSelect = document.getElementById('cweSelect');
+            const obfuscationSelect = document.getElementById('obfuscationSelect');
             const sampleSelect = document.getElementById('sampleSelect');
             const fileSelect = document.getElementById('fileSelect');
             const versionToggle = document.getElementById('versionToggle');
@@ -440,10 +447,12 @@
             const textCache = new Map();
             let manifest = {};
             let activeCWE = '';
+            let activeObfuscation = 'original';
             let activeSampleIndex = 0;
             let activeFileIndex = 0;
             let activeVersion = 'vuln';
             let currentEntries = [];
+            let allCweEntries = [];
 
             const versionLabels = {
                 vuln: 'Vulnerable build',
@@ -481,6 +490,7 @@
 
             function disableControls(disabled) {
                 cweSelect.disabled = disabled;
+                obfuscationSelect.disabled = disabled;
                 sampleSelect.disabled = disabled;
                 fileSelect.disabled = disabled;
                 Array.from(versionToggle.querySelectorAll('button')).forEach(btn => {
@@ -550,6 +560,28 @@
                     activeCWE = entries[0];
                     cweSelect.value = activeCWE;
                 }
+            }
+
+            function matchesObfuscationType(entry, obfType) {
+                if (obfType === 'original') {
+                    const ds = (entry.dataset || '').toLowerCase();
+                    return ds === 'original' || ds === 'final' || !ds.includes('obfuscat');
+                }
+                const ds = (entry.dataset || '').toLowerCase();
+                const paths = [
+                    entry.files && entry.files[0] ? entry.files[0].vulnerable_path || '' : '',
+                    entry.files && entry.files[0] ? entry.files[0].fixed_path || '' : '',
+                ].join(' ').toLowerCase();
+                const searchText = (ds + ' ' + paths).toLowerCase();
+                if (obfType === 'light') {
+                    return searchText.includes('light') || (searchText.includes('obfuscat') && !searchText.includes('medium') && !searchText.includes('heavy') && !searchText.includes('extreme'));
+                }
+                return searchText.includes(obfType);
+            }
+
+            function filterByObfuscation(entries, obfType) {
+                if (!entries || !entries.length) return [];
+                return entries.filter(entry => matchesObfuscationType(entry, obfType));
             }
 
             function populateSampleSelect() {
@@ -645,6 +677,7 @@
 
             async function handleCWEChange() {
                 activeCWE = cweSelect.value;
+                activeObfuscation = obfuscationSelect.value;
                 if (!activeCWE) return;
                 const meta = manifest[activeCWE];
                 if (!meta) return;
@@ -653,13 +686,16 @@
                     if (!shardCache.has(activeCWE)) {
                         const shardPath = normalizePath(meta.file);
                         const data = await fetchJSON(shardPath);
-                        const canonical = Array.isArray(data) && data.length ? [data[0]] : [];
-                        shardCache.set(activeCWE, canonical);
+                        allCweEntries = Array.isArray(data) ? data : [];
+                        shardCache.set(activeCWE, allCweEntries);
+                    } else {
+                        allCweEntries = shardCache.get(activeCWE) || [];
                     }
-                    currentEntries = shardCache.get(activeCWE) || [];
+                    const filtered = filterByObfuscation(allCweEntries, activeObfuscation);
+                    currentEntries = filtered.length ? [filtered[0]] : [];
                     if (!currentEntries.length) {
                         codeSnippet.textContent = '';
-                        setNote(`No sample is available for ${activeCWE}.`, true);
+                        setNote(`No ${activeObfuscation} obfuscation sample available for ${activeCWE}.`, true);
                     } else {
                         populateSampleSelect();
                         populateFileSelect(currentEntries[0]);
@@ -674,6 +710,12 @@
             }
 
             cweSelect.addEventListener('change', () => {
+                activeSampleIndex = 0;
+                activeFileIndex = 0;
+                handleCWEChange();
+            });
+
+            obfuscationSelect.addEventListener('change', () => {
                 activeSampleIndex = 0;
                 activeFileIndex = 0;
                 handleCWEChange();
