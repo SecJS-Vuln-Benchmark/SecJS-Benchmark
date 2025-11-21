@@ -437,7 +437,7 @@
             let activeCWE = '';
             let activeVariant = 'original';
             let activeVersion = 'vuln';
-            let currentSample = null;
+            let variantSamples = {}; // Store samples for each variant: {original: sample, noise: sample, ...}
             let allCweEntries = [];
 
             const variantLabels = {
@@ -562,73 +562,37 @@
                 }
             }
 
-            function matchesVariant(entry, variant) {
-                const ds = (entry.dataset || '').toLowerCase().trim();
+            function loadVariantSamples(entries) {
+                variantSamples = {};
+                if (!entries || !entries.length) return;
                 
-                if (variant === 'original') {
-                    return ds === 'original' || ds === 'final';
-                }
-                if (variant === 'noise') {
-                    return ds === 'noise';
-                }
-                if (variant === 'obfuscated') {
-                    return ds === 'obfuscated';
-                }
-                if (variant === 'noise_obfuscated') {
-                    return ds === 'noise_obfuscated';
-                }
-                if (variant === 'prompt_injection') {
-                    return ds === 'prompt_injection';
-                }
-                return false;
-            }
-
-            function findSampleForVariant(entries, variant) {
-                if (!entries || !entries.length) {
-                    console.warn(`findSampleForVariant: entries is empty`);
-                    return null;
-                }
-                console.log(`findSampleForVariant: searching for variant "${variant}" in ${entries.length} entries`);
-                const matched = entries.find(entry => matchesVariant(entry, variant));
-                if (matched) {
-                    console.log(`✓ Found ${variant} variant: dataset="${matched.dataset}", project="${matched.project}"`);
-                    return matched;
-                }
-                const available = entries.map(e => e.dataset).filter(Boolean);
-                console.error(`✗ No match for variant "${variant}". Available datasets:`, available);
-                return null;
+                entries.forEach(entry => {
+                    const ds = (entry.dataset || '').toLowerCase().trim();
+                    if (ds === 'original' || ds === 'final') {
+                        variantSamples.original = entry;
+                    } else if (ds === 'noise') {
+                        variantSamples.noise = entry;
+                    } else if (ds === 'obfuscated') {
+                        variantSamples.obfuscated = entry;
+                    } else if (ds === 'noise_obfuscated') {
+                        variantSamples.noise_obfuscated = entry;
+                    } else if (ds === 'prompt_injection') {
+                        variantSamples.prompt_injection = entry;
+                    }
+                });
             }
 
             async function switchVariant(variant) {
-                console.log(`switchVariant called with: ${variant}`);
-                console.log(`Current state: activeCWE=${activeCWE}, allCweEntries.length=${allCweEntries.length}`);
-                
-                // Ensure buttons are not disabled
-                disableControls(false);
-                
                 activeVariant = variant;
                 updateVariantTabStates();
                 
-                // If CWE is selected, find and load the variant sample
-                if (activeCWE && allCweEntries.length) {
-                    console.log(`Finding sample for variant: ${variant}`);
-                    currentSample = findSampleForVariant(allCweEntries, activeVariant);
-                    if (!currentSample) {
-                        console.warn(`No sample found for variant: ${variant}`);
-                        setNote(`No ${variantLabels[variant]} variant available for ${activeCWE}.`, true);
-                        if (codeSnippet) codeSnippet.textContent = '';
-                    } else {
-                        console.log(`Sample found, updating code block`);
-                        setNote('', false);
-                    }
-                    await updateCodeBlock();
-                } else if (activeCWE) {
-                    console.log(`CWE selected but entries not loaded, reloading...`);
-                    // CWE selected but entries not loaded yet, reload
-                    await handleCWEChange();
+                const sample = variantSamples[variant];
+                if (sample) {
+                    setNote('', false);
+                    await updateCodeBlockWithSample(sample);
                 } else {
-                    console.warn(`No CWE selected, cannot switch variant`);
-                    setNote('Please select a CWE type first.', true);
+                    setNote(`No ${variantLabels[variant]} variant available for this CWE.`, true);
+                    if (codeSnippet) codeSnippet.textContent = '';
                 }
             }
 
@@ -638,48 +602,26 @@
                 buttons.forEach(btn => {
                     const variant = Object.keys(variantLabels).find(v => variantLabels[v] === btn.textContent);
                     if (variant) {
-                        btn.classList.toggle('active', variant === activeVariant);
-                        btn.disabled = false; // Ensure button stays enabled
-                        btn.style.pointerEvents = 'auto'; // Ensure button is clickable
+                        btn.className = variant === activeVariant ? 'active' : '';
                     }
                 });
             }
 
             function renderVariantTabs() {
-                if (!variantTabs) {
-                    console.error('variantTabs element not found');
-                    return;
-                }
+                if (!variantTabs) return;
                 variantTabs.innerHTML = '';
                 Object.keys(variantLabels).forEach(variant => {
                     const btn = document.createElement('button');
                     btn.textContent = variantLabels[variant];
-                    btn.classList.toggle('active', variant === activeVariant);
-                    btn.disabled = false; // Ensure button is enabled
-                    btn.style.pointerEvents = 'auto'; // Ensure button is clickable
-                    btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log(`Variant button clicked: ${variant}`);
-                        switchVariant(variant).catch(err => {
-                            console.error('Error switching variant:', err);
-                            setNote(`Error switching to ${variantLabels[variant]}: ${err.message}`, true);
-                        });
-                    });
+                    btn.className = variant === activeVariant ? 'active' : '';
+                    btn.onclick = () => switchVariant(variant);
                     variantTabs.appendChild(btn);
-                    console.log(`Created variant button: ${variant} (enabled: ${!btn.disabled})`);
                 });
-                console.log(`Rendered ${Object.keys(variantLabels).length} variant tabs`);
             }
 
-            async function updateCodeBlock() {
+            async function updateCodeBlockWithSample(sample) {
                 if (!codeSnippet) return;
-                if (!currentSample) {
-                    codeSnippet.textContent = '';
-                    setNote('', false);
-                    return;
-                }
-                const files = currentSample.files || [];
+                const files = sample.files || [];
                 if (!files.length) {
                     codeSnippet.textContent = 'This sample does not include any files.';
                     setNote('No files listed for this sample. Regenerate the index.', true);
@@ -703,6 +645,16 @@
                 }
             }
 
+            async function updateCodeBlock() {
+                const sample = variantSamples[activeVariant];
+                if (sample) {
+                    await updateCodeBlockWithSample(sample);
+                } else {
+                    if (codeSnippet) codeSnippet.textContent = '';
+                    setNote('', false);
+                }
+            }
+
             async function handleCWEChange() {
                 if (!cweSelect) return;
                 activeCWE = cweSelect.value;
@@ -720,25 +672,17 @@
                         allCweEntries = shardCache.get(activeCWE) || [];
                     }
                     if (!allCweEntries.length) {
-                        console.warn(`handleCWEChange: No entries loaded for ${activeCWE}`);
                         if (codeSnippet) codeSnippet.textContent = '';
                         setNote(`No sample available for ${activeCWE}.`, true);
-                        currentSample = null;
+                        variantSamples = {};
                     } else {
-                        console.log(`handleCWEChange: Loaded ${allCweEntries.length} entries for ${activeCWE}, looking for variant "${activeVariant}"`);
-                        currentSample = findSampleForVariant(allCweEntries, activeVariant);
-                        if (!currentSample) {
-                            if (codeSnippet) codeSnippet.textContent = '';
-                            setNote(`No ${variantLabels[activeVariant]} variant available for ${activeCWE}.`, true);
-                        } else {
-                            setNote('', false);
-                        }
+                        loadVariantSamples(allCweEntries);
                         await updateCodeBlock();
                     }
                 } catch (err) {
                     setNote('Unable to load the CWE shard. Run scripts/build_cwe_index.py before publishing.', true);
                     if (codeSnippet) codeSnippet.textContent = err.message;
-                    currentSample = null;
+                    variantSamples = {};
                 } finally {
                     disableControls(false);
                 }
