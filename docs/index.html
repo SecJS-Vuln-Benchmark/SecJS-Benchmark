@@ -483,13 +483,17 @@
             });
 
             function disableControls(disabled) {
-                cweSelect.disabled = disabled;
-                Array.from(variantTabs.querySelectorAll('button')).forEach(btn => {
-                    btn.disabled = disabled;
-                });
-                Array.from(versionToggle.querySelectorAll('button')).forEach(btn => {
-                    btn.disabled = disabled;
-                });
+                if (cweSelect) cweSelect.disabled = disabled;
+                if (variantTabs) {
+                    Array.from(variantTabs.querySelectorAll('button')).forEach(btn => {
+                        btn.disabled = disabled;
+                    });
+                }
+                if (versionToggle) {
+                    Array.from(versionToggle.querySelectorAll('button')).forEach(btn => {
+                        btn.disabled = disabled;
+                    });
+                }
             }
 
             async function fetchJSON(url) {
@@ -514,6 +518,7 @@
             }
 
             function renderVersionButtons() {
+                if (!versionToggle) return;
                 versionToggle.innerHTML = '';
                 ['vuln', 'fixed'].forEach(version => {
                     const btn = document.createElement('button');
@@ -540,6 +545,7 @@
             }
 
             function populateCWESelect() {
+                if (!cweSelect) return;
                 const entries = Object.keys(manifest).sort((a, b) =>
                     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
                 );
@@ -583,6 +589,7 @@
             }
 
             function renderVariantTabs() {
+                if (!variantTabs) return;
                 variantTabs.innerHTML = '';
                 Object.keys(variantLabels).forEach(variant => {
                     const btn = document.createElement('button');
@@ -601,6 +608,7 @@
             }
 
             async function updateCodeBlock() {
+                if (!codeSnippet) return;
                 if (!currentSample) {
                     codeSnippet.textContent = '';
                     setNote('', false);
@@ -631,6 +639,7 @@
             }
 
             async function handleCWEChange() {
+                if (!cweSelect) return;
                 activeCWE = cweSelect.value;
                 if (!activeCWE) return;
                 const meta = manifest[activeCWE];
@@ -646,7 +655,7 @@
                         allCweEntries = shardCache.get(activeCWE) || [];
                     }
                     if (!allCweEntries.length) {
-                        codeSnippet.textContent = '';
+                        if (codeSnippet) codeSnippet.textContent = '';
                         setNote(`No sample available for ${activeCWE}.`, true);
                         currentSample = null;
                     } else {
@@ -655,18 +664,24 @@
                     }
                 } catch (err) {
                     setNote('Unable to load the CWE shard. Run scripts/build_cwe_index.py before publishing.', true);
-                    codeSnippet.textContent = err.message;
+                    if (codeSnippet) codeSnippet.textContent = err.message;
                     currentSample = null;
                 } finally {
                     disableControls(false);
                 }
             }
 
-            cweSelect.addEventListener('change', () => {
-                handleCWEChange();
-            });
+            if (cweSelect) {
+                cweSelect.addEventListener('change', () => {
+                    handleCWEChange();
+                });
+            }
 
             async function init() {
+                if (!cweSelect || !variantTabs || !versionToggle || !codeSnippet || !datasetNote) {
+                    console.error('Required DOM elements not found');
+                    return;
+                }
                 renderVariantTabs();
                 renderVersionButtons();
                 disableControls(true);
@@ -679,13 +694,17 @@
                     await handleCWEChange();
                 } catch (err) {
                     setNote('Missing cwe_index.json. Run scripts/build_cwe_index.py before publishing.', true);
-                    codeSnippet.textContent = err.message;
+                    if (codeSnippet) codeSnippet.textContent = err.message;
                 } finally {
                     disableControls(false);
                 }
             }
 
-            init();
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
         })();
     </script>
 </body>
