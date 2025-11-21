@@ -553,7 +553,7 @@
                 entries.forEach(cwe => {
                     const option = document.createElement('option');
                     option.value = cwe;
-                    option.textContent = `${cwe} (${manifest[cwe].count} samples)`;
+                    option.textContent = cwe;
                     cweSelect.appendChild(option);
                 });
                 if (entries.length) {
@@ -563,29 +563,61 @@
             }
 
             function matchesVariant(entry, variant) {
-                const ds = (entry.dataset || '').toLowerCase();
+                const ds = (entry.dataset || '').toLowerCase().trim();
+                
+                // Direct dataset name matching (most reliable)
                 if (variant === 'original') {
-                    return ds === 'original' || ds === 'final' || (!ds.includes('noise') && !ds.includes('obfuscat') && !ds.includes('prompt'));
+                    return ds === 'original' || ds === 'final';
                 }
                 if (variant === 'noise') {
-                    return ds.includes('noise') && !ds.includes('obfuscat') && !ds.includes('prompt');
+                    return ds === 'noise';
                 }
                 if (variant === 'obfuscated') {
-                    return ds.includes('obfuscat') && !ds.includes('noise') && !ds.includes('prompt');
+                    return ds === 'obfuscated';
                 }
                 if (variant === 'noise_obfuscated') {
-                    return (ds.includes('noise') && ds.includes('obfuscat')) || ds.includes('noise_obfuscat');
+                    return ds === 'noise_obfuscated' || ds === 'noise_obfuscat';
                 }
                 if (variant === 'prompt_injection') {
-                    return ds.includes('prompt');
+                    return ds === 'prompt_injection' || ds === 'prompt';
+                }
+                
+                // Fallback: check file paths if dataset doesn't match exactly
+                const filePaths = (entry.files || []).map(f => 
+                    (f.vulnerable_path || '') + ' ' + (f.fixed_path || '')
+                ).join(' ').toLowerCase();
+                const searchText = ds + ' ' + filePaths;
+                
+                if (variant === 'original') {
+                    return !searchText.includes('noise') && !searchText.includes('obfuscat') && !searchText.includes('prompt');
+                }
+                if (variant === 'noise') {
+                    return searchText.includes('noise') && !searchText.includes('obfuscat') && !searchText.includes('prompt');
+                }
+                if (variant === 'obfuscated') {
+                    return searchText.includes('obfuscat') && !searchText.includes('noise') && !searchText.includes('prompt');
+                }
+                if (variant === 'noise_obfuscated') {
+                    return searchText.includes('noise') && searchText.includes('obfuscat');
+                }
+                if (variant === 'prompt_injection') {
+                    return searchText.includes('prompt');
                 }
                 return false;
             }
 
             function findSampleForVariant(entries, variant) {
                 if (!entries || !entries.length) return null;
+                // Try exact match first
                 const matched = entries.find(entry => matchesVariant(entry, variant));
-                return matched || entries[0];
+                if (matched) {
+                    console.log(`Found ${variant} sample:`, matched.dataset, matched.project);
+                    return matched;
+                }
+                // Debug: log available datasets
+                const available = entries.map(e => e.dataset).filter(Boolean);
+                console.warn(`No match for variant ${variant}, available datasets:`, available);
+                return null;
             }
 
             function renderVariantTabs() {
@@ -599,6 +631,10 @@
                         activeVariant = variant;
                         if (allCweEntries.length) {
                             currentSample = findSampleForVariant(allCweEntries, activeVariant);
+                            if (!currentSample) {
+                                setNote(`No ${variantLabels[variant]} variant available for this CWE.`, true);
+                                if (codeSnippet) codeSnippet.textContent = '';
+                            }
                         }
                         renderVariantTabs();
                         updateCodeBlock();
@@ -660,6 +696,12 @@
                         currentSample = null;
                     } else {
                         currentSample = findSampleForVariant(allCweEntries, activeVariant);
+                        if (!currentSample) {
+                            if (codeSnippet) codeSnippet.textContent = '';
+                            setNote(`No ${variantLabels[activeVariant]} variant available for ${activeCWE}.`, true);
+                        } else {
+                            setNote('', false);
+                        }
                         await updateCodeBlock();
                     }
                 } catch (err) {
