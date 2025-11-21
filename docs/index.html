@@ -102,6 +102,25 @@
             background: white;
             color: var(--text-primary);
         }
+        .variant-tabs { display: flex; gap: 8px; margin: 20px 0 16px; flex-wrap: wrap; justify-content: center; }
+        .variant-tabs button {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .variant-tabs button:hover {
+            background: #f1f5f9;
+        }
+        .variant-tabs button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
         .version-toggle { display: flex; gap: 12px; margin-bottom: 16px; }
         .version-toggle button {
             flex: 1;
@@ -220,53 +239,24 @@
                     <p>Average 6,085 tokens per project (5,491 input + 594 output), adding up to 286.3M input and 31.0M output tokens.</p>
                 </div>
             </div>
-            <div class="variant-explainer">
-                <h3 style="margin-top:0;">Dataset variants</h3>
-                <ul>
-                    <li><strong>Original:</strong> untouched GitHub code with the exact vulnerable and fixed commits.</li>
-                    <li><strong>Noise:</strong> inserts harmless file writes, database logs, or DOM updates before the vulnerable merge logic to test false positives.</li>
-                    <li><strong>Obfuscated:</strong> runs javascript-obfuscator so identifiers and literals become unreadable while semantics stay the same.</li>
-                    <li><strong>Noise + Obf:</strong> applies the noise edits first, then obfuscates the file to combine both stressors.</li>
-                    <li><strong>Prompt Injection:</strong> adds misleading audit comments (“security approved”) ahead of the guard to see whether LLMs trust text over code.</li>
-                </ul>
-            </div>
-            <div class="card" style="margin-top:24px;">
-                <h3 style="margin-top:0;">ForgeJS obfuscation tracks</h3>
-                <ul>
-                    <li><strong>Light:</strong> only identifier mangling and compression (no control-flow rewrites) for quick sanity checks.</li>
-                    <li><strong>Medium:</strong> turns on control-flow flattening and dead-code injection so the execution path is disguised.</li>
-                    <li><strong>Heavy:</strong> adds Unicode escaping plus Base64 string-array encoding, forcing models to mentally decode literals.</li>
-                    <li><strong>Extreme:</strong> enables RC4 string arrays with rotation/shuffle so every literal is dynamically reconstructed.</li>
-                </ul>
-            </div>
         </div>
     </section>
 
     <section id="demo">
         <div class="container">
             <h2 class="section-title">B. Demo</h2>
+            <p style="text-align:center; max-width:800px; margin:0 auto 24px; color: var(--muted); font-size:0.95rem;">
+                Due to the large dataset size (over 1 TB), we can only display one case per CWE type. Select a CWE to view its five variants (Original, Noise, Obfuscated, Noise+Obf, Prompt Injection) with both vulnerable and fixed versions.
+            </p>
 
             <div class="demo-selects">
                 <div class="select-group">
                     <label for="cweSelect">CWE Type</label>
                     <select id="cweSelect"></select>
                 </div>
-                <div class="select-group">
-                    <label for="obfuscationSelect">Obfuscation</label>
-                    <select id="obfuscationSelect">
-                        <option value="original">Original</option>
-                        <option value="light">Light</option>
-                        <option value="medium">Medium</option>
-                        <option value="heavy">Heavy</option>
-                        <option value="extreme">Extreme</option>
-                    </select>
-                </div>
-                <div class="select-group">
-                    <label for="fileSelect">File</label>
-                    <select id="fileSelect"></select>
-                </div>
             </div>
 
+            <div class="variant-tabs" id="variantTabs"></div>
             <div class="version-toggle" id="versionToggle"></div>
 
             <div class="code-panel">
@@ -436,9 +426,7 @@
         (function() {
             const manifestUrl = 'cwe_index.json';
             const cweSelect = document.getElementById('cweSelect');
-            const obfuscationSelect = document.getElementById('obfuscationSelect');
-            const sampleSelect = document.getElementById('sampleSelect');
-            const fileSelect = document.getElementById('fileSelect');
+            const variantTabs = document.getElementById('variantTabs');
             const versionToggle = document.getElementById('versionToggle');
             const codeSnippet = document.getElementById('codeSnippet');
             const datasetNote = document.getElementById('datasetNote');
@@ -447,12 +435,18 @@
             const textCache = new Map();
             let manifest = {};
             let activeCWE = '';
-            let activeObfuscation = 'original';
-            let activeSampleIndex = 0;
-            let activeFileIndex = 0;
+            let activeVariant = 'original';
             let activeVersion = 'vuln';
-            let currentEntries = [];
+            let currentSample = null;
             let allCweEntries = [];
+
+            const variantLabels = {
+                original: 'Original',
+                noise: 'Noise',
+                obfuscated: 'Obfuscated',
+                noise_obfuscated: 'Noise+Obf',
+                prompt_injection: 'Prompt Injection'
+            };
 
             const versionLabels = {
                 vuln: 'Vulnerable build',
@@ -490,9 +484,9 @@
 
             function disableControls(disabled) {
                 cweSelect.disabled = disabled;
-                obfuscationSelect.disabled = disabled;
-                sampleSelect.disabled = disabled;
-                fileSelect.disabled = disabled;
+                Array.from(variantTabs.querySelectorAll('button')).forEach(btn => {
+                    btn.disabled = disabled;
+                });
                 Array.from(versionToggle.querySelectorAll('button')).forEach(btn => {
                     btn.disabled = disabled;
                 });
@@ -562,102 +556,63 @@
                 }
             }
 
-            function matchesObfuscationType(entry, obfType) {
-                if (obfType === 'original') {
-                    const ds = (entry.dataset || '').toLowerCase();
-                    return ds === 'original' || ds === 'final' || !ds.includes('obfuscat');
-                }
+            function matchesVariant(entry, variant) {
                 const ds = (entry.dataset || '').toLowerCase();
-                const paths = [
-                    entry.files && entry.files[0] ? entry.files[0].vulnerable_path || '' : '',
-                    entry.files && entry.files[0] ? entry.files[0].fixed_path || '' : '',
-                ].join(' ').toLowerCase();
-                const searchText = (ds + ' ' + paths).toLowerCase();
-                if (obfType === 'light') {
-                    return searchText.includes('light') || (searchText.includes('obfuscat') && !searchText.includes('medium') && !searchText.includes('heavy') && !searchText.includes('extreme'));
+                if (variant === 'original') {
+                    return ds === 'original' || ds === 'final' || (!ds.includes('noise') && !ds.includes('obfuscat') && !ds.includes('prompt'));
                 }
-                return searchText.includes(obfType);
-            }
-
-            function filterByObfuscation(entries, obfType) {
-                if (!entries || !entries.length) return [];
-                return entries.filter(entry => matchesObfuscationType(entry, obfType));
-            }
-
-            function populateSampleSelect() {
-                sampleSelect.innerHTML = '';
-                if (!currentEntries.length) {
-                    const option = document.createElement('option');
-                    option.textContent = 'No sample available';
-                    option.disabled = true;
-                    option.selected = true;
-                    sampleSelect.appendChild(option);
-                    return;
+                if (variant === 'noise') {
+                    return ds.includes('noise') && !ds.includes('obfuscat') && !ds.includes('prompt');
                 }
-                const entry = currentEntries[0];
-                const option = document.createElement('option');
-                const labelParts = [
-                    entry.project || 'Unknown project',
-                    entry.dataset ? `[${entry.dataset}]` : '',
-                    entry.cve_ids ? entry.cve_ids : '',
-                ].filter(Boolean);
-                option.value = '0';
-                option.textContent = labelParts.join(' ');
-                sampleSelect.appendChild(option);
-                activeSampleIndex = 0;
-                sampleSelect.value = '0';
+                if (variant === 'obfuscated') {
+                    return ds.includes('obfuscat') && !ds.includes('noise') && !ds.includes('prompt');
+                }
+                if (variant === 'noise_obfuscated') {
+                    return (ds.includes('noise') && ds.includes('obfuscat')) || ds.includes('noise_obfuscat');
+                }
+                if (variant === 'prompt_injection') {
+                    return ds.includes('prompt');
+                }
+                return false;
             }
 
-            function populateFileSelect(entry) {
-                fileSelect.innerHTML = '';
-                const files = entry && Array.isArray(entry.files) ? entry.files : [];
-                files.forEach((fileEntry, idx) => {
-                    const option = document.createElement('option');
-                    const names = extractFileNames(fileEntry);
-                    let displayLabel = '';
-                    if (names.vulnName && names.fixedName && names.vulnName !== names.fixedName) {
-                        displayLabel = `${names.vulnName} / ${names.fixedName}`;
-                    } else {
-                        displayLabel = names.vulnName || names.fixedName || `File ${idx + 1}`;
-                    }
-                    const tooltipParts = [];
-                    if (names.vulnFull) tooltipParts.push(`vuln: ${names.vulnFull}`);
-                    if (names.fixedFull) tooltipParts.push(`fix: ${names.fixedFull}`);
-                    option.value = String(idx);
-                    option.textContent = displayLabel;
-                    option.title = tooltipParts.join(' | ') || displayLabel;
-                    fileSelect.appendChild(option);
+            function findSampleForVariant(entries, variant) {
+                if (!entries || !entries.length) return null;
+                const matched = entries.find(entry => matchesVariant(entry, variant));
+                return matched || entries[0];
+            }
+
+            function renderVariantTabs() {
+                variantTabs.innerHTML = '';
+                Object.keys(variantLabels).forEach(variant => {
+                    const btn = document.createElement('button');
+                    btn.textContent = variantLabels[variant];
+                    btn.classList.toggle('active', variant === activeVariant);
+                    btn.addEventListener('click', () => {
+                        activeVariant = variant;
+                        if (allCweEntries.length) {
+                            currentSample = findSampleForVariant(allCweEntries, activeVariant);
+                        }
+                        renderVariantTabs();
+                        updateCodeBlock();
+                    });
+                    variantTabs.appendChild(btn);
                 });
-                if (!files.length) {
-                    const placeholder = document.createElement('option');
-                    placeholder.textContent = 'No files';
-                    placeholder.disabled = true;
-                    placeholder.selected = true;
-                    fileSelect.appendChild(placeholder);
-                    fileSelect.value = '';
-                    activeFileIndex = 0;
-                    return;
-                }
-                activeFileIndex = 0;
-                fileSelect.value = '0';
             }
 
             async function updateCodeBlock() {
-                if (!currentEntries.length) {
+                if (!currentSample) {
                     codeSnippet.textContent = '';
                     setNote('', false);
                     return;
                 }
-                const entryIndex = Math.min(activeSampleIndex, currentEntries.length - 1);
-                const entry = currentEntries[entryIndex];
-                const files = entry && Array.isArray(entry.files) ? entry.files : [];
+                const files = currentSample.files || [];
                 if (!files.length) {
                     codeSnippet.textContent = 'This sample does not include any files.';
                     setNote('No files listed for this sample. Regenerate the index.', true);
                     return;
                 }
-                const fileIndex = Math.min(activeFileIndex, files.length - 1);
-                const fileEntry = files[fileIndex];
+                const fileEntry = files[0];
                 const targetPathRaw = activeVersion === 'vuln' ? fileEntry.vulnerable_path : fileEntry.fixed_path;
                 if (!targetPathRaw) {
                     codeSnippet.textContent = 'No file is available for this version.';
@@ -677,7 +632,6 @@
 
             async function handleCWEChange() {
                 activeCWE = cweSelect.value;
-                activeObfuscation = obfuscationSelect.value;
                 if (!activeCWE) return;
                 const meta = manifest[activeCWE];
                 if (!meta) return;
@@ -691,51 +645,29 @@
                     } else {
                         allCweEntries = shardCache.get(activeCWE) || [];
                     }
-                    const filtered = filterByObfuscation(allCweEntries, activeObfuscation);
-                    currentEntries = filtered.length ? [filtered[0]] : [];
-                    if (!currentEntries.length) {
+                    if (!allCweEntries.length) {
                         codeSnippet.textContent = '';
-                        setNote(`No ${activeObfuscation} obfuscation sample available for ${activeCWE}.`, true);
+                        setNote(`No sample available for ${activeCWE}.`, true);
+                        currentSample = null;
                     } else {
-                        populateSampleSelect();
-                        populateFileSelect(currentEntries[0]);
+                        currentSample = findSampleForVariant(allCweEntries, activeVariant);
                         await updateCodeBlock();
                     }
                 } catch (err) {
                     setNote('Unable to load the CWE shard. Run scripts/build_cwe_index.py before publishing.', true);
                     codeSnippet.textContent = err.message;
+                    currentSample = null;
                 } finally {
                     disableControls(false);
                 }
             }
 
             cweSelect.addEventListener('change', () => {
-                activeSampleIndex = 0;
-                activeFileIndex = 0;
                 handleCWEChange();
-            });
-
-            obfuscationSelect.addEventListener('change', () => {
-                activeSampleIndex = 0;
-                activeFileIndex = 0;
-                handleCWEChange();
-            });
-
-            sampleSelect.addEventListener('change', () => {
-                if (!currentEntries.length) return;
-                activeSampleIndex = parseInt(sampleSelect.value, 10) || 0;
-                const entry = currentEntries[Math.min(activeSampleIndex, currentEntries.length - 1)];
-                populateFileSelect(entry);
-                updateCodeBlock();
-            });
-
-            fileSelect.addEventListener('change', () => {
-                if (!currentEntries.length) return;
-                activeFileIndex = parseInt(fileSelect.value, 10) || 0;
-                updateCodeBlock();
             });
 
             async function init() {
+                renderVariantTabs();
                 renderVersionButtons();
                 disableControls(true);
                 try {
