@@ -639,6 +639,8 @@
                     const variant = Object.keys(variantLabels).find(v => variantLabels[v] === btn.textContent);
                     if (variant) {
                         btn.classList.toggle('active', variant === activeVariant);
+                        btn.disabled = false; // Ensure button stays enabled
+                        btn.style.pointerEvents = 'auto'; // Ensure button is clickable
                     }
                 });
             }
@@ -653,6 +655,8 @@
                     const btn = document.createElement('button');
                     btn.textContent = variantLabels[variant];
                     btn.classList.toggle('active', variant === activeVariant);
+                    btn.disabled = false; // Ensure button is enabled
+                    btn.style.pointerEvents = 'auto'; // Ensure button is clickable
                     btn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -663,6 +667,7 @@
                         });
                     });
                     variantTabs.appendChild(btn);
+                    console.log(`Created variant button: ${variant} (enabled: ${!btn.disabled})`);
                 });
                 console.log(`Rendered ${Object.keys(variantLabels).length} variant tabs`);
             }
