@@ -600,22 +600,35 @@
             }
 
             async function switchVariant(variant) {
+                console.log(`switchVariant called with: ${variant}`);
+                console.log(`Current state: activeCWE=${activeCWE}, allCweEntries.length=${allCweEntries.length}`);
+                
+                // Ensure buttons are not disabled
+                disableControls(false);
+                
                 activeVariant = variant;
                 updateVariantTabStates();
                 
                 // If CWE is selected, find and load the variant sample
                 if (activeCWE && allCweEntries.length) {
+                    console.log(`Finding sample for variant: ${variant}`);
                     currentSample = findSampleForVariant(allCweEntries, activeVariant);
                     if (!currentSample) {
+                        console.warn(`No sample found for variant: ${variant}`);
                         setNote(`No ${variantLabels[variant]} variant available for ${activeCWE}.`, true);
                         if (codeSnippet) codeSnippet.textContent = '';
                     } else {
+                        console.log(`Sample found, updating code block`);
                         setNote('', false);
                     }
                     await updateCodeBlock();
                 } else if (activeCWE) {
+                    console.log(`CWE selected but entries not loaded, reloading...`);
                     // CWE selected but entries not loaded yet, reload
                     await handleCWEChange();
+                } else {
+                    console.warn(`No CWE selected, cannot switch variant`);
+                    setNote('Please select a CWE type first.', true);
                 }
             }
 
@@ -631,17 +644,27 @@
             }
 
             function renderVariantTabs() {
-                if (!variantTabs) return;
+                if (!variantTabs) {
+                    console.error('variantTabs element not found');
+                    return;
+                }
                 variantTabs.innerHTML = '';
                 Object.keys(variantLabels).forEach(variant => {
                     const btn = document.createElement('button');
                     btn.textContent = variantLabels[variant];
                     btn.classList.toggle('active', variant === activeVariant);
-                    btn.addEventListener('click', () => {
-                        switchVariant(variant);
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log(`Variant button clicked: ${variant}`);
+                        switchVariant(variant).catch(err => {
+                            console.error('Error switching variant:', err);
+                            setNote(`Error switching to ${variantLabels[variant]}: ${err.message}`, true);
+                        });
                     });
                     variantTabs.appendChild(btn);
                 });
+                console.log(`Rendered ${Object.keys(variantLabels).length} variant tabs`);
             }
 
             async function updateCodeBlock() {
