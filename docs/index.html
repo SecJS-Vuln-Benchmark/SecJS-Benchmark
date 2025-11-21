@@ -565,7 +565,6 @@
             function matchesVariant(entry, variant) {
                 const ds = (entry.dataset || '').toLowerCase().trim();
                 
-                // Direct dataset name matching (most reliable)
                 if (variant === 'original') {
                     return ds === 'original' || ds === 'final';
                 }
@@ -576,47 +575,23 @@
                     return ds === 'obfuscated';
                 }
                 if (variant === 'noise_obfuscated') {
-                    return ds === 'noise_obfuscated' || ds === 'noise_obfuscat';
+                    return ds === 'noise_obfuscated';
                 }
                 if (variant === 'prompt_injection') {
-                    return ds === 'prompt_injection' || ds === 'prompt';
-                }
-                
-                // Fallback: check file paths if dataset doesn't match exactly
-                const filePaths = (entry.files || []).map(f => 
-                    (f.vulnerable_path || '') + ' ' + (f.fixed_path || '')
-                ).join(' ').toLowerCase();
-                const searchText = ds + ' ' + filePaths;
-                
-                if (variant === 'original') {
-                    return !searchText.includes('noise') && !searchText.includes('obfuscat') && !searchText.includes('prompt');
-                }
-                if (variant === 'noise') {
-                    return searchText.includes('noise') && !searchText.includes('obfuscat') && !searchText.includes('prompt');
-                }
-                if (variant === 'obfuscated') {
-                    return searchText.includes('obfuscat') && !searchText.includes('noise') && !searchText.includes('prompt');
-                }
-                if (variant === 'noise_obfuscated') {
-                    return searchText.includes('noise') && searchText.includes('obfuscat');
-                }
-                if (variant === 'prompt_injection') {
-                    return searchText.includes('prompt');
+                    return ds === 'prompt_injection';
                 }
                 return false;
             }
 
             function findSampleForVariant(entries, variant) {
                 if (!entries || !entries.length) return null;
-                // Try exact match first
                 const matched = entries.find(entry => matchesVariant(entry, variant));
                 if (matched) {
-                    console.log(`Found ${variant} sample:`, matched.dataset, matched.project);
+                    console.log(`✓ Found ${variant} variant: dataset="${matched.dataset}", project="${matched.project}"`);
                     return matched;
                 }
-                // Debug: log available datasets
                 const available = entries.map(e => e.dataset).filter(Boolean);
-                console.warn(`No match for variant ${variant}, available datasets:`, available);
+                console.error(`✗ No match for variant "${variant}". Available datasets:`, available);
                 return null;
             }
 
