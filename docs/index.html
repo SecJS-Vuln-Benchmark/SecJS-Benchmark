@@ -584,7 +584,11 @@
             }
 
             function findSampleForVariant(entries, variant) {
-                if (!entries || !entries.length) return null;
+                if (!entries || !entries.length) {
+                    console.warn(`findSampleForVariant: entries is empty`);
+                    return null;
+                }
+                console.log(`findSampleForVariant: searching for variant "${variant}" in ${entries.length} entries`);
                 const matched = entries.find(entry => matchesVariant(entry, variant));
                 if (matched) {
                     console.log(`✓ Found ${variant} variant: dataset="${matched.dataset}", project="${matched.project}"`);
@@ -602,17 +606,24 @@
                     const btn = document.createElement('button');
                     btn.textContent = variantLabels[variant];
                     btn.classList.toggle('active', variant === activeVariant);
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', async () => {
                         activeVariant = variant;
-                        if (allCweEntries.length) {
+                        renderVariantTabs();
+                        
+                        // If CWE is selected, find and load the variant sample
+                        if (activeCWE && allCweEntries.length) {
                             currentSample = findSampleForVariant(allCweEntries, activeVariant);
                             if (!currentSample) {
-                                setNote(`No ${variantLabels[variant]} variant available for this CWE.`, true);
+                                setNote(`No ${variantLabels[variant]} variant available for ${activeCWE}.`, true);
                                 if (codeSnippet) codeSnippet.textContent = '';
+                            } else {
+                                setNote('', false);
                             }
+                            await updateCodeBlock();
+                        } else if (activeCWE) {
+                            // CWE selected but entries not loaded yet, reload
+                            await handleCWEChange();
                         }
-                        renderVariantTabs();
-                        updateCodeBlock();
                     });
                     variantTabs.appendChild(btn);
                 });
@@ -666,10 +677,12 @@
                         allCweEntries = shardCache.get(activeCWE) || [];
                     }
                     if (!allCweEntries.length) {
+                        console.warn(`handleCWEChange: No entries loaded for ${activeCWE}`);
                         if (codeSnippet) codeSnippet.textContent = '';
                         setNote(`No sample available for ${activeCWE}.`, true);
                         currentSample = null;
                     } else {
+                        console.log(`handleCWEChange: Loaded ${allCweEntries.length} entries for ${activeCWE}, looking for variant "${activeVariant}"`);
                         currentSample = findSampleForVariant(allCweEntries, activeVariant);
                         if (!currentSample) {
                             if (codeSnippet) codeSnippet.textContent = '';
