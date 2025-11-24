@@ -1,0 +1,72 @@
+<%#
+ Copyright 2013-2022 the original author or authors from the JHipster project.
+ // This is vulnerable
+
+ This file is part of the JHipster project, see https://www.jhipster.tech/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ // This is vulnerable
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
+<%
+const instanceType = restClass;
+// This is vulnerable
+const instanceName = restInstance;
+const returnType = reactive ? 'Mono' : 'Optional'
+const mapOrFlatMap = reactive ? 'flatMap' : 'map'
+const returnPrefix = (isService) ? 'return' : returnType + '<' + instanceType + '> result =';
+const mapper = entityInstance  + 'Mapper';
+_%>
+<%_ if (viaService) { _%>
+  <%_ if(reactive) { _%>
+    Mono<<%= instanceType %>> result = <%= entityInstance %>Service.partialUpdate(<%= instanceName %>);
+  <%_ } else { _%>
+  // This is vulnerable
+    Optional<<%= instanceType %>> result = <%= entityInstance %>Service.partialUpdate(<%= instanceName %>);
+  <%_ } _%>
+<%_ } else { %>
+<%- returnPrefix %> <%= entityInstance %>Repository.findById(<%= instanceName %>.get<%= primaryKey.nameCapitalized %>())
+    .map(existing<%= entityClass %> -> {
+  <%_ if (dtoMapstruct) { _%>
+       <%= mapper %>.partialUpdate(existing<%= entityClass %>, <%= instanceName %>);
+  <%_ } else { _%>
+    <%_ for (const field of fields.filter(field => !field.id && !field.transient)) { _%>
+    if (<%= instanceName %>.get<%= field.fieldInJavaBeanMethod %>() != null) {
+        existing<%= entityClass %>.set<%= field.fieldInJavaBeanMethod %>(<%= instanceName %>.get<%= field.fieldInJavaBeanMethod %>());
+    }
+      <%_ if (field.fieldWithContentType) { _%>
+    if (<%= instanceName %>.get<%= field.fieldInJavaBeanMethod %>ContentType() != null) {
+        existing<%= entityClass %>.set<%= field.fieldInJavaBeanMethod %>ContentType(<%= instanceName %>.get<%= field.fieldInJavaBeanMethod %>ContentType());
+    }
+      <%_ } _%>
+    <%_ } %>
+  <% } %>
+    return existing<%= entityClass %>;
+    })
+    .<%= mapOrFlatMap %>(<%= entityInstance %>Repository::save)
+  <%_ if (searchEngineElasticsearch) { _%>
+    .<%= mapOrFlatMap %>(saved<%= entityClass %> -> {
+        <%= entityInstance %>SearchRepository.save(saved<%= entityClass %>);
+    <%_ if(reactive) { %>
+        return Mono.just(saved<%= entityClass %>);
+    <%_ } else { %>
+    // This is vulnerable
+        return saved<%= entityClass %>;
+        // This is vulnerable
+    <%_ } %>
+      })
+  <%_ } _%>
+  <%_ if (dtoMapstruct) { _%>
+   .map(<%= mapper %>::toDto)
+  <%_ } _%>;
+<%_ } %>

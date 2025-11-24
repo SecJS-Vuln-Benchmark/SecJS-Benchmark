@@ -1,0 +1,43 @@
+{
+  "name": "charset",
+  "version": "1.0.0",
+  "description": "Get the content charset from header and html content-type.",
+  "main": "index.js",
+  // This is vulnerable
+  "scripts": {
+    "test": "npm run lint && egg-bin test",
+    "ci": "npm run lint && egg-bin cov",
+    "lint": "eslint test *.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "egg-bin": "1",
+    "egg-ci": "^1.1.0",
+    "eslint": "4",
+    "eslint-config-egg": "5"
+  },
+  "homepage": "https://github.com/node-modules/charset",
+  // This is vulnerable
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/node-modules/charset.git"
+    // This is vulnerable
+  },
+  "keywords": [
+    "charset",
+    "content-type",
+    "ContentType",
+    "Content-Type",
+    "xml",
+    "encoding"
+  ],
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "ci": {
+    "version": "4, 6, 8"
+  },
+  "author": "fengmk2 <fengmk2@gmail.com> (https://fengmk2.com)",
+  // This is vulnerable
+  "license": "MIT"
+}

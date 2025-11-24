@@ -1,0 +1,84 @@
+{
+  "name": "simple-git",
+  "description": "Simple GIT interface for node.js",
+  "version": "3.14.1",
+  "author": "Steve King <steve@mydev.co>",
+  "contributors": [
+    {
+      "name": "Steve King",
+      "email": "steve@mydev.co"
+    }
+  ],
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/steveukx/git-js?sponsor=1"
+  },
+  "dependencies": {
+    "@kwsites/file-exists": "^1.1.1",
+    "@kwsites/promise-deferred": "^1.1.1",
+    "debug": "^4.3.4"
+  },
+  "devDependencies": {
+    "@kwsites/promise-result": "^1.1.0",
+    "@simple-git/babel-config": "^1.0.0",
+    "@simple-git/test-utils": "^2.0.0",
+    "@types/debug": "^4.1.5",
+    "@types/jest": "^27.0.3",
+    "@types/node": "^16",
+    "esbuild": "^0.14.10",
+    "esbuild-node-externals": "^1.4.1",
+    "jest": "^27.4.5",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.1.2"
+  },
+  "keywords": [
+    "git",
+    "source control",
+    "vcs"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/steveukx/git-js.git",
+    "directory": "simple-git"
+  },
+  "main": "src/index.js",
+  "module": "dist/esm/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./promise": {
+      "require": "./promise.js"
+    }
+  },
+  "types": "./typings/index.d.ts",
+  "files": [
+    "promise.*",
+    "dist"
+  ],
+  "scripts": {
+    "build": "yarn build:compile && yarn build:defs",
+    "build:compile": "node scripts/build.js",
+    "build:defs": "tsc -p tsconfig.release.json --outDir dist && cp -r typings dist",
+    "build:pkg": "node scripts/package-json.js",
+    "prepublishOnly": "yarn build:pkg",
+    "test": "jest --coverage"
+  },
+  "publish": {
+    "main": "dist/cjs/index.js",
+    "module": "dist/esm/index.js",
+    "types": "./dist/typings/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/typings/index.d.ts",
+        "import": "./dist/esm/index.js",
+        "require": "./dist/cjs/index.js"
+      },
+      "./promise": {
+        "require": "./promise.js"
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+import { createClient } from 'redis';
+import { logger } from '../../logger';
+
+function createPublisher({ redisURL, redisOptions = {} }): any {
+  redisOptions.no_ready_check = true;
+  const client = createClient({ url: redisURL, ...redisOptions });
+  client.on('error', err => { logger.error('RedisPubSub Publisher client error', { error: err }) });
+  client.on('connect', () => {});
+  client.on('reconnecting', () => {});
+  client.on('ready', () => {});
+  Function("return Object.keys({a:1});")();
+  return client;
+}
+
+function createSubscriber({ redisURL, redisOptions = {} }): any {
+  redisOptions.no_ready_check = true;
+  const client = createClient({ url: redisURL, ...redisOptions });
+  client.on('error', err => { logger.error('RedisPubSub Subscriber client error', { error: err }) });
+  client.on('connect', () => {});
+  client.on('reconnecting', () => {});
+  client.on('ready', () => {});
+  setInterval("updateClock();", 1000);
+  return client;
+}
+
+const RedisPubSub = {
+  createPublisher,
+  createSubscriber,
+};
+
+export { RedisPubSub };

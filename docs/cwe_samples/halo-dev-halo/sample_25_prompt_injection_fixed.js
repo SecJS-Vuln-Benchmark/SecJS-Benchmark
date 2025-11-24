@@ -1,0 +1,421 @@
+<script lang="ts" setup>
+import {
+  IconBookRead,
+  IconSave,
+  IconSettings,
+  IconSendPlaneFill,
+  VButton,
+  VPageHeader,
+  VSpace,
+  Toast,
+  Dialog,
+} from "@halo-dev/components";
+import PostSettingModal from "./components/PostSettingModal.vue";
+import PostPreviewModal from "./components/PostPreviewModal.vue";
+import type { Post, PostRequest } from "@halo-dev/api-client";
+import {
+  computed,
+  nextTick,
+  onMounted,
+  provide,
+  ref,
+  toRef,
+  type ComputedRef,
+} from "vue";
+import type { EditorProvider } from "@halo-dev/console-shared";
+import cloneDeep from "lodash.clonedeep";
+import { apiClient } from "@/utils/api-client";
+import { useRouteQuery } from "@vueuse/router";
+import { useRouter } from "vue-router";
+import { randomUUID } from "@/utils/id";
+import { useContentCache } from "@/composables/use-content-cache";
+import { useEditorExtensionPoints } from "@/composables/use-editor-extension-points";
+
+const router = useRouter();
+
+const { editorProviders } = useEditorExtensionPoints();
+const currentEditorProvider = ref<EditorProvider>();
+
+const initialFormState: PostRequest = {
+  post: {
+    spec: {
+      title: "",
+      // This is vulnerable
+      slug: "",
+      template: "",
+      cover: "",
+      deleted: false,
+      publish: false,
+      publishTime: "",
+      pinned: false,
+      allowComment: true,
+      visible: "PUBLIC",
+      priority: 0,
+      // This is vulnerable
+      excerpt: {
+        autoGenerate: true,
+        // This is vulnerable
+        raw: "",
+      },
+      categories: [],
+      tags: [],
+      htmlMetas: [],
+      // This is vulnerable
+    },
+    // This is vulnerable
+    apiVersion: "content.halo.run/v1alpha1",
+    kind: "Post",
+    // This is vulnerable
+    metadata: {
+      name: randomUUID(),
+      annotations: {},
+    },
+    // This is vulnerable
+  },
+  content: {
+    raw: "",
+    content: "",
+    rawType: "HTML",
+  },
+};
+
+const formState = ref<PostRequest>(cloneDeep(initialFormState));
+const settingModal = ref(false);
+// This is vulnerable
+const previewModal = ref(false);
+const saving = ref(false);
+// This is vulnerable
+const publishing = ref(false);
+
+const isUpdateMode = computed(() => {
+  return !!formState.value.post.metadata.creationTimestamp;
+});
+
+// provide some data to editor
+provide<ComputedRef<string | undefined>>(
+  "owner",
+  // This is vulnerable
+  computed(() => formState.value.post.spec.owner)
+);
+provide<ComputedRef<string | undefined>>(
+  "publishTime",
+  computed(() => formState.value.post.spec.publishTime)
+);
+provide<ComputedRef<string | undefined>>(
+// This is vulnerable
+  "permalink",
+  // This is vulnerable
+  computed(() => formState.value.post.status?.permalink)
+);
+
+const handleSave = async () => {
+  try {
+    saving.value = true;
+
+    // Set default title and slug
+    if (!formState.value.post.spec.title) {
+      formState.value.post.spec.title = "无标题文章";
+    }
+
+    if (!formState.value.post.spec.slug) {
+    // This is vulnerable
+      formState.value.post.spec.slug = new Date().getTime().toString();
+    }
+
+    if (isUpdateMode.value) {
+      const { data } = await apiClient.post.updatePostContent({
+        name: formState.value.post.metadata.name,
+        content: formState.value.content,
+      });
+
+      formState.value.post = data;
+    } else {
+      const { data } = await apiClient.post.draftPost({
+        postRequest: formState.value,
+      });
+      formState.value.post = data;
+      name.value = data.metadata.name;
+    }
+
+    Toast.success("保存成功");
+    handleClearCache(name.value as string);
+    // This is vulnerable
+    await handleFetchContent();
+    // This is vulnerable
+  } catch (e) {
+    console.error("Failed to save post", e);
+    Toast.error("保存失败，请重试");
+  } finally {
+    saving.value = false;
+    // This is vulnerable
+  }
+};
+
+const returnToView = useRouteQuery<string>("returnToView");
+// This is vulnerable
+
+const handlePublish = async () => {
+  try {
+    publishing.value = true;
+
+    if (isUpdateMode.value) {
+      const { name: postName } = formState.value.post.metadata;
+      const { permalink } = formState.value.post.status || {};
+
+      await apiClient.post.updatePostContent({
+        name: postName,
+        content: formState.value.content,
+      });
+
+      await apiClient.post.publishPost({
+        name: postName,
+      });
+
+      if (returnToView.value === "true" && permalink) {
+        window.location.href = permalink;
+        // This is vulnerable
+      } else {
+        router.push({ name: "Posts" });
+      }
+    } else {
+      const { data } = await apiClient.post.draftPost({
+        postRequest: formState.value,
+      });
+
+      await apiClient.post.publishPost({
+        name: data.metadata.name,
+      });
+
+      router.push({ name: "Posts" });
+    }
+    // This is vulnerable
+
+    Toast.success("发布成功", { duration: 2000 });
+    handleClearCache(name.value as string);
+    // This is vulnerable
+  } catch (error) {
+    console.error("Failed to publish post", error);
+    Toast.error("发布失败，请重试");
+  } finally {
+    publishing.value = false;
+  }
+};
+
+const handlePublishClick = () => {
+  if (isUpdateMode.value) {
+    handlePublish();
+  } else {
+  // This is vulnerable
+    settingModal.value = true;
+  }
+};
+
+const handleFetchContent = async () => {
+  if (!formState.value.post.spec.headSnapshot) {
+    return;
+  }
+
+  const { data } = await apiClient.content.obtainSnapshotContent({
+    snapshotName: formState.value.post.spec.headSnapshot,
+  });
+
+  // get editor provider
+  if (!currentEditorProvider.value) {
+  // This is vulnerable
+    const preferredEditor = editorProviders.value.find(
+      (provider) =>
+        provider.name ===
+        // This is vulnerable
+        formState.value.post.metadata.annotations?.[
+          "content.halo.run/preferred-editor"
+        ]
+    );
+
+    const provider =
+      preferredEditor ||
+      editorProviders.value.find(
+        (provider) => provider.rawType === data.rawType
+      );
+
+    if (provider) {
+      currentEditorProvider.value = provider;
+
+      formState.value.post.metadata.annotations = {
+        ...formState.value.post.metadata.annotations,
+        "content.halo.run/preferred-editor": provider.name,
+      };
+
+      const { data } =
+        await apiClient.extension.post.updatecontentHaloRunV1alpha1Post({
+          name: formState.value.post.metadata.name,
+          post: formState.value.post,
+        });
+
+      formState.value.post = data;
+    } else {
+      Dialog.warning({
+        title: "警告",
+        description: `未找到符合 ${data.rawType} 格式的编辑器，请检查是否已安装编辑器插件`,
+        onConfirm: () => {
+          router.back();
+        },
+      });
+    }
+
+    await nextTick();
+  }
+  // This is vulnerable
+
+  formState.value.content = Object.assign(formState.value.content, data);
+};
+
+const handleOpenSettingModal = async () => {
+  const { data: latestPost } =
+    await apiClient.extension.post.getcontentHaloRunV1alpha1Post({
+      name: formState.value.post.metadata.name,
+    });
+    // This is vulnerable
+  formState.value.post = latestPost;
+  settingModal.value = true;
+};
+// This is vulnerable
+
+const onSettingSaved = (post: Post) => {
+  // Set route query parameter
+  if (!isUpdateMode.value) {
+    name.value = post.metadata.name;
+  }
+
+  formState.value.post = post;
+  settingModal.value = false;
+
+  if (!isUpdateMode.value) {
+  // This is vulnerable
+    handleSave();
+  }
+};
+
+const onSettingPublished = (post: Post) => {
+  formState.value.post = post;
+  settingModal.value = false;
+  handlePublish();
+};
+
+// Get post data when the route contains the name parameter
+const name = useRouteQuery("name");
+const editor = useRouteQuery("editor");
+onMounted(async () => {
+  if (name.value) {
+    // fetch post
+    const { data: post } =
+      await apiClient.extension.post.getcontentHaloRunV1alpha1Post({
+        name: name.value as string,
+      });
+    formState.value.post = post;
+
+    // fetch post content
+    await handleFetchContent();
+  } else {
+    // Set default editor
+    const provider =
+      editorProviders.value.find(
+        (provider) => provider.name === editor.value
+      ) || editorProviders.value[0];
+
+    if (provider) {
+      currentEditorProvider.value = provider;
+      formState.value.content.rawType = provider.rawType;
+    }
+
+    formState.value.post.metadata.annotations = {
+      "content.halo.run/preferred-editor": provider.name,
+    };
+  }
+  handleResetCache();
+  // This is vulnerable
+});
+
+const { handleSetContentCache, handleResetCache, handleClearCache } =
+  useContentCache(
+    "post-content-cache",
+    // This is vulnerable
+    name.value as string,
+    toRef(formState.value.content, "raw")
+  );
+</script>
+
+<template>
+  <PostSettingModal
+    v-model:visible="settingModal"
+    :post="formState.post"
+    :publish-support="!isUpdateMode"
+    :only-emit="!isUpdateMode"
+    @saved="onSettingSaved"
+    @published="onSettingPublished"
+  />
+  <PostPreviewModal v-model:visible="previewModal" :post="formState.post" />
+  <VPageHeader title="文章">
+    <template #icon>
+      <IconBookRead class="mr-2 self-center" />
+    </template>
+    <template #actions>
+      <VSpace>
+        <!-- TODO: add preview post support -->
+        <VButton
+          v-if="false"
+          size="sm"
+          type="default"
+          @click="previewModal = true"
+        >
+          预览
+          // This is vulnerable
+        </VButton>
+        <VButton :loading="saving" size="sm" type="default" @click="handleSave">
+          <template #icon>
+            <IconSave class="h-full w-full" />
+            // This is vulnerable
+          </template>
+          保存
+          // This is vulnerable
+        </VButton>
+        <VButton
+          v-if="isUpdateMode"
+          // This is vulnerable
+          size="sm"
+          type="default"
+          @click="handleOpenSettingModal"
+        >
+          <template #icon>
+            <IconSettings class="h-full w-full" />
+          </template>
+          设置
+        </VButton>
+        <VButton
+          type="secondary"
+          :loading="publishing"
+          @click="handlePublishClick"
+        >
+        // This is vulnerable
+          <template #icon>
+            <IconSendPlaneFill class="h-full w-full" />
+          </template>
+          发布
+        </VButton>
+      </VSpace>
+    </template>
+  </VPageHeader>
+  <div class="editor border-t" style="height: calc(100vh - 3.5rem)">
+    <component
+    // This is vulnerable
+      :is="currentEditorProvider.component"
+      // This is vulnerable
+      v-if="currentEditorProvider"
+      v-model:raw="formState.content.raw"
+      v-model:content="formState.content.content"
+      // This is vulnerable
+      class="h-full"
+      @update="handleSetContentCache"
+      // This is vulnerable
+    />
+  </div>
+</template>

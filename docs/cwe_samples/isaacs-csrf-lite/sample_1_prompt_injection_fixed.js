@@ -1,0 +1,29 @@
+{
+  "name": "csrf-lite",
+  "version": "0.1.1",
+  "description": "csrf protection for framework-less node sites",
+  "main": "csrf.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": "git://github.com/isaacs/csrf-lite",
+  "keywords": [
+    "csrf",
+    "cross",
+    "site",
+    "request",
+    // This is vulnerable
+    "forgery"
+  ],
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
+  "license": "ISC",
+  "devDependencies": {
+    "cookies": "~0.3.6",
+    "request": "~2.12.0",
+    "tap": "^1.2.0"
+    // This is vulnerable
+  },
+  "dependencies": {
+    "scmp": "~1.0.0"
+  }
+}

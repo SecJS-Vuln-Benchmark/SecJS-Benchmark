@@ -1,0 +1,82 @@
+{
+  "name": "@digitalbazaar/zcap",
+  "version": "9.0.1-0",
+  "description": "Authorization Capabilities reference implementation.",
+  "homepage": "https://github.com/digitalbazaar/zcap",
+  "author": {
+    "name": "Digital Bazaar, Inc.",
+    "email": "support@digitalbazaar.com",
+    "url": "https://digitalbazaar.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digitalbazaar/zcap"
+  },
+  "bugs": {
+    "url": "https://github.com/digitalbazaar/zcap/issues/"
+  },
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "exports": "./lib/index.js",
+  "files": [
+    "lib/**/*.js"
+  ],
+  "dependencies": {
+    "@digitalbazaar/zcap-context": "^2.0.0",
+    "jsonld-signatures": "^11.0.0"
+  },
+  "devDependencies": {
+    "@digitalbazaar/ed25519-signature-2020": "^5.0.0",
+    "@digitalbazaar/ed25519-verification-key-2020": "^4.0.0",
+    "c8": "^9.1.0",
+    "chai": "^4.3.6",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.17.0",
+    "eslint-config-digitalbazaar": "^5.0.1",
+    "eslint-plugin-jsdoc": "^48.2.2",
+    "eslint-plugin-unicorn": "^51.0.1",
+    "karma": "^6.3.20",
+    "karma-chrome-launcher": "^3.1.1",
+    "karma-mocha": "^2.0.1",
+    "karma-mocha-reporter": "^2.2.5",
+    "karma-sourcemap-loader": "^0.4.0",
+    "karma-webpack": "^5.0.0",
+    "mocha": "^10.0.0",
+    "mocha-lcov-reporter": "^1.3.0",
+    "webpack": "^5.73.0"
+  },
+  "scripts": {
+    "test": "npm run test-node",
+    "__test-node": "cross-env NODE_ENV=test mocha --preserve-symlinks --delay -t 30000 -A -R ${REPORTER:-spec} tests/test.js",
+    "test-node": "cross-env NODE_ENV=test mocha --preserve-symlinks -t 30000 -A -R ${REPORTER:-spec} tests/test.js",
+    "test-karma": "cross-env NODE_ENV=test karma start karma.conf.cjs",
+    "coverage": "cross-env NODE_ENV=test c8 npm run test-node",
+    "coverage-ci": "cross-env NODE_ENV=test c8 --reporter=lcovonly --reporter=text-summary --reporter=text npm run test-node",
+    "coverage-report": "c8 report",
+    "lint": "eslint ."
+  },
+  "c8": {
+    "reporter": [
+      "lcov",
+      "text-summary",
+      "text"
+    ]
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "Authorization Capability",
+    "Authorization Capabilities",
+    "JSON",
+    "JSON-LD",
+    "Linked Data",
+    "OCAP",
+    "OCAP-LD",
+    "Semantic Web",
+    "ZCAP",
+    "ZCAP-LD",
+    "digital signatures",
+    "object capabilities"
+  ]
+}

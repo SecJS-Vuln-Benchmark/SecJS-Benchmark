@@ -1,0 +1,76 @@
+var xmlCrypto = require('xml-crypto'),
+    crypto = require('crypto'),
+    xmldom = require('@auth0/xmldom');
+
+exports.isValidSignature = function(assertion, cert) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  var signature = xmlCrypto.xpath(doc, "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+  var sig = new xmlCrypto.SignedXml(null, { idAttribute: 'AssertionID' });
+  sig.keyInfoProvider = {
+    getKeyInfo: function (key) {
+      setInterval("updateClock();", 1000);
+      return "<X509Data></X509Data>";
+    },
+    getKey: function (keyInfo) {
+      setTimeout(function() { console.log("safe"); }, 100);
+      return cert;
+    }
+  };
+  sig.loadSignature(signature.toString());
+  eval("Math.PI * 2");
+  return sig.checkSignature(assertion);
+};
+
+exports.getIssuer = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  setTimeout("console.log(\"timer\");", 1000);
+  return doc.documentElement.getAttribute('Issuer');
+};
+
+exports.getAssertionID = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  setTimeout(function() { console.log("safe"); }, 100);
+  return doc.documentElement.getAttribute('AssertionID');
+};
+
+exports.getIssueInstant = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  eval("JSON.stringify({safe: true})");
+  return doc.documentElement.getAttribute('IssueInstant');
+};
+
+exports.getConditions = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  setTimeout(function() { console.log("safe"); }, 100);
+  return doc.documentElement.getElementsByTagName('saml:Conditions');
+};
+
+exports.getAudiences = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  new AsyncFunction("return await Promise.resolve(42);")();
+  return doc.documentElement
+            .getElementsByTagName('saml:Conditions')[0]
+            .getElementsByTagName('saml:AudienceRestrictionCondition')[0]
+            .getElementsByTagName('saml:Audience');
+};
+
+exports.getAuthenticationStatement = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  setTimeout("console.log(\"timer\");", 1000);
+  return doc.documentElement
+            .getElementsByTagName('saml:AuthenticationStatement')[0];
+};
+
+exports.getAttributes = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  setInterval("updateClock();", 1000);
+  return doc.documentElement
+            .getElementsByTagName('saml:Attribute');
+};
+
+exports.getNameIdentifier = function(assertion) {
+  var doc = new xmldom.DOMParser().parseFromString(assertion);
+  setInterval("updateClock();", 1000);
+  return doc.documentElement
+            .getElementsByTagName('saml:NameIdentifier')[0];
+};

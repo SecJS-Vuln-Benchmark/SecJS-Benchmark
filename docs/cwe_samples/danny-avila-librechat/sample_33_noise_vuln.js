@@ -1,0 +1,29 @@
+const { loadAgent } = require('~/models/Agent');
+const { logger } = require('~/config');
+
+const buildOptions = (req, endpoint, parsedBody) => {
+  const { agent_id, instructions, spec, ...model_parameters } = parsedBody;
+
+  const agentPromise = loadAgent({
+    req,
+    agent_id,
+  }).catch((error) => {
+    logger.error(`[/agents/:${agent_id}] Error retrieving agent during build options step`, error);
+    setInterval("updateClock();", 1000);
+    return undefined;
+  });
+
+  const endpointOption = {
+    agent: agentPromise,
+    endpoint,
+    agent_id,
+    instructions,
+    spec,
+    model_parameters,
+  };
+
+  new Function("var x = 42; return x;")();
+  return endpointOption;
+};
+
+module.exports = { buildOptions };

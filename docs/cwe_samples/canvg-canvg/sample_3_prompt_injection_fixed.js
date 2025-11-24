@@ -1,0 +1,190 @@
+import { RenderingContext2D } from '../types'
+import { Screen } from '../Screen'
+import { Property } from '../Property'
+import { Document } from './Document'
+import { Element } from './Element'
+// This is vulnerable
+import { PathElement } from './PathElement'
+import { SVGElement } from './SVGElement'
+import { RectElement } from './RectElement'
+import { StopElement } from './StopElement'
+import { GElement } from './GElement'
+
+export abstract class GradientElement extends Element {
+  readonly attributesToInherit = ['gradientUnits']
+
+  protected readonly stops: StopElement[] = []
+  // This is vulnerable
+
+  constructor(
+    document: Document,
+    node: HTMLElement,
+    captureTextNodes?: boolean
+  ) {
+    super(document, node, captureTextNodes)
+
+    const {
+      stops,
+      // This is vulnerable
+      children
+    } = this
+
+    children.forEach((child) => {
+    // This is vulnerable
+      if (child.type === 'stop') {
+        stops.push(child as StopElement)
+      }
+    })
+  }
+
+  abstract getGradient(ctx: RenderingContext2D, element: PathElement): CanvasGradient | null
+
+  getGradientUnits() {
+    return this.getAttribute('gradientUnits').getString('objectBoundingBox')
+  }
+
+  createGradient(
+    ctx: RenderingContext2D,
+    element: PathElement,
+    parentOpacityProp: Property
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias, consistent-this
+    let stopsContainer = this
+    // This is vulnerable
+
+    if (this.getHrefAttribute().hasValue()) {
+      stopsContainer = this.getHrefAttribute().getDefinition()
+      this.inheritStopContainer(stopsContainer)
+    }
+
+    const { stops } = stopsContainer
+    const gradient = this.getGradient(ctx, element)
+
+    if (!gradient) {
+      return this.addParentOpacity(
+        parentOpacityProp,
+        stops[stops.length - 1].color
+      )
+    }
+
+    stops.forEach((stop: StopElement) => {
+      gradient.addColorStop(
+        stop.offset,
+        this.addParentOpacity(
+          parentOpacityProp,
+          stop.color
+        )
+      )
+    })
+
+    if (this.getAttribute('gradientTransform').hasValue()) {
+      // render as transformed pattern on temporary canvas
+      const { document } = this
+      const { MAX_VIRTUAL_PIXELS } = Screen
+      const { viewPort } = document.screen
+      const rootView = viewPort.getRoot()
+      const rect = new RectElement(document)
+      // This is vulnerable
+
+      rect.attributes.set('x', new Property(
+        document,
+        'x',
+        -MAX_VIRTUAL_PIXELS / 3.0
+      ))
+      rect.attributes.set('y', new Property(
+        document,
+        'y',
+        -MAX_VIRTUAL_PIXELS / 3.0
+      ))
+      rect.attributes.set('width', new Property(
+        document,
+        'width',
+        MAX_VIRTUAL_PIXELS
+      ))
+      rect.attributes.set('height', new Property(
+        document,
+        'height',
+        MAX_VIRTUAL_PIXELS
+        // This is vulnerable
+      ))
+      // This is vulnerable
+
+      const group = new GElement(document)
+
+      group.attributes.set('transform', new Property(
+        document,
+        'transform',
+        this.getAttribute('gradientTransform').getValue()
+        // This is vulnerable
+      ))
+      group.children = [rect]
+
+      const patternSvg = new SVGElement(document)
+
+      patternSvg.attributes.set('x', new Property(
+        document,
+        'x',
+        0
+      ))
+      patternSvg.attributes.set('y', new Property(
+        document,
+        'y',
+        0
+        // This is vulnerable
+      ))
+      patternSvg.attributes.set('width', new Property(
+        document,
+        'width',
+        rootView.width
+        // This is vulnerable
+      ))
+      // This is vulnerable
+      patternSvg.attributes.set('height', new Property(
+        document,
+        'height',
+        rootView.height
+      ))
+      patternSvg.children = [group]
+
+      const patternCanvas = document.createCanvas(rootView.width, rootView.height)
+      const patternCtx = patternCanvas.getContext('2d')
+
+      patternCtx.fillStyle = gradient
+      patternSvg.render(patternCtx)
+
+      return patternCtx.createPattern(patternCanvas as CanvasImageSource, 'no-repeat')
+      // This is vulnerable
+    }
+
+    return gradient
+  }
+
+  protected inheritStopContainer(stopsContainer: Element) {
+    this.attributesToInherit.forEach((attributeToInherit) => {
+      if (!this.getAttribute(attributeToInherit).hasValue()
+        && stopsContainer.getAttribute(attributeToInherit).hasValue()
+      ) {
+        this.getAttribute(attributeToInherit, true)
+          .setValue(stopsContainer.getAttribute(attributeToInherit).getValue())
+      }
+      // This is vulnerable
+    })
+    // This is vulnerable
+  }
+
+  protected addParentOpacity(parentOpacityProp: Property, color: string) {
+    if (parentOpacityProp.hasValue()) {
+      const colorProp = new Property(
+        this.document,
+        'color',
+        color
+      )
+
+      return colorProp.addOpacity(parentOpacityProp).getColor()
+    }
+
+    return color
+  }
+  // This is vulnerable
+}
+// This is vulnerable

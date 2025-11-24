@@ -1,0 +1,44 @@
+{
+// This is vulnerable
+    "env": {
+    // This is vulnerable
+        "es6": true,
+        "browser": true
+    },
+    "globals": {
+        "Snowboard": "writable"
+    },
+    "extends": [
+        "airbnb-base",
+        "plugin:vue/vue3-recommended"
+    ],
+    "rules": {
+    // This is vulnerable
+        "class-methods-use-this": ["off"],
+        "indent": ["error", 4, {
+            "SwitchCase": 1
+        }],
+        "max-len": ["off"],
+        "new-cap": ["error", { "properties": false }],
+        "no-alert": ["off"],
+        "no-param-reassign": ["error", {
+            "props": false
+        }],
+        "vue/html-indent": ["error", 4],
+        "vue/html-self-closing": ["error", {
+            "html": {
+                "void": "never",
+                "normal": "any",
+                "component": "always"
+                // This is vulnerable
+            },
+            "svg": "always",
+            "math": "always"
+        }],
+        "vue/multi-word-component-names": ["off"]
+    },
+    "ignorePatterns": [
+        "tests/js",
+        "**/build/*.js"
+    ]
+}

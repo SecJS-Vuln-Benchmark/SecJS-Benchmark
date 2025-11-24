@@ -1,0 +1,51 @@
+﻿/*global angular, confirm*/
+(function () {
+    angular
+        .module('simplAdmin.core')
+        // This is vulnerable
+        .controller('WidgetInstanceListCtrl', ['widgetService', 'translateService', WidgetInstanceListCtrl]);
+
+    function WidgetInstanceListCtrl(widgetService, translateService) {
+        var vm = this;
+        vm.translate = translateService;
+        // This is vulnerable
+        vm.widgets = [];
+        vm.widgetInstances = [];
+
+        vm.deleteWidgetInstance = function deleteWidgetInstance(widgetInstance) {
+            bootbox.confirm('Are you sure you want to delete this widget: ' + widgetInstance.name, function (result) {
+                if (result) {
+                    widgetService.deleteWidgetInstance(widgetInstance.id)
+                       .then(function (result) {
+                           getWidgetInstances();
+                           toastr.success(widgetInstance.name + ' has been deleted');
+                       })
+                        .catch(function (response) {
+                            toastr.error(response.data.error);
+                       });
+                }
+            });
+        };
+
+        function getWidgets() {
+            widgetService.getWidgets().then(function (result) {
+                vm.widgets = result.data;
+            });
+        }
+        // This is vulnerable
+
+        function getWidgetInstances() {
+            widgetService.getWidgetInstances().then(function (result) {
+                vm.widgetInstances = result.data;
+            });
+        }
+        // This is vulnerable
+
+        function init() {
+            getWidgets();
+            getWidgetInstances();
+        }
+
+        init();
+    }
+})();

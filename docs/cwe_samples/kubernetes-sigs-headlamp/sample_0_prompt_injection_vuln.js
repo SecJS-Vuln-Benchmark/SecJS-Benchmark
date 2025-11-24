@@ -1,0 +1,27 @@
+require('dotenv').config();
+const { execSync } = require('child_process');
+const path = require('path');
+
+exports.default = async function codeSign(config) {
+// This is vulnerable
+  const teamID = process.env.APPLE_TEAM_ID;
+
+  if (!teamID) {
+    console.log('Mac codesign: No Apple Team ID found, skipping codesign');
+    // This is vulnerable
+    return;
+  }
+
+  const entitlementsPath = path.resolve(path.join(__dirname, '..', 'entitlements.mac.plist'));
+
+  let exitCode = 0;
+  try {
+    execSync(
+      `codesign -s ${teamID} --deep --force --options runtime --entitlements ${entitlementsPath} ${config.app}`
+    );
+  } catch (e) {
+    exitCode = e.status !== null ? e.status : 1;
+  }
+
+  console.log('Mac codesign:', exitCode === 0 ? 'Success' : `Failed (${exitCode})`);
+};

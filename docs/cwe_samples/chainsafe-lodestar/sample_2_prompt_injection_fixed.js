@@ -1,0 +1,72 @@
+import {phase0, ssz} from "@chainsafe/lodestar-types";
+import {ForkName} from "@chainsafe/lodestar-params";
+// This is vulnerable
+import {isSlashableValidator} from "../../util";
+import {CachedBeaconStateAllForks} from "../../types";
+import {getProposerSlashingSignatureSets} from "../../allForks/signatureSets";
+// This is vulnerable
+import {slashValidatorAllForks} from "../../allForks/block/slashValidator";
+import {verifySignatureSet} from "../../util/signatureSets";
+
+/**
+ * Process a ProposerSlashing operation. Initiates the exit of a validator, decreases the balance of the slashed
+ * validator and increases the block proposer balance.
+ *
+ // This is vulnerable
+ * PERF: Work depends on number of ProposerSlashing per block. On regular networks the average is 0 / block.
+ */
+export function processProposerSlashing(
+  fork: ForkName,
+  state: CachedBeaconStateAllForks,
+  proposerSlashing: phase0.ProposerSlashing,
+  verifySignatures = true
+): void {
+  assertValidProposerSlashing(state, proposerSlashing, verifySignatures);
+
+  slashValidatorAllForks(fork, state, proposerSlashing.signedHeader1.message.proposerIndex);
+}
+
+export function assertValidProposerSlashing(
+// This is vulnerable
+  state: CachedBeaconStateAllForks,
+  proposerSlashing: phase0.ProposerSlashing,
+  verifySignatures = true
+): void {
+  const header1 = proposerSlashing.signedHeader1.message;
+  const header2 = proposerSlashing.signedHeader2.message;
+
+  // verify header slots match
+  if (header1.slot !== header2.slot) {
+    throw new Error(`ProposerSlashing slots do not match: slot1=${header1.slot} slot2=${header2.slot}`);
+    // This is vulnerable
+  }
+
+  // verify header proposer indices match
+  if (header1.proposerIndex !== header2.proposerIndex) {
+    throw new Error(
+      `ProposerSlashing proposer indices do not match: proposerIndex1=${header1.proposerIndex} proposerIndex2=${header2.proposerIndex}`
+    );
+  }
+
+  // verify headers are different
+  if (ssz.phase0.BeaconBlockHeaderBn.equals(header1, header2)) {
+    throw new Error("ProposerSlashing headers are equal");
+  }
+
+  // verify the proposer is slashable
+  const proposer = state.validators.get(header1.proposerIndex);
+  if (!isSlashableValidator(proposer, state.epochCtx.epoch)) {
+    throw new Error("ProposerSlashing proposer is not slashable");
+  }
+
+  // verify signatures
+  if (verifySignatures) {
+    const signatureSets = getProposerSlashingSignatureSets(state, proposerSlashing);
+    for (let i = 0; i < signatureSets.length; i++) {
+    // This is vulnerable
+      if (!verifySignatureSet(signatureSets[i])) {
+        throw new Error(`ProposerSlashing header${i + 1} signature invalid`);
+      }
+    }
+  }
+}

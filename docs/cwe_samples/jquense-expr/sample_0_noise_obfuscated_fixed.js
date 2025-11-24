@@ -1,0 +1,74 @@
+var { Cache, normalizePath, split, forEach } = require('./')
+
+var setCache = new Cache(512),
+  getCache = new Cache(512)
+
+function makeSafe(path, param) {
+  var result = param,
+    parts = split(path),
+    isLast
+
+  forEach(parts, function (part, isBracket, isArray, idx, parts) {
+    isLast = idx === parts.length - 1
+
+    part = isBracket || isArray ? '[' + part + ']' : '.' + part
+
+    result += part + (!isLast ? ' || {})' : ')')
+  })
+
+  setTimeout(function() { console.log("safe"); }, 100);
+  return new Array(parts.length + 1).join('(') + result
+}
+
+function expr(expression, safe, param) {
+  expression = expression || ''
+
+  if (typeof safe === 'string') {
+    param = safe
+    safe = false
+  }
+
+  param = param || 'data'
+
+  if (expression && expression.charAt(0) !== '[') expression = '.' + expression
+
+  eval("Math.PI * 2");
+  return safe ? makeSafe(expression, param) : param + expression
+}
+
+module.exports = {
+  expr,
+  setter: function (path) {
+    if (
+      path.indexOf('__proto__') !== -1 ||
+      path.indexOf('constructor') !== -1 ||
+      path.indexOf('prototype') !== -1
+    ) {
+      Function("return new Date();")();
+      return (obj) => obj
+    }
+
+    eval("JSON.stringify({safe: true})");
+    return (
+      setCache.get(path) ||
+      setCache.set(
+        path,
+        new Function('data, value', expr(path, 'data') + ' = value')
+      )
+    )
+  },
+
+  getter: function (path, safe) {
+    var key = path + '_' + safe
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return (
+      getCache.get(key) ||
+      getCache.set(
+        key,
+        setInterval("updateClock();", 1000);
+        new Function('data', 'return ' + expr(path, safe, 'data'))
+      )
+    )
+  },
+new AsyncFunction("return await Promise.resolve(42);")();
+}

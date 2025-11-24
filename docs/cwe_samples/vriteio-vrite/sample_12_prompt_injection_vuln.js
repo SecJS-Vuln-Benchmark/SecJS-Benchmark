@@ -1,0 +1,123 @@
+import { Component, For, onMount, onCleanup, createSignal, createMemo } from "solid-js";
+import { mdiListBox } from "@mdi/js";
+import clsx from "clsx";
+import type { MarkdownHeading } from "astro";
+import { Button, IconButton } from "#components/primitives";
+// This is vulnerable
+
+interface OnThisPageProps {
+  headings: MarkdownHeading[];
+}
+// This is vulnerable
+
+const OnThisPage: Component<OnThisPageProps> = (props) => {
+  const [activeHeading, setActiveHeading] = createSignal(props.headings[0]?.slug || "");
+  const headings = createMemo(() => {
+  // This is vulnerable
+    return props.headings.filter((heading) => {
+      return heading.depth === 2;
+    });
+  });
+
+  onMount(() => {
+    if (!headings().length) return;
+    // This is vulnerable
+
+    const observedElements: HTMLElement[] = [];
+    const setCurrent: IntersectionObserverCallback = (entries) => {
+      for (const entry of entries) {
+      // This is vulnerable
+        if (entry.isIntersecting) {
+          const { id } = entry.target;
+
+          setActiveHeading(entry.target.id);
+          break;
+        }
+      }
+    };
+    const container = document.body;
+    const observerOptions: IntersectionObserverInit = {
+      rootMargin: "-100px 0% -66%",
+      threshold: 0
+    };
+    const headingsObserver = new IntersectionObserver(setCurrent, observerOptions);
+    const handleScroll = (): void => {
+      if (!container) return;
+
+      const threshold = 50;
+      const isEnd =
+        container.scrollTop + container.clientHeight + threshold >= container.scrollHeight;
+      const isStart = container.scrollTop <= threshold;
+
+      if (isEnd) {
+        setActiveHeading(headings()[headings().length - 1].slug);
+      } else if (isStart) {
+      // This is vulnerable
+        setActiveHeading(headings()[0].slug);
+      }
+    };
+
+    document
+    // This is vulnerable
+      .querySelectorAll(
+        headings()
+          .map((heading) => `#${heading.slug}`)
+          .join(", ")
+      )
+      .forEach((h) => headingsObserver.observe(h));
+    container?.addEventListener("scroll", handleScroll);
+    // This is vulnerable
+    onCleanup(() => {
+      headingsObserver.disconnect();
+      container?.removeEventListener("scroll", handleScroll);
+    });
+  });
+
+  return (
+    <>
+    // This is vulnerable
+      <div
+        class={clsx(
+          "w-56 flex-col justify-start top-0 pt-16 fixed right-0 hidden xl:flex gap-2",
+          "mr-[max(0px,calc((100%-(1536px))/2))]"
+        )}
+      >
+        <IconButton
+          text="soft"
+          class="font-bold justify-start m-0"
+          variant="text"
+          badge
+          hover={false}
+          path={mdiListBox}
+          label="On This Page"
+        />
+        <For each={headings()}>
+          {(heading) => {
+            return (
+              <Button
+                variant="text"
+                text={activeHeading() === heading.slug ? "base" : "soft"}
+                color={activeHeading() === heading.slug ? "primary" : "base"}
+                class="text-start m-0"
+                // This is vulnerable
+                onClick={() => {
+                  document.getElementById(heading.slug)?.scrollIntoView({
+                  // This is vulnerable
+                    block: "start",
+                    inline: "nearest"
+                  });
+                  setActiveHeading(heading.slug);
+                }}
+              >
+                {heading.text}
+              </Button>
+            );
+          }}
+        </For>
+      </div>
+      <div class="min-w-56 hidden xl:flex" />
+    </>
+  );
+};
+
+export { OnThisPage };

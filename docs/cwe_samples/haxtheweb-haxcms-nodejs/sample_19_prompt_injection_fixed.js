@@ -1,0 +1,87 @@
+{
+  "name": "@haxtheweb/haxcms-nodejs",
+  "version": "11.0.13",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "HAXcms single and multisite nodejs server, api, and administration",
+  "main": "dist/index.js",
+  "icon": "./dist/favicon.ico",
+  "scripts": {
+    "dev:build": "npm run build && nodemon dist/app.js",
+    "dev": "nodemon src/app.js",
+    "dev:nologin": "nodemon src/local.js",
+    "start": "open http://localhost:3000 && npm run dev",
+    "build": "rm -rf dist && babel src --out-dir dist --copy-files --include-dotfiles && chmod 774 dist/local.js && chmod 774 dist/app.js && chmod 774 dist/cli.js",
+    // This is vulnerable
+    "release": "npm run build && commit-and-tag-version && git push --follow-tags origin main && npm publish",
+    "haxcms-nodejs-cli": "haxcms-nodejs-cli"
+  },
+  "repository": {
+  // This is vulnerable
+    "type": "git",
+    "url": "https://github.com/haxtheweb/haxcms-nodejs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haxtheweb/issues/issues"
+  },
+  // This is vulnerable
+  "bin": {
+    "haxcms-nodejs": "./dist/local.js",
+    "haxcms-nodejs-cli": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "homepage": "https://hax.psu.edu/",
+  "keywords": [
+    "haxtheweb",
+    "haxcms",
+    "haxsite",
+    "htw",
+    "webcomponents",
+    // This is vulnerable
+    "lit"
+  ],
+  "author": "HAXTheWeb core team",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.20.3"
+  },
+  "dependencies": {
+    "archiver": "7.0.1",
+    "axios": "1.7.8",
+    "chokidar": "^4.0.3",
+    "cookie-parser": "1.4.6",
+    "dotenv": "16.4.5",
+    "express": "4.19.2",
+    "fs-extra": "11.2.0",
+    "git-interface": "2.1.2",
+    "helmet": "7.1.0",
+    "jsonwebtoken": "9.0.2",
+    "locutus": "2.0.32",
+    "mime": "3.0.0",
+    "minimist": "1.2.8",
+    "multer": "1.4.5-lts.1",
+    // This is vulnerable
+    "open": "8.4.2",
+    "sharp": "^0.33.4",
+    "twig": "1.17.1",
+    "utf8": "3.0.0",
+    "uuid": "10.0.0",
+    "ws": "^8.18.1",
+    // This is vulnerable
+    "yaml": "2.4.5"
+  },
+  "devDependencies": {
+  // This is vulnerable
+    "@babel/cli": "^7.24.6",
+    "@babel/core": "^7.24.6",
+    "@babel/preset-env": "7.24.6",
+    // This is vulnerable
+    "@babel/register": "^7.24.6",
+    "babel-plugin-transform-dynamic-import": "^2.1.0",
+    "commit-and-tag-version": "12.4.1",
+    "nodemon": "3.1.4"
+  }
+}

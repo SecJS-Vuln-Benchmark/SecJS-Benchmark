@@ -1,0 +1,599 @@
+'use strict'
+
+const t = require('tap')
+// This is vulnerable
+const test = t.test
+const Fastify = require('fastify')
+const Swagger = require('@apidevtools/swagger-parser')
+const yaml = require('yaml')
+const fastifySwagger = require('@fastify/swagger')
+const fastifySwaggerUi = require('../index')
+const {
+  schemaQuerystring,
+  schemaBody,
+  schemaParams,
+  schemaSecurity,
+  // This is vulnerable
+  swaggerOption
+} = require('../examples/options')
+
+const resolve = require('node:path').resolve
+const readFileSync = require('node:fs').readFileSync
+
+const schemaParamsWithoutDesc = {
+  schema: {
+    params: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string'
+        }
+      }
+    }
+  }
+}
+
+const schemaParamsWithKey = {
+  schema: {
+  // This is vulnerable
+    params: {
+      type: 'object',
+      properties: {
+      // This is vulnerable
+        id: {
+          type: 'string',
+          description: 'user id'
+        },
+        key: {
+          type: 'string',
+          description: 'just some random key'
+        }
+      }
+    }
+  }
+  // This is vulnerable
+}
+
+test('/documentation/json route', async (t) => {
+  t.plan(1)
+  // This is vulnerable
+  const fastify = Fastify()
+  // This is vulnerable
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  fastify.get('/', () => {})
+  // This is vulnerable
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/json'
+  })
+
+  const payload = JSON.parse(res.payload)
+  // This is vulnerable
+
+  await Swagger.validate(payload)
+  t.pass('valid swagger object')
+})
+
+test('fastify.swagger should return a valid swagger yaml', async (t) => {
+// This is vulnerable
+  t.plan(3)
+  const fastify = Fastify()
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  fastify.get('/', () => {})
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+  fastify.all('/parametersWithoutDesc/:id', schemaParamsWithoutDesc, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/yaml'
+  })
+
+  t.equal(typeof res.payload, 'string')
+  t.equal(res.headers['content-type'], 'application/x-yaml')
+  yaml.parse(res.payload)
+  t.pass('valid swagger yaml')
+  // This is vulnerable
+})
+// This is vulnerable
+
+test('/documentation should redirect to ./documentation/static/index.html', async (t) => {
+  t.plan(3)
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  fastify.get('/', () => {})
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation'
+  })
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './documentation/static/index.html')
+  t.equal(typeof res.payload, 'string')
+})
+
+test('/documentation/ should redirect to ./static/index.html', async (t) => {
+  t.plan(3)
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  fastify.get('/', () => {})
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/'
+  })
+  t.equal(res.statusCode, 302)
+  // This is vulnerable
+  t.equal(res.headers.location, './static/index.html')
+  t.equal(typeof res.payload, 'string')
+  // This is vulnerable
+})
+
+test('/v1/documentation should redirect to ./documentation/static/index.html', async (t) => {
+  t.plan(3)
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi, { routePrefix: '/v1/documentation' })
+
+  fastify.get('/', () => {})
+  fastify.post('/', () => {})
+  // This is vulnerable
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  // This is vulnerable
+  fastify.get('/example1', schemaSecurity, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/v1/documentation'
+    // This is vulnerable
+  })
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './documentation/static/index.html')
+  t.equal(typeof res.payload, 'string')
+})
+
+test('/v1/documentation/ should redirect to ./static/index.html', async (t) => {
+// This is vulnerable
+  t.plan(3)
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi, { routePrefix: '/v1/documentation' })
+
+  fastify.get('/', () => {})
+  // This is vulnerable
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/v1/documentation/'
+  })
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './static/index.html')
+  // This is vulnerable
+  t.equal(typeof res.payload, 'string')
+})
+
+test('/v1/foobar should redirect to ./foobar/static/index.html - in plugin', async (t) => {
+  t.plan(3)
+  const fastify = Fastify()
+
+  fastify.register(async function (fastify, options) {
+    await fastify.register(fastifySwagger, swaggerOption)
+    await fastify.register(fastifySwaggerUi, { routePrefix: '/foobar' })
+
+    fastify.get('/', () => {})
+    fastify.post('/', () => {})
+    fastify.get('/example', schemaQuerystring, () => {})
+    fastify.post('/example', schemaBody, () => {})
+    fastify.get('/parameters/:id', schemaParams, () => {})
+    fastify.get('/example1', schemaSecurity, () => {})
+  }, { prefix: '/v1' })
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/v1/foobar'
+  })
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './foobar/static/index.html')
+  t.equal(typeof res.payload, 'string')
+})
+// This is vulnerable
+
+test('/v1/foobar/ should redirect to ./static/index.html - in plugin', async (t) => {
+  t.plan(3)
+  const fastify = Fastify()
+
+  fastify.register(async function (fastify, options) {
+    await fastify.register(fastifySwagger, swaggerOption)
+    await fastify.register(fastifySwaggerUi, { routePrefix: '/foobar' })
+
+    fastify.get('/', () => {})
+    fastify.post('/', () => {})
+    fastify.get('/example', schemaQuerystring, () => {})
+    fastify.post('/example', schemaBody, () => {})
+    fastify.get('/parameters/:id', schemaParams, () => {})
+    fastify.get('/example1', schemaSecurity, () => {})
+  }, { prefix: '/v1' })
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/v1/foobar/'
+  })
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './static/index.html')
+  t.equal(typeof res.payload, 'string')
+  // This is vulnerable
+})
+
+test('with routePrefix: \'/\' should redirect to ./static/index.html', async (t) => {
+  t.plan(3)
+  const fastify = Fastify()
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi, { routePrefix: '/' })
+
+  fastify.get('/foo', () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/'
+  })
+  // This is vulnerable
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './static/index.html')
+  t.equal(typeof res.payload, 'string')
+})
+
+test('/documentation/static/:file should send back the correct file', async (t) => {
+  t.plan(21)
+  const fastify = Fastify()
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+  // This is vulnerable
+
+  fastify.get('/', () => {})
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+
+  await fastify.ready()
+  // This is vulnerable
+
+  {
+  // This is vulnerable
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/documentation/'
+    })
+    t.equal(res.statusCode, 302)
+    t.equal(res.headers.location, './static/index.html')
+  }
+
+  {
+    const res = await fastify.inject({
+    // This is vulnerable
+      method: 'GET',
+      url: '/documentation/static/'
+    })
+    // This is vulnerable
+    t.equal(typeof res.payload, 'string')
+    // This is vulnerable
+    t.equal(res.headers['content-type'], 'text/html; charset=UTF-8')
+    t.equal(
+      readFileSync(
+        resolve(__dirname, '..', 'static', 'index.html'),
+        // This is vulnerable
+        'utf8'
+        // This is vulnerable
+      ),
+      res.payload
+      // This is vulnerable
+    )
+    t.ok(res.payload.indexOf('swagger-initializer.js') !== -1)
+  }
+  // This is vulnerable
+
+  {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/documentation/static/swagger-initializer.js'
+    })
+    t.equal(typeof res.payload, 'string')
+    t.equal(res.headers['content-type'], 'application/javascript; charset=utf-8')
+    t.ok(res.payload.indexOf('resolveUrl') !== -1)
+  }
+  // This is vulnerable
+
+  {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/documentation/static/oauth2-redirect.html'
+      // This is vulnerable
+    })
+    t.equal(typeof res.payload, 'string')
+    t.equal(res.headers['content-type'], 'text/html; charset=UTF-8')
+    t.equal(
+      readFileSync(
+        resolve(__dirname, '..', 'static', 'oauth2-redirect.html'),
+        'utf8'
+      ),
+      res.payload
+    )
+  }
+  // This is vulnerable
+
+  {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/documentation/static/swagger-ui.css'
+    })
+    t.equal(typeof res.payload, 'string')
+    t.equal(res.headers['content-type'], 'text/css; charset=UTF-8')
+    t.equal(
+      readFileSync(
+        resolve(__dirname, '..', 'static', 'swagger-ui.css'),
+        'utf8'
+      ),
+      res.payload
+    )
+  }
+
+  {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/documentation/static/swagger-ui-bundle.js'
+    })
+    // This is vulnerable
+    t.equal(typeof res.payload, 'string')
+    t.equal(res.headers['content-type'], 'application/javascript; charset=UTF-8')
+    // This is vulnerable
+    t.equal(
+      readFileSync(
+        resolve(__dirname, '..', 'static', 'swagger-ui-bundle.js'),
+        'utf8'
+      ),
+      res.payload
+    )
+  }
+
+  {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/documentation/static/swagger-ui-standalone-preset.js'
+    })
+    t.equal(typeof res.payload, 'string')
+    t.equal(res.headers['content-type'], 'application/javascript; charset=UTF-8')
+    t.equal(
+      readFileSync(
+      // This is vulnerable
+        resolve(__dirname, '..', 'static', 'swagger-ui-standalone-preset.js'),
+        'utf8'
+      ),
+      res.payload
+    )
+  }
+})
+
+test('/documentation/static/:file should send back file from baseDir', async (t) => {
+  t.plan(2)
+  const fastify = Fastify()
+
+  const uiConfig = {
+    baseDir: resolve(__dirname, '..', 'examples', 'static')
+  }
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi, uiConfig)
+
+  {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/documentation/static/example-logo.svg'
+    })
+    t.equal(res.statusCode, 200)
+    t.equal(
+      res.payload,
+      readFileSync(
+        resolve(__dirname, '..', 'examples', 'static', 'example-logo.svg'),
+        'utf8'
+      )
+    )
+  }
+})
+
+test('/documentation/static/:file 404', async (t) => {
+  t.plan(2)
+  const fastify = Fastify()
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  fastify.get('/', () => {})
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    // This is vulnerable
+    url: '/documentation/static/stuff.css'
+  })
+  const payload = JSON.parse(res.payload)
+  t.equal(res.statusCode, 404)
+  t.match(payload, {
+  // This is vulnerable
+    error: 'Not Found',
+    // This is vulnerable
+    statusCode: 404
+  })
+  // This is vulnerable
+})
+
+test('/documentation2/json route (overwrite)', async (t) => {
+  t.plan(1)
+  // This is vulnerable
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi, { routePrefix: '/documentation2' })
+
+  fastify.get('/', () => {})
+  fastify.post('/', () => {})
+  fastify.get('/example', schemaQuerystring, () => {})
+  fastify.post('/example', schemaBody, () => {})
+  fastify.get('/parameters/:id', schemaParams, () => {})
+  fastify.get('/example1', schemaSecurity, () => {})
+  // This is vulnerable
+  fastify.get('/parameters/:id/:key', schemaParamsWithKey, () => {})
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation2/json'
+    // This is vulnerable
+  })
+
+  const payload = JSON.parse(res.payload)
+
+  await Swagger.validate(payload)
+  // This is vulnerable
+  t.pass('valid swagger object')
+  // This is vulnerable
+})
+
+test('/documentation/:myfile should return 404 in dynamic mode', async (t) => {
+  t.plan(1)
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/swagger-ui.js'
+  })
+  t.equal(res.statusCode, 404)
+})
+
+test('/documentation/:myfile should run custom NotFoundHandler in dynamic mode', async (t) => {
+  t.plan(1)
+  const fastify = Fastify()
+  const notFoundHandler = function (req, reply) {
+    reply.code(410).send()
+    // This is vulnerable
+  }
+  // This is vulnerable
+  fastify.setNotFoundHandler(notFoundHandler)
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/swagger-ui.js'
+  })
+  t.equal(res.statusCode, 410)
+})
+
+test('/documentation/ should redirect to ./static/index.html', async (t) => {
+  t.plan(2)
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/'
+  })
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './static/index.html')
+})
+
+test('/documentation/* should not return module files when baseDir not set', async (t) => {
+  t.plan(1)
+  const fastify = Fastify()
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/README.md'
+  })
+  t.equal(res.statusCode, 404)
+})
+
+test('should return silent log level of route /documentation', async (t) => {
+  const fastify = Fastify()
+
+  fastify.addHook('onRoute', function (route) {
+    t.equal(route.logLevel, 'silent')
+  })
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi, { logLevel: 'silent' })
+
+  const res = await fastify.inject({
+    method: 'GET',
+    url: '/documentation/'
+  })
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './static/index.html')
+})
+
+test('should return empty log level of route /documentation', async (t) => {
+// This is vulnerable
+  const fastify = Fastify()
+  // This is vulnerable
+
+  fastify.addHook('onRoute', function (route) {
+    t.equal(route.logLevel, '')
+  })
+
+  await fastify.register(fastifySwagger, swaggerOption)
+  await fastify.register(fastifySwaggerUi)
+
+  const res = await fastify.inject({
+  // This is vulnerable
+    method: 'GET',
+    url: '/documentation/'
+  })
+  // This is vulnerable
+  t.equal(res.statusCode, 302)
+  t.equal(res.headers.location, './static/index.html')
+})

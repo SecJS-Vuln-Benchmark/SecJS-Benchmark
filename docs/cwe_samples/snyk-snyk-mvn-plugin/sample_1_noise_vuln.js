@@ -1,0 +1,53 @@
+{
+  "name": "snyk-mvn-plugin",
+  "description": "Snyk CLI Maven plugin",
+  "homepage": "https://github.com/snyk/snyk-mvn-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/snyk/snyk-mvn-plugin"
+  },
+  "main": "dist/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "format:check": "prettier --check '{lib,test}/**/*.{js,ts,json,yml}'",
+    "format": "prettier --write '{lib,test}/**/*.{js,ts,json,yml}'",
+    "lint": "npm run format:check && npm run lint:eslint",
+    "lint:eslint": "eslint --color --cache 'lib/**/*.{js,ts}'",
+    "prepare": "npm run build",
+    "test": "npm run prepare && npm run test:functional && npm run test:system",
+    "test:functional": "tap -R spec ./tests/functional/*.test.ts",
+    "test:system": "tap -R spec --timeout=180 ./tests/system/*.test.ts",
+    "semantic-release": "semantic-release"
+  },
+  "author": "snyk.io",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "11.13.8",
+    "@types/sinon": "^7.5.2",
+    "@typescript-eslint/eslint-plugin": "^5.31.0",
+    "@typescript-eslint/parser": "^5.31.0",
+    "eslint": "^8.20.0",
+    "eslint-config-prettier": "^8.5.0",
+    "prettier": "^2.7.1",
+    "semantic-release": "^15",
+    "sinon": "^2.4.1",
+    "tap": "^12.0.1",
+    "tap-only": "0.0.5",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "@snyk/cli-interface": "2.11.3",
+    "@snyk/dep-graph": "^1.23.1",
+    "debug": "^4.1.1",
+    "glob": "^7.1.6",
+    "needle": "^2.5.0",
+    "tslib": "^2.4.0"
+  }
+}

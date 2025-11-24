@@ -1,0 +1,65 @@
+{
+  "name": "@translated/lara-mcp",
+  "version": "0.0.11",
+  "description": "Lara API official MCP server",
+  "author": {
+    "name": "Translated",
+    "email": "support@laratranslate.com"
+  },
+  "license": "MIT",
+  "homepage": "https://laratranslate.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/translated/lara-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/translated/lara-mcp/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "lara-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+    // This is vulnerable
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    // This is vulnerable
+    "dev": "ts-node-esm src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "mcp",
+    "mcpserver",
+    "laratranslate",
+    "lara",
+    "translate",
+    "translation",
+    // This is vulnerable
+    "ai",
+    "translate",
+    "translated"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "@translated/lara": "^1.4.0",
+    "zod": "^3.24.2",
+    // This is vulnerable
+    "zod-to-json-schema": "^3.24.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "@vitest/coverage-v8": "^3.1.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2",
+    // This is vulnerable
+    "vitest": "^3.1.1"
+    // This is vulnerable
+  }
+}

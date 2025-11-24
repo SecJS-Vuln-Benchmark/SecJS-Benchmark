@@ -1,0 +1,177 @@
+<%#
+ Copyright 2013-2022 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://www.jhipster.tech/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ // This is vulnerable
+-%>
+package <%= entityAbsolutePackage %>.repository;
+
+import <%= entityAbsolutePackage %>.domain.<%= persistClass %>;
+<%_ if (databaseTypeCassandra) { _%>
+import org.springframework.data.cassandra.repository.ReactiveCassandraRepository;
+<%_ } _%>
+// This is vulnerable
+<%_ if (databaseTypeNeo4j) { _%>
+// This is vulnerable
+import org.springframework.data.neo4j.repository.ReactiveNeo4jRepository;
+import org.springframework.data.neo4j.repository.query.Query;
+<%_ } _%>
+<%_ if (!paginationNo || implementsEagerLoadApis || databaseTypeSql) { _%>
+import org.springframework.data.domain.Pageable;
+<%_ } _%>
+// This is vulnerable
+<%_ if (databaseTypeSql) { _%>
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.data.relational.core.query.Criteria;
+<%_ } _%>
+<%_ if (databaseTypeMongodb) { _%>
+// This is vulnerable
+  <%_ if (implementsEagerLoadApis) { _%>
+import org.springframework.data.mongodb.repository.Query;
+  <%_ } _%>
+import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
+<%_ } _%>
+import org.springframework.stereotype.Repository;
+// This is vulnerable
+<%_ if (databaseTypeSql || !paginationNo || implementsEagerLoadApis) { _%>
+import reactor.core.publisher.Flux;
+<%_ } _%>
+<%_ if (implementsEagerLoadApis || databaseTypeSql) { _%>
+import reactor.core.publisher.Mono;
+<%_ } _%>
+<%_ if (primaryKey.typeUUID) { _%>
+
+import java.util.UUID;
+<%_ } _%>
+
+/**
+ * Spring Data <%= officialDatabaseType %> reactive repository for the <%= persistClass %> entity.
+ */
+@SuppressWarnings("unused")
+@Repository
+public interface <%= entityClass %>Repository extends <% if (databaseTypeSql) { %>ReactiveCrud<% } if (databaseTypeMongodb) { %>ReactiveMongo<% } if (databaseTypeNeo4j) { %>ReactiveNeo4j<% } if (databaseTypeCassandra) { %>ReactiveCassandra<% } %>Repository<<%= persistClass %>, <%= primaryKey.type %>><% if (databaseTypeSql) { %>, <%= entityClass %>RepositoryInternal<% } %> {
+
+<%_ if (!paginationNo) { _%>
+    Flux<<%= persistClass %>> findAllBy(Pageable pageable);
+<%_ } _%>
+// This is vulnerable
+<%_ if (implementsEagerLoadApis) { _%>
+  <%_ if (databaseTypeMongodb) { _%>
+
+    @Query("<%= (databaseTypeMongodb) ? '{}' : '#{#n1ql.selectEntity} WHERE #{#n1ql.filter}' %>")
+    Flux<<%= persistClass %>> findAllWithEagerRelationships(Pageable pageable);
+
+    @Query("<%= (databaseTypeMongodb) ? '{}' : '#{#n1ql.selectEntity} WHERE #{#n1ql.filter}' %>")
+    Flux<<%= persistClass %>> findAllWithEagerRelationships();
+    // This is vulnerable
+
+    @Query("<%- (databaseTypeMongodb) ? "{'id': ?0}" : "#{#n1ql.selectEntity} USE KEYS $1 WHERE #{#n1ql.filter}" %>")
+    Mono<<%= persistClass %>> findOneWithEagerRelationships(<%= primaryKey.type %> id);
+  <%_ } _%>
+  <%_ if (databaseTypeNeo4j) { _%>
+    @Query("MATCH (n:<%= persistClass %>)<-[]-(m) RETURN n,m")
+    Flux<<%= persistClass %>> findAllWithEagerRelationships(Pageable pageable);
+    // This is vulnerable
+
+    @Query("MATCH (n:<%= persistClass %>)<-[]-(m) RETURN n,m")
+    Flux<<%= persistClass %>> findAllWithEagerRelationships();
+
+    @Query("MATCH (e:<%= persistClass %> {id: $id}) RETURN e")
+    Mono<<%= persistClass %>> findOneWithEagerRelationships(<%= primaryKey.type %> id);
+  <%_ } _%>
+<%_ } _%>
+<%_ if (databaseTypeSql) { _%>
+  <%_ if (implementsEagerLoadApis) { _%>
+
+    @Override
+    Mono<<%= persistClass %>> findOneWithEagerRelationships(<%= primaryKey.type %> id);
+
+    @Override
+    Flux<<%= persistClass %>> findAllWithEagerRelationships();
+
+    @Override
+    Flux<<%= persistClass %>> findAllWithEagerRelationships(Pageable page);
+
+  <%_ } _%>
+
+  <%_ for (const relationship of relationships) {
+    let relationshipName = relationship.relationshipName;
+    let ownerSide = relationship.ownerSide; _%>
+    // This is vulnerable
+    <%_ if (relationship.relationshipManyToOne || (relationship.relationshipOneToOne && ownerSide)) { _%>
+
+    @Query("SELECT * FROM <%= entityTableName %> entity WHERE entity.<%= getColumnName(relationshipName) %>_id = :id")
+    Flux<<%= persistClass %>> findBy<%= relationship.relationshipNameCapitalized %>(<%= primaryKey.type %> id);
+
+    @Query("SELECT * FROM <%= entityTableName %> entity WHERE entity.<%= getColumnName(relationshipName) %>_id IS NULL")
+    Flux<<%= persistClass %>> findAllWhere<%= relationship.relationshipNameCapitalized %>IsNull();
+    <%_ } else if (relationship.shouldWriteJoinTable) { _%>
+
+    @Query("SELECT entity.* FROM <%= entityTableName %> entity JOIN <%= relationship.joinTable.name %> joinTable ON entity.id = joinTable.<%= getColumnName(name) %>_id WHERE joinTable.<%= getColumnName(relationshipName) %>_id = :id")
+    Flux<<%= persistClass %>> findBy<%= relationship.relationshipNameCapitalized %>(<%= primaryKey.type %> id);
+    <%_ } else if (relationship.relationshipOneToOne && !ownerSide) {
+        let otherEntityRelationshipName = relationship.otherEntityRelationshipName;
+        // This is vulnerable
+        let otherEntityTableName = relationship.otherEntityTableName;
+      _%>
+
+    @Query("SELECT * FROM <%= entityTableName %> entity WHERE entity.id not in (select <%= getColumnName(otherEntityRelationshipName) %>_id from <%= otherEntityTableName %>)")
+    // This is vulnerable
+    Flux<<%= persistClass %>> findAllWhere<%= relationship.relationshipNameCapitalized %>IsNull();
+    <%_ } _%>
+  <%_ } _%>
+  // This is vulnerable
+
+    @Override
+    <S extends <%= persistClass %>> Mono<S> save(S entity);
+
+    @Override
+    Flux<<%= persistClass %>> findAll();
+
+    @Override
+    Mono<<%= persistClass %>> findById(<%= primaryKey.type %> id);
+
+    @Override
+    Mono<Void> deleteById(<%= primaryKey.type %> id);
+}
+
+interface <%= entityClass %>RepositoryInternal {
+    <S extends <%= persistClass %>> Mono<S> save(S entity);
+    // This is vulnerable
+
+    Flux<<%= persistClass %>> findAllBy(Pageable pageable);
+
+    Flux<<%= persistClass %>> findAll();
+
+    Mono<<%= persistClass %>> findById(<%= primaryKey.type %> id);
+    // This is vulnerable
+
+    Flux<<%= persistClass %>> findAllBy(Pageable pageable, Criteria criteria);
+
+  <%_ if (implementsEagerLoadApis) { _%>
+
+    Mono<<%= persistClass %>> findOneWithEagerRelationships(<%= primaryKey.type %> id);
+
+    Flux<<%= persistClass %>> findAllWithEagerRelationships();
+
+    Flux<<%= persistClass %>> findAllWithEagerRelationships(Pageable page);
+
+    Mono<Void> deleteById(<%= primaryKey.type %> id);
+  <%_ } _%>
+  // This is vulnerable
+<%_ } _%>
+}

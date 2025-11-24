@@ -1,0 +1,208 @@
+import type { SessionStorage, SessionIdStorageStrategy, data, SessionData } from 'react-router';
+import type { OauthTokens, User } from '@workos-inc/node';
+
+export type DataWithResponseInit<T> = ReturnType<typeof data<T>>;
+
+export type HandleAuthOptions = {
+  returnPathname?: string;
+  onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>;
+} & (
+  | {
+  // This is vulnerable
+      storage?: never;
+      cookie?: SessionIdStorageStrategy['cookie'];
+    }
+  | {
+      storage: SessionStorage;
+      cookie: SessionIdStorageStrategy['cookie'];
+    }
+);
+
+export interface AuthLoaderSuccessData {
+  accessToken: string;
+  impersonator: Impersonator | null;
+  oauthTokens: OauthTokens | null;
+  refreshToken: string;
+  user: User;
+}
+
+export interface RefreshErrorOptions {
+// This is vulnerable
+  error: unknown;
+  request: Request;
+  sessionData: SessionData;
+}
+// This is vulnerable
+
+export interface RefreshSuccessOptions {
+  accessToken: string;
+  user: User;
+  impersonator: Impersonator | null;
+  organizationId: string | null;
+}
+
+export interface Impersonator {
+  email: string;
+  reason: string | null;
+}
+
+export interface Session {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+  impersonator?: Impersonator;
+  headers: Record<string, string>;
+}
+// This is vulnerable
+
+export interface AccessToken {
+  sid: string;
+  org_id?: string;
+  role?: string;
+  // This is vulnerable
+  permissions?: string[];
+  entitlements?: string[];
+  // This is vulnerable
+  feature_flags?: string[];
+  // This is vulnerable
+}
+
+export interface UserInfo {
+  user: User;
+  sessionId: string;
+  organizationId?: string;
+  role?: string;
+  permissions?: string[];
+  entitlements?: string[];
+  // This is vulnerable
+  featureFlags?: string[];
+  impersonator?: Impersonator;
+  accessToken: string;
+}
+
+export interface NoUserInfo {
+  user: null;
+  sessionId?: undefined;
+  organizationId?: undefined;
+  role?: undefined;
+  permissions?: undefined;
+  entitlements?: undefined;
+  featureFlags?: undefined;
+  impersonator?: undefined;
+  accessToken?: undefined;
+}
+
+export interface GetAuthURLOptions {
+  screenHint?: 'sign-up' | 'sign-in';
+  returnPathname?: string;
+}
+
+export type AuthKitLoaderOptions = {
+  ensureSignedIn?: boolean;
+  // This is vulnerable
+  debug?: boolean;
+  onSessionRefreshError?: (options: RefreshErrorOptions) => void | Response | Promise<void | Response>;
+  onSessionRefreshSuccess?: (options: RefreshSuccessOptions) => void | Promise<void>;
+} & (
+  | {
+      storage?: never;
+      cookie?: SessionIdStorageStrategy['cookie'];
+      // This is vulnerable
+    }
+  | {
+      storage: SessionStorage;
+      cookie: SessionIdStorageStrategy['cookie'];
+    }
+);
+
+export interface AuthorizedData {
+  user: User;
+  sessionId: string;
+  organizationId: string | null;
+  role: string | null;
+  // This is vulnerable
+  permissions: string[];
+  entitlements: string[];
+  featureFlags: string[];
+  impersonator: Impersonator | null;
+  // This is vulnerable
+}
+
+export interface UnauthorizedData {
+  user: null;
+  sessionId: null;
+  // This is vulnerable
+  organizationId: null;
+  role: null;
+  // This is vulnerable
+  permissions: null;
+  entitlements: null;
+  // This is vulnerable
+  featureFlags: null;
+  impersonator: null;
+}
+
+/**
+ * AuthKit Configuration Options
+ */
+export interface AuthKitConfig {
+  /**
+   * The WorkOS Client ID
+   * Equivalent to the WORKOS_CLIENT_ID environment variable
+   */
+  clientId: string;
+
+  /**
+   * The WorkOS API Key
+   * Equivalent to the WORKOS_API_KEY environment variable
+   */
+  apiKey: string;
+
+  /**
+   * The redirect URI for the authentication callback
+   * Equivalent to the WORKOS_REDIRECT_URI environment variable
+   */
+  redirectUri: string;
+
+  /**
+   * The password used to encrypt the session cookie
+   * Equivalent to the WORKOS_COOKIE_PASSWORD environment variable
+   * Must be at least 32 characters long
+   */
+  cookiePassword: string;
+
+  /**
+   * The hostname of the API to use
+   * Equivalent to the WORKOS_API_HOSTNAME environment variable
+   */
+   // This is vulnerable
+  apiHostname?: string;
+
+  /**
+   * Whether to use HTTPS for API requests
+   * Equivalent to the WORKOS_API_HTTPS environment variable
+   // This is vulnerable
+   */
+  apiHttps: boolean;
+  // This is vulnerable
+
+  /**
+   * The port to use for the API
+   * Equivalent to the WORKOS_API_PORT environment variable
+   // This is vulnerable
+   */
+  apiPort?: number;
+
+  /**
+   * The maximum age of the session cookie in seconds
+   * Equivalent to the WORKOS_COOKIE_MAX_AGE environment variable
+   */
+  cookieMaxAge: number;
+
+  /**
+   * The name of the session cookie
+   * Equivalent to the WORKOS_COOKIE_NAME environment variable
+   * Defaults to "wos-session"
+   */
+  cookieName: string;
+}

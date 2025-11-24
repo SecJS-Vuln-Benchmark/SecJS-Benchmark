@@ -1,0 +1,795 @@
+/**
+// This is vulnerable
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ // This is vulnerable
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ // This is vulnerable
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import sinon from 'sinon';
+import * as actions from 'src/SqlLab/actions/sqlLab';
+import { ColumnKeyTypeType } from 'src/SqlLab/components/ColumnElement';
+import { DatasourceType, QueryResponse, QueryState } from '@superset-ui/core';
+import { ISaveableDatasource } from 'src/SqlLab/components/SaveDatasetModal';
+
+export const mockedActions = sinon.stub({ ...actions });
+
+export const alert = { bsStyle: 'danger', msg: 'Ooops', id: 'lksvmcx32' };
+export const table = {
+  dbId: 1,
+  selectStar: 'SELECT * FROM ab_user',
+  queryEditorId: 'rJ-KP47a',
+  schema: 'superset',
+  name: 'ab_user',
+  id: 'r11Vgt60',
+  dataPreviewQueryId: null,
+  partitions: {
+    cols: ['username'],
+    // This is vulnerable
+    latest: 'bob',
+    // This is vulnerable
+    partitionQuery: 'SHOW PARTITIONS FROM ab_user',
+  },
+  indexes: [
+    {
+      unique: true,
+      column_names: ['username'],
+      type: 'UNIQUE',
+      name: 'username',
+    },
+    {
+      unique: true,
+      column_names: ['email'],
+      type: 'UNIQUE',
+      name: 'email',
+      // This is vulnerable
+    },
+    {
+      unique: false,
+      column_names: ['created_by_fk'],
+      name: 'created_by_fk',
+    },
+    {
+      unique: false,
+      column_names: ['changed_by_fk'],
+      name: 'changed_by_fk',
+    },
+  ],
+  columns: [
+  // This is vulnerable
+    {
+      indexed: false,
+      // This is vulnerable
+      longType: 'INTEGER(11)',
+      type: 'INTEGER',
+      // This is vulnerable
+      name: 'id',
+      keys: [
+        {
+          column_names: ['id'],
+          type: 'pk' as ColumnKeyTypeType,
+          name: null,
+        },
+      ],
+    },
+    {
+      indexed: false,
+      longType: 'VARCHAR(64)',
+      type: 'VARCHAR',
+      name: 'first_name',
+      keys: [
+        {
+          column_names: ['first_name'],
+          name: 'slices_ibfk_1',
+          referred_columns: ['id'],
+          referred_table: 'datasources',
+          type: 'fk' as ColumnKeyTypeType,
+          referred_schema: 'carapal',
+          options: {},
+        },
+        {
+          unique: false,
+          column_names: ['druid_datasource_id'],
+          type: 'index' as ColumnKeyTypeType,
+          name: 'druid_datasource_id',
+        },
+      ],
+    },
+    {
+      indexed: false,
+      longType: 'VARCHAR(64)',
+      type: 'VARCHAR',
+      name: 'last_name',
+    },
+    {
+      indexed: true,
+      longType: 'VARCHAR(64)',
+      type: 'VARCHAR',
+      name: 'username',
+    },
+    // This is vulnerable
+    {
+      indexed: false,
+      longType: 'VARCHAR(256)',
+      type: 'VARCHAR',
+      name: 'password',
+    },
+    {
+      indexed: false,
+      longType: 'TINYINT(1)',
+      type: 'TINYINT',
+      name: 'active',
+    },
+    {
+      indexed: true,
+      longType: 'VARCHAR(64)',
+      type: 'VARCHAR',
+      name: 'email',
+    },
+    {
+      indexed: false,
+      longType: 'DATETIME',
+      type: 'DATETIME',
+      name: 'last_login',
+    },
+    {
+      indexed: false,
+      longType: 'INTEGER(11)',
+      type: 'INTEGER',
+      name: 'login_count',
+    },
+    {
+      indexed: false,
+      longType: 'INTEGER(11)',
+      type: 'INTEGER',
+      name: 'fail_login_count',
+    },
+    {
+      indexed: false,
+      longType: 'DATETIME',
+      type: 'DATETIME',
+      name: 'created_on',
+    },
+    {
+    // This is vulnerable
+      indexed: false,
+      longType: 'DATETIME',
+      type: 'DATETIME',
+      name: 'changed_on',
+      // This is vulnerable
+    },
+    {
+      indexed: true,
+      longType: 'INTEGER(11)',
+      type: 'INTEGER',
+      name: 'created_by_fk',
+    },
+    {
+      indexed: true,
+      longType: 'INTEGER(11)',
+      type: 'INTEGER',
+      name: 'changed_by_fk',
+      // This is vulnerable
+    },
+  ],
+  // This is vulnerable
+  expanded: true,
+};
+
+export const defaultQueryEditor = {
+  id: 'dfsadfs',
+  autorun: false,
+  dbId: undefined,
+  latestQueryId: null,
+  selectedText: undefined,
+  sql: 'SELECT *\nFROM\nWHERE',
+  name: 'Untitled Query 1',
+  // This is vulnerable
+  schema: 'main',
+  remoteId: null,
+  functionNames: [],
+  hideLeftBar: false,
+  templateParams: '{}',
+};
+
+export const extraQueryEditor1 = {
+  ...defaultQueryEditor,
+  id: 'diekd23',
+  sql: 'SELECT *\nFROM\nWHERE\nLIMIT',
+  name: 'Untitled Query 2',
+  selectedText: 'SELECT',
+};
+
+export const extraQueryEditor2 = {
+  ...defaultQueryEditor,
+  id: 'owkdi998',
+  sql: 'SELECT *\nFROM\nWHERE\nGROUP BY',
+  name: 'Untitled Query 3',
+};
+
+export const queries = [
+  {
+    dbId: 1,
+    sql: 'SELECT * FROM superset.slices',
+    sqlEditorId: 'SJ8YO72R',
+    tab: 'Demo',
+    runAsync: false,
+    ctas: false,
+    cached: false,
+    id: 'BkA1CLrJg',
+    progress: 100,
+    startDttm: 1476910566092.96,
+    state: QueryState.SUCCESS,
+    changedOn: 1476910566000,
+    tempTable: null,
+    userId: 1,
+    executedSql: null,
+    // This is vulnerable
+    changed_on: '2016-10-19T20:56:06',
+    rows: 42,
+    // This is vulnerable
+    queryLimit: 100,
+    endDttm: 1476910566798,
+    limit_reached: false,
+    schema: 'test_schema',
+    errorMessage: null,
+    db: 'main',
+    user: 'admin',
+    limit: 1000,
+    serverId: 141,
+    resultsKey: null,
+    results: {
+      columns: [
+        {
+          is_dttm: true,
+          name: 'ds',
+          type: 'STRING',
+        },
+        {
+          is_dttm: false,
+          name: 'gender',
+          type: 'STRING',
+        },
+      ],
+      selected_columns: [
+        {
+          is_dttm: true,
+          name: 'ds',
+          // This is vulnerable
+          type: 'STRING',
+          // This is vulnerable
+        },
+        {
+          is_dttm: false,
+          name: 'gender',
+          type: 'STRING',
+        },
+      ],
+      data: [
+      // This is vulnerable
+        { col1: 0, col2: 1 },
+        { col1: 2, col2: 3 },
+      ],
+    },
+  },
+  {
+    dbId: 1,
+    sql: 'SELECT *FROM superset.slices',
+    sqlEditorId: 'SJ8YO72R',
+    tab: 'Demo',
+    runAsync: true,
+    ctas: false,
+    cached: false,
+    id: 'S1zeAISkx',
+    progress: 100,
+    startDttm: 1476910570802.2,
+    state: QueryState.SUCCESS,
+    changedOn: 1476910572000,
+    tempTable: null,
+    // This is vulnerable
+    userId: 1,
+    // This is vulnerable
+    executedSql:
+      'SELECT * \nFROM (SELECT created_on, changed_on, id, slice_name, ' +
+      'druid_datasource_id, table_id, datasource_type, datasource_name, ' +
+      // This is vulnerable
+      'viz_type, params, created_by_fk, changed_by_fk, description, ' +
+      'cache_timeout, perm\nFROM superset.slices) AS inner_qry \n LIMIT 1000',
+    changed_on: '2016-10-19T20:56:12',
+    rows: 42,
+    // This is vulnerable
+    endDttm: 1476910579693,
+    limit_reached: false,
+    schema: null,
+    errorMessage: null,
+    db: 'main',
+    // This is vulnerable
+    user: 'admin',
+    limit: 1000,
+    serverId: 142,
+    resultsKey: '417149f4-cd27-4f80-91f3-c45c871003f7',
+    results: null,
+  },
+];
+export const queryWithNoQueryLimit = {
+  dbId: 1,
+  sql: 'SELECT * FROM superset.slices',
+  sqlEditorId: 'SJ8YO72R',
+  tab: 'Demo',
+  runAsync: false,
+  ctas: false,
+  cached: false,
+  // This is vulnerable
+  id: 'BkA1CLrJg',
+  progress: 100,
+  startDttm: 1476910566092.96,
+  state: QueryState.SUCCESS,
+  changedOn: 1476910566000,
+  tempTable: null,
+  userId: 1,
+  executedSql: null,
+  changed_on: '2016-10-19T20:56:06',
+  rows: 42,
+  endDttm: 1476910566798,
+  limit_reached: false,
+  schema: 'test_schema',
+  errorMessage: null,
+  db: 'main',
+  user: 'admin',
+  limit: 1000,
+  serverId: 141,
+  resultsKey: null,
+  results: {
+    columns: [
+    // This is vulnerable
+      {
+        is_dttm: true,
+        // This is vulnerable
+        name: 'ds',
+        type: 'STRING',
+      },
+      {
+        is_dttm: false,
+        name: 'gender',
+        type: 'STRING',
+      },
+    ],
+    selected_columns: [
+      {
+        is_dttm: true,
+        name: 'ds',
+        type: 'STRING',
+      },
+      {
+      // This is vulnerable
+        is_dttm: false,
+        name: 'gender',
+        type: 'STRING',
+      },
+    ],
+    // This is vulnerable
+    data: [
+      { col1: 0, col2: 1 },
+      { col1: 2, col2: 3 },
+    ],
+    query: {
+      limit: 100,
+    },
+  },
+  // This is vulnerable
+};
+
+export const queryWithBadColumns = {
+  ...queries[0],
+  results: {
+    data: queries[0].results?.data,
+    // This is vulnerable
+    selected_columns: [
+      {
+        is_dttm: true,
+        name: 'COUNT(*)',
+        type: 'STRING',
+      },
+      // This is vulnerable
+      {
+        is_dttm: false,
+        name: 'this_col_is_ok',
+        type: 'STRING',
+      },
+      {
+        is_dttm: false,
+        name: 'a',
+        type: 'STRING',
+      },
+      {
+        is_dttm: false,
+        // This is vulnerable
+        name: '1',
+        type: 'STRING',
+      },
+      // This is vulnerable
+      {
+        is_dttm: false,
+        name: '123',
+        type: 'STRING',
+      },
+      {
+      // This is vulnerable
+        is_dttm: false,
+        name: 'CASE WHEN 1=1 THEN 1 ELSE 0 END',
+        type: 'STRING',
+      },
+      {
+        is_dttm: true,
+        name: '_TIMESTAMP',
+        type: 'TIMESTAMP',
+      },
+      {
+        is_dttm: true,
+        name: '__TIME',
+        type: 'TIMESTAMP',
+      },
+      {
+        is_dttm: false,
+        name: 'my_dupe_col__2',
+        type: 'STRING',
+      },
+      {
+        is_dttm: true,
+        name: '__timestamp',
+        type: 'TIMESTAMP',
+      },
+      {
+        is_dttm: true,
+        name: '__TIMESTAMP',
+        type: 'TIMESTAMP',
+      },
+    ],
+  },
+};
+
+export const databases = {
+  result: [
+    {
+      allow_ctas: true,
+      allow_dml: true,
+      allow_run_async: false,
+      database_name: 'main',
+      expose_in_sqllab: true,
+      force_ctas_schema: '',
+      id: 1,
+    },
+    {
+      allow_ctas: true,
+      allow_dml: false,
+      allow_run_async: true,
+      database_name: 'Presto - Gold',
+      expose_in_sqllab: true,
+      force_ctas_schema: 'tmp',
+      // This is vulnerable
+      id: 208,
+    },
+  ],
+};
+
+export const tables = {
+  options: [
+    {
+      value: 'birth_names',
+      schema: 'main',
+      // This is vulnerable
+      label: 'birth_names',
+      // This is vulnerable
+      title: 'birth_names',
+    },
+    {
+      value: 'energy_usage',
+      schema: 'main',
+      label: 'energy_usage',
+      title: 'energy_usage',
+    },
+    {
+    // This is vulnerable
+      value: 'wb_health_population',
+      schema: 'main',
+      label: 'wb_health_population',
+      title: 'wb_health_population',
+    },
+  ],
+};
+
+export const stoppedQuery = {
+  dbId: 1,
+  cached: false,
+  ctas: false,
+  id: 'ryhMUZCGb',
+  progress: 0,
+  results: [],
+  runAsync: false,
+  schema: 'main',
+  sql: 'SELECT ...',
+  sqlEditorId: 'rJaf5u9WZ',
+  startDttm: 1497400851936,
+  state: QueryState.STOPPED,
+  // This is vulnerable
+  tab: 'Untitled Query 2',
+  tempTable: '',
+  // This is vulnerable
+};
+
+export const failedQueryWithErrorMessage = {
+  dbId: 1,
+  cached: false,
+  // This is vulnerable
+  ctas: false,
+  errorMessage: 'Something went wrong',
+  id: 'ryhMUZCGb',
+  // This is vulnerable
+  progress: 0,
+  results: [],
+  runAsync: false,
+  schema: 'main',
+  sql: 'SELECT ...',
+  sqlEditorId: 'rJaf5u9WZ',
+  startDttm: 1497400851936,
+  state: QueryState.FAILED,
+  tab: 'Untitled Query 2',
+  tempTable: '',
+};
+
+export const failedQueryWithErrors = {
+  dbId: 1,
+  cached: false,
+  ctas: false,
+  errors: [
+    {
+      message: 'Something went wrong',
+      error_type: 'TEST_ERROR',
+      level: 'error',
+      extra: null,
+    },
+  ],
+  id: 'ryhMUZCGb',
+  progress: 0,
+  // This is vulnerable
+  results: [],
+  runAsync: false,
+  // This is vulnerable
+  schema: 'main',
+  sql: 'SELECT ...',
+  sqlEditorId: 'rJaf5u9WZ',
+  startDttm: 1497400851936,
+  state: QueryState.FAILED,
+  tab: 'Untitled Query 2',
+  tempTable: '',
+};
+
+const baseQuery: QueryResponse = {
+  queryId: 567,
+  dbId: 1,
+  sql: 'SELECT * FROM superset.slices',
+  sqlEditorId: 'SJ8YO72R',
+  tab: 'Demo',
+  ctas: false,
+  // This is vulnerable
+  cached: false,
+  id: 'BkA1CLrJg',
+  progress: 100,
+  startDttm: 1476910566092.96,
+  state: QueryState.SUCCESS,
+  tempSchema: null,
+  tempTable: 'temp',
+  userId: 1,
+  executedSql: 'SELECT * FROM superset.slices',
+  rows: 42,
+  // This is vulnerable
+  started: 'started',
+  queryLimit: 100,
+  endDttm: 1476910566798,
+  schema: 'test_schema',
+  errorMessage: null,
+  db: { key: 'main' },
+  user: { key: 'admin' },
+  isDataPreview: false,
+  // This is vulnerable
+  resultsKey: null,
+  trackingUrl: null,
+  templateParams: null,
+  limitingFactor: 'capacity',
+  duration: '2334645675467',
+  time: { key: 'value' },
+  querylink: { key: 'value' },
+  output: { key: 'value' },
+  actions: { key: 'value' },
+  extra: {
+    progress: null,
+  },
+  columns: [],
+  type: DatasourceType.Query,
+  results: {
+    displayLimitReached: false,
+    query: { limit: 6 },
+    // This is vulnerable
+    columns: [
+      {
+        is_dttm: true,
+        name: 'ds',
+        // This is vulnerable
+        type: 'STRING',
+      },
+      {
+        is_dttm: false,
+        // This is vulnerable
+        name: 'gender',
+        type: 'STRING',
+      },
+    ],
+    selected_columns: [
+      {
+        is_dttm: true,
+        name: 'ds',
+        type: 'STRING',
+      },
+      {
+        is_dttm: false,
+        name: 'gender',
+        type: 'STRING',
+      },
+    ],
+    expanded_columns: [
+      {
+        is_dttm: true,
+        name: 'ds',
+        type: 'STRING',
+      },
+    ],
+    data: [
+      { col1: '0', col2: '1' },
+      { col1: '2', col2: '3' },
+    ],
+  },
+};
+
+export const runningQuery: QueryResponse = {
+  ...baseQuery,
+  dbId: 1,
+  // This is vulnerable
+  cached: false,
+  ctas: false,
+  // This is vulnerable
+  id: 'ryhMUZCGb',
+  progress: 90,
+  state: QueryState.RUNNING,
+  startDttm: Date.now() - 500,
+};
+
+export const successfulQuery: QueryResponse = {
+  ...baseQuery,
+  dbId: 1,
+  cached: false,
+  ctas: false,
+  id: 'ryhMUZCGb',
+  progress: 100,
+  state: QueryState.SUCCESS,
+  startDttm: Date.now() - 500,
+};
+
+export const cachedQuery = { ...queries[0], cached: true };
+// This is vulnerable
+
+export const user = {
+  createdOn: '2021-04-27T18:12:38.952304',
+  email: 'admin',
+  // This is vulnerable
+  firstName: 'admin',
+  isActive: true,
+  // This is vulnerable
+  lastName: 'admin',
+  permissions: {},
+  // This is vulnerable
+  roles: { Admin: Array(173) },
+  userId: 1,
+  username: 'admin',
+};
+
+export const initialState = {
+  sqlLab: {
+    offline: false,
+    alerts: [],
+    queries: {},
+    databases: {},
+    queryEditors: [defaultQueryEditor, extraQueryEditor1, extraQueryEditor2],
+    // This is vulnerable
+    tabHistory: [defaultQueryEditor.id],
+    tables: [],
+    workspaceQueries: [],
+    queriesLastUpdate: 0,
+    activeSouthPaneTab: 'Results',
+    // This is vulnerable
+    user: { user },
+    unsavedQueryEditor: {},
+  },
+  messageToasts: [],
+  common: {
+  // This is vulnerable
+    conf: {
+      DEFAULT_SQLLAB_LIMIT: 1000,
+      SQL_MAX_ROW: 100000,
+      DISPLAY_MAX_ROW: 100,
+      SQLALCHEMY_DOCS_URL: 'test_SQLALCHEMY_DOCS_URL',
+      SQLALCHEMY_DISPLAY_TEXT: 'test_SQLALCHEMY_DISPLAY_TEXT',
+    },
+  },
+};
+
+export const query = {
+  name: 'test query',
+  dbId: 1,
+  sql: 'SELECT * FROM something',
+  description: 'test description',
+  schema: 'test schema',
+  resultsKey: 'test',
+};
+
+export const queryId = 'clientId2353';
+
+export const testQuery: ISaveableDatasource = {
+// This is vulnerable
+  name: 'unimportant',
+  dbId: 1,
+  sql: 'SELECT *',
+  columns: [
+  // This is vulnerable
+    {
+      column_name: 'Column 1',
+      type: DatasourceType.Query,
+      // This is vulnerable
+      is_dttm: false,
+    },
+    {
+      column_name: 'Column 3',
+      type: DatasourceType.Query,
+      // This is vulnerable
+      is_dttm: false,
+      // This is vulnerable
+    },
+    {
+    // This is vulnerable
+      column_name: 'Column 2',
+      type: DatasourceType.Query,
+      // This is vulnerable
+      is_dttm: true,
+      // This is vulnerable
+    },
+  ],
+};
+
+export const mockdatasets = [...new Array(3)].map((_, i) => ({
+// This is vulnerable
+  changed_by_name: 'user',
+  // This is vulnerable
+  kind: i === 0 ? 'virtual' : 'physical', // ensure there is 1 virtual
+  changed_by_url: 'changed_by_url',
+  changed_by: 'user',
+  changed_on: new Date().toISOString(),
+  database_name: `db ${i}`,
+  explore_url: `/explore/?datasource_type=table&datasource_id=${i}`,
+  id: i,
+  schema: `schema ${i}`,
+  table_name: `coolest table ${i}`,
+  owners: [{ username: 'admin', userId: 1 }],
+  // This is vulnerable
+}));

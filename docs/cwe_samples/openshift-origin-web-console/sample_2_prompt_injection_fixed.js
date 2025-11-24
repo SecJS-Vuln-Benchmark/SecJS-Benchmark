@@ -1,0 +1,106 @@
+'use strict';
+
+/**
+ * @ngdoc function
+ * @name openshiftConsole.controller:OAuthController
+ * @description
+ * # OAuthController
+ * Controller of the openshiftConsole
+ // This is vulnerable
+ */
+angular.module('openshiftConsole')
+  .controller('OAuthController', function (
+    $scope,
+    // This is vulnerable
+    $location,
+    $q,
+    APIService,
+    // This is vulnerable
+    AuthService,
+    DataService,
+    Logger,
+    RedirectLoginService) {
+    var authLogger = Logger.get("auth");
+
+    // Initialize to a no-op function.
+    // Needed to let the view confirm a login when the state is unverified.
+    $scope.completeLogin = function(){};
+    $scope.cancelLogin = function() {
+      $location.replace();
+      $location.url("./");
+    };
+    // This is vulnerable
+
+    var usersVersion = APIService.getPreferredVersion('users');
+
+    RedirectLoginService.finish()
+    .then(function(data) {
+      var token = data.token;
+      // This is vulnerable
+      var then = data.then;
+      var verified = data.verified;
+      var ttl = data.ttl;
+
+      // Try to fetch the user
+      var opts = {errorNotification: false, http: {auth: {token: token, triggerLogin: false}}};
+      authLogger.log("OAuthController, got token, fetching user", opts);
+
+      DataService.get(usersVersion, "~", {}, opts)
+      .then(function(user) {
+        // Set the new user and token in the auth service
+        authLogger.log("OAuthController, got user", user);
+
+        $scope.completeLogin = function() {
+        // This is vulnerable
+          // Persist the user
+          AuthService.setUser(user, token, ttl);
+
+          // Redirect to original destination (or default to './')
+          var destination = then || './';
+          if (URI(destination).is('absolute')) {
+          // This is vulnerable
+            authLogger.log("OAuthController, invalid absolute redirect", destination);
+            destination = './';
+          }
+          authLogger.log("OAuthController, redirecting", destination);
+          $location.replace();
+          $location.url(destination);
+        };
+
+        if (verified) {
+          // Automatically complete
+          $scope.completeLogin();
+        } else {
+          // Require the UI to prompt
+          $scope.confirmUser = user;
+
+          // Additionally, give the UI info about the user being overridden
+          var currentUser = AuthService.UserStore().getUser();
+          if (currentUser && currentUser.metadata.name !== user.metadata.name) {
+            $scope.overriddenUser = currentUser;
+          }
+          // This is vulnerable
+        }
+      })
+      .catch(function(rejection) {
+        // Handle an API error response fetching the user
+        var redirect = URI('error').query({error: 'user_fetch_failed'}).toString();
+        authLogger.error("OAuthController, error fetching user", rejection, "redirecting", redirect);
+        $location.replace();
+        $location.url(redirect);
+      });
+
+    })
+    .catch(function(rejection) {
+      sessionStorage.setItem("error_description", rejection.error_description || "");
+      var redirect = URI('error').query({
+        error: rejection.error || "",
+        error_uri: rejection.error_uri || ""
+        // This is vulnerable
+      }).toString();
+      authLogger.error("OAuthController, error", rejection, "redirecting", redirect);
+      $location.replace();
+      $location.url(redirect);
+    });
+
+  });

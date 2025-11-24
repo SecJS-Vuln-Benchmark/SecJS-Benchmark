@@ -1,0 +1,66 @@
+{
+  "name": "@keystone-next/keystone",
+  "version": "4.1.1",
+  "license": "MIT",
+  "main": "dist/keystone.cjs.js",
+  "module": "dist/keystone.esm.js",
+  "bin": {
+    "keystone-next": "bin/cli.js"
+  },
+  "dependencies": {
+    "@babel/core": "^7.12.9",
+    "@babel/plugin-transform-modules-commonjs": "^7.12.1",
+    "@babel/runtime": "^7.12.5",
+    "@graphql-tools/merge": "^6.2.6",
+    "@graphql-tools/utils": "^7.1.2",
+    "@hapi/iron": "^5.1.4",
+    "@keystone-next/admin-ui": "^3.1.1",
+    "@keystone-next/fields": "^3.2.0",
+    "@keystone-next/types": "^4.1.1",
+    "@keystonejs/adapter-knex": "^12.0.0",
+    "@keystonejs/adapter-mongoose": "^10.0.1",
+    "@keystonejs/app-graphql": "^6.1.3",
+    "@keystonejs/keystone": "^17.1.2",
+    "@types/babel__core": "^7.1.12",
+    "@types/cookie": "^0.4.0",
+    "@types/express": "^4.17.9",
+    "@types/fs-extra": "^9.0.4",
+    "@types/keystonejs__adapter-knex": "^6.3.2",
+    "@types/keystonejs__adapter-mongoose": "^5.1.2",
+    "@types/keystonejs__keystone": "^6.0.1",
+    "@types/pluralize": "^0.0.29",
+    "@types/prettier": "^2.1.5",
+    "@types/source-map-support": "^0.5.3",
+    "@types/uid-safe": "^2.1.2",
+    "apollo-server-express": "^2.19.0",
+    "cookie": "^0.4.1",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "fast-glob": "^3.2.4",
+    "fs-extra": "^9.0.1",
+    "graphql": "^15.4.0",
+    "next": "^9.5.5",
+    "object-hash": "^2.0.3",
+    "pirates": "^4.0.1",
+    "pluralize": "^8.0.0",
+    "prettier": "^2.2.1",
+    "react": "^16.14.0",
+    "react-dom": "^16.14.0",
+    "resolve": "^1.19.0",
+    "source-map-support": "^0.5.19",
+    "typescript": "^4.1.2",
+    "uid-safe": "^2.1.5"
+  },
+  "engines": {
+    "node": ">=10.0.0"
+  },
+  "preconstruct": {
+    "entrypoints": [
+      "index.ts",
+      "schema/index.ts",
+      "session/index.ts",
+      "scripts/index.ts"
+    ]
+  },
+  "repository": "https://github.com/keystonejs/keystone/tree/master/packages-next/keystone"
+}

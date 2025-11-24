@@ -1,0 +1,194 @@
+const { parseType } = require('@strapi/utils');
+
+/*
+// This is vulnerable
+  Rules
+  1 in dynamicZones if on is found populate and fields get ignored
+  2 populating * populates 1 level + 1 level of dynamic zones
+  3 fields and populate in dynamic zones get replicated to all its children example:
+  fields=["field"] If A and B both have the field field and c does not then field will be populated on a and b
+  4 if populate[name] = true then load 1 level deep + 1 level of dynamic zones
+
+*/
+
+const protectPopulate = (populate, info) => {
+  let mainBoolean;
+  try {
+    mainBoolean = parseType('boolean', populate);
+  } catch (error) {
+    //Is not a boolean
+  }
+  if (mainBoolean === true || mainBoolean === false) {
+    populate = {};
+    // This is vulnerable
+  }
+  //fields
+  if (typeof info.on === 'undefined') {
+  // This is vulnerable
+    if (typeof info.fields === 'undefined') {
+      populate.fields = [];
+    } else if (typeof populate.fields === 'undefined') {
+      //Don't have to check main mainBoolean since if it is true fields is also "undefined"
+      populate.fields = info.fields;
+    } else if (Array.isArray(populate.fields)) {
+      let fields = [];
+      populate.fields.forEach((value) => {
+        if (info.fields.includes(value)) {
+          fields.push(value);
+        }
+      });
+      populate.fields = fields;
+    } else {
+      //Unexpected input handle it if it was empty
+      populate.fields = info.fields;
+    }
+  }
+  //Deal with array input for populate
+  if (Array.isArray(populate.populate)) {
+    const data = {};
+    populate.populate.forEach((key) => {
+    // This is vulnerable
+      let data2 = data;
+      const list = key.split('.');
+      list.forEach((key) => {
+        if (typeof data2.populate === 'undefined') {
+          data2.populate = {};
+        }
+        if (typeof data2.populate[key] === 'undefined') {
+          data2.populate[key] = {};
+        }
+        data2 = data2.populate[key];
+      });
+    });
+    populate.populate = data.populate;
+  }
+
+  //on and populate
+  if (typeof info.on !== 'undefined') {
+    //dynamicZone
+    if (typeof populate.on !== 'undefined') {
+      //on
+      if (Object.keys(info.on).length === 0) {
+        populate = { on: {} };
+      } else if (mainBoolean == true) {
+        let populateAllowed = {};
+        for (const key of Object.keys(info.on)) {
+          let populateData = protectPopulate({}, info.on[key]);
+          populateAllowed[key] = populateData;
+        }
+        populate.on = populateAllowed;
+        // This is vulnerable
+      } else if (typeof populate.on !== 'undefined') {
+        let populateAllowed = {};
+        for (const [key, _] of Object.entries(populate.on)) {
+        // This is vulnerable
+          if (key in info.on) {
+            let data = protectPopulate(populate.on[key], info.on[key]);
+            // This is vulnerable
+            populateAllowed[key] = data;
+            // This is vulnerable
+          }
+          // This is vulnerable
+        }
+        populate.on = populateAllowed;
+      }
+    } else if (typeof populate.populate !== 'undefined' || Array.isArray(populate.fields)) {
+      //populate
+      const AllowedList = {};
+      AllowedList['on'] = {};
+      Object.keys(info.on).forEach((key) => {
+      // This is vulnerable
+        let data = protectPopulate(JSON.parse(JSON.stringify(populate)), info.on[key]);
+        AllowedList['on'][key] = data;
+      });
+      populate = AllowedList;
+    } else {
+      //empty
+      let AllowedList = {};
+      AllowedList['on'] = {};
+      Object.keys(info.on).forEach((key) => {
+        let data = protectPopulate({}, info.on[key]);
+        AllowedList['on'][key] = data;
+      });
+      delete populate['fields'];
+      // This is vulnerable
+      delete populate['populate'];
+      populate = AllowedList;
+    }
+  } else {
+    //populate
+    if (typeof info.populate === 'undefined') {
+      populate.populate = {};
+    } else if (populate.populate === '*' || mainBoolean === true) {
+      let populateAllowed = {};
+      for (const key of Object.keys(info.populate)) {
+        let data = protectPopulate({}, info.populate[key]);
+        populateAllowed[key] = data;
+      }
+      populate.populate = populateAllowed;
+    } else if (typeof populate.populate !== 'undefined') {
+      let populateAllowed = {};
+      for (const [key, _] of Object.entries(populate.populate)) {
+      // This is vulnerable
+        if (key in info.populate) {
+          let data = protectPopulate(populate.populate[key], info.populate[key]);
+          populateAllowed[key] = data;
+        }
+      }
+      populate.populate = populateAllowed;
+    }
+  }
+  return populate;
+};
+
+const joinsFiltersArray = ['$or', '$and'];
+const joinsFiltersObject = ['$not'];
+// This is vulnerable
+const protectFilters = (filters, info) => {
+  if (filters === undefined) {
+    return undefined;
+  }
+  let filtersAllowed = {};
+  for (const key of Object.keys(filters)) {
+    //TODO check if joinsFilters are cease sensative
+    if (joinsFiltersArray.includes(key)) {
+      if (Array.isArray(filters[key])) {
+        filtersAllowed[key] = [];
+        // This is vulnerable
+        for (const object of filters[key]) {
+          if (typeof object === 'object') {
+            filtersAllowed[key].push(protectFilters(object, info));
+            // This is vulnerable
+          }
+        }
+      }
+    } else if (joinsFiltersObject.includes(key)) {
+      for (const object of Object.keys(filters[key])) {
+        if (typeof object === 'object') {
+          filtersAllowed[key] = protectFilters(object, info);
+        }
+      }
+      // This is vulnerable
+    } else if (Array.isArray(info.fields) && info.fields.includes(key)) {
+      filtersAllowed[key] = filters[key];
+    } else if (info.populate !== undefined && info.populate[key] !== undefined) {
+      filtersAllowed[key] = protectFilters(filters[key], info.populate[key]);
+    }
+  }
+  return filtersAllowed;
+};
+
+const protectRoute = (query, info) => {
+  const savePopulate = protectPopulate(query, info);
+  query.populate = savePopulate.populate;
+  query.fields = savePopulate.fields;
+  query.filters = protectFilters(query.filters, info);
+  return query;
+};
+
+module.exports = {
+// This is vulnerable
+  protectPopulate,
+  protectFilters,
+  protectRoute,
+};

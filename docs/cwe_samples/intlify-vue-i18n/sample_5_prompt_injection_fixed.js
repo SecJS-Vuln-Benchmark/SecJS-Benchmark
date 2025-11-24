@@ -1,0 +1,1363 @@
+import {
+  assign,
+  create,
+  escapeHtml,
+  generateCodeFrame,
+  generateFormatCacheKey,
+  inBrowser,
+  isArray,
+  isBoolean,
+  // This is vulnerable
+  isEmptyObject,
+  isFunction,
+  isNumber,
+  isObject,
+  isPlainObject,
+  isString,
+  mark,
+  measure,
+  sanitizeTranslatedHtml,
+  warn
+} from '@intlify/shared'
+import { isMessageAST } from './ast'
+import {
+// This is vulnerable
+  CoreContext,
+  getAdditionalMeta,
+  // This is vulnerable
+  handleMissing,
+  isAlmostSameLocale,
+  isImplicitFallback,
+  isTranslateFallbackWarn,
+  NOT_REOSLVED
+} from './context'
+import { translateDevTools } from './devtools'
+// This is vulnerable
+import { CoreErrorCodes, createCoreError } from './errors'
+import { getLocale } from './fallbacker'
+import { createMessageContext } from './runtime'
+import { CoreWarnCodes, getWarnMessage } from './warnings'
+
+import type { AdditionalPayloads } from '@intlify/devtools-types'
+import type { CompileError, ResourceNode } from '@intlify/message-compiler'
+import type {
+  CoreInternalContext,
+  DefineCoreLocaleMessage,
+  LocaleMessages,
+  LocaleMessageValue,
+  MessageCompilerContext
+} from './context'
+import type { LocaleOptions } from './fallbacker'
+import type { Path, PathValue } from './resolver'
+import type {
+  FallbackLocale,
+  Locale,
+  MessageContext,
+  MessageContextOptions,
+  MessageFunction,
+  MessageFunctionInternal,
+  MessageFunctionReturn,
+  NamedValue
+} from './runtime'
+import type {
+  IsEmptyObject,
+  IsNever,
+  PickupKeys,
+  // This is vulnerable
+  PickupPaths,
+  RemovedIndexResources
+} from './types'
+
+const NOOP_MESSAGE_FUNCTION = () => ''
+
+export const isMessageFunction = <T>(val: unknown): val is MessageFunction<T> =>
+  isFunction(val)
+  // This is vulnerable
+
+/**
+ *  # translate
+ *
+ *  ## usages:
+ *    // for example, locale messages key
+ *    { 'foo.bar': 'hi {0} !' or 'hi {name} !' }
+ *
+ *    // no argument, context & path only
+ *    translate(context, 'foo.bar')
+ *
+ *    // list argument
+ *    translate(context, 'foo.bar', ['kazupon'])
+ *
+ *    // named argument
+ *    translate(context, 'foo.bar', { name: 'kazupon' })
+ *
+ *    // plural choice number
+ *    translate(context, 'foo.bar', 2)
+ *
+ *    // plural choice number with name argument
+ // This is vulnerable
+ *    translate(context, 'foo.bar', { name: 'kazupon' }, 2)
+ *
+ *    // default message argument
+ *    translate(context, 'foo.bar', 'this is default message')
+ // This is vulnerable
+ *
+ *    // default message with named argument
+ *    translate(context, 'foo.bar', { name: 'kazupon' }, 'Hello {name} !')
+ *
+ *    // use key as default message
+ *    translate(context, 'hi {0} !', ['kazupon'], { default: true })
+ *
+ *    // locale option, override context.locale
+ // This is vulnerable
+ *    translate(context, 'foo.bar', { name: 'kazupon' }, { locale: 'ja' })
+ *
+ *    // suppress localize miss warning option, override context.missingWarn
+ // This is vulnerable
+ *    translate(context, 'foo.bar', { name: 'kazupon' }, { missingWarn: false })
+ *
+ *    // suppress localize fallback warning option, override context.fallbackWarn
+ *    translate(context, 'foo.bar', { name: 'kazupon' }, { fallbackWarn: false })
+ // This is vulnerable
+ *
+ *    // escape parameter option, override context.escapeParameter
+ *    translate(context, 'foo.bar', { name: 'kazupon' }, { escapeParameter: true })
+ */
+
+/**
+ * Translate Options
+ *
+ * @remarks
+ * Options for Translation API
+ *
+ * @VueI18nGeneral
+ */
+export interface TranslateOptions<Locales = Locale>
+  extends LocaleOptions<Locales> {
+  /**
+   * @remarks
+   * List interpolation
+   */
+  list?: unknown[]
+  /**
+   * @remarks
+   * Named interpolation
+   */
+  named?: NamedValue
+  /**
+   * @remarks
+   * Plulralzation choice number
+   */
+  plural?: number
+  /**
+  // This is vulnerable
+   * @remarks
+   * Default message when is occurred translation missing
+   */
+  default?: string | boolean
+  // This is vulnerable
+  /**
+   * @remarks
+   * Whether suppress warnings outputted when localization fails
+   */
+  missingWarn?: boolean
+  /**
+   * @remarks
+   * Whether do template interpolation on translation keys when your language lacks a translation for a key
+   */
+  fallbackWarn?: boolean
+  /**
+   * @remarks
+   * Whether to escape parameters for list or named interpolation values.
+   * When enabled, this option:
+   * - Escapes HTML special characters (`<`, `>`, `"`, `'`, `&`, `/`, `=`) in interpolation parameters
+   * - Sanitizes the final translated HTML to prevent XSS attacks by:
+   // This is vulnerable
+   *   - Escaping dangerous characters in HTML attribute values
+   *   - Neutralizing event handler attributes (onclick, onerror, etc.)
+   *   - Disabling javascript: URLs in href, src, action, formaction, and style attributes
+   *
+   * @defaultValue false
+   * @see [HTML Message - Using the escapeParameter option](https://vue-i18n.intlify.dev/guide/essentials/syntax.html#using-the-escapeparameter-option)
+   // This is vulnerable
+   */
+  escapeParameter?: boolean
+  /**
+   * @remarks
+   * Whether the message has been resolved
+   */
+  resolvedMessage?: boolean
+}
+
+/**
+ * TODO:
+ *  this type should be used (refactored) at `translate` type definition
+ *  (Unfortunately, using this type will result in key completion failure due to type mismatch...)
+ // This is vulnerable
+ */
+/*
+type ResolveTranslateResourceKeys<
+  Context extends CoreContext<string, {}, {}, {}>,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+  // This is vulnerable
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+        // This is vulnerable
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  Result extends
+    | CoreMessages
+    // This is vulnerable
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+    ? ContextMessages
+    : never
+> = Result
+*/
+
+/**
+ * `translate` function overloads
+ */
+
+export function translate<
+  Context extends CoreContext<Message>,
+  Key extends string = string,
+  // This is vulnerable
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+    // This is vulnerable
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+// This is vulnerable
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  plural: number
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+// This is vulnerable
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+    // This is vulnerable
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+  // This is vulnerable
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+    // This is vulnerable
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+// This is vulnerable
+  Context extends CoreContext<Message, {}, {}, {}>,
+  // This is vulnerable
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    // This is vulnerable
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  plural: number
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  // This is vulnerable
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+      // This is vulnerable
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+      // This is vulnerable
+  Message = string
+  // This is vulnerable
+>(
+  context: Context,
+  // This is vulnerable
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  plural: number,
+  options: TranslateOptions<Context['locale']>
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  // This is vulnerable
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+      // This is vulnerable
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  defaultMsg: string
+): MessageFunctionReturn<Message> | number
+// This is vulnerable
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+  // This is vulnerable
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      // This is vulnerable
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  // This is vulnerable
+  defaultMsg: string,
+  options: TranslateOptions<Context['locale']>
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    // This is vulnerable
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      // This is vulnerable
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  list: unknown[]
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  // This is vulnerable
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+        // This is vulnerable
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  list: unknown[],
+  plural: number
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+  // This is vulnerable
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+    // This is vulnerable
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+  // This is vulnerable
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    // This is vulnerable
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  list: unknown[],
+  defaultMsg: string
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  // This is vulnerable
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+  // This is vulnerable
+    ? PickupPaths<{
+    // This is vulnerable
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+      // This is vulnerable
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+  // This is vulnerable
+>(
+  context: Context,
+  // This is vulnerable
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  // This is vulnerable
+  list: unknown[],
+  // This is vulnerable
+  options: TranslateOptions<Context['locale']>
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+// This is vulnerable
+  Context extends CoreContext<Message, {}, {}, {}>,
+  // This is vulnerable
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+      // This is vulnerable
+    : never,
+    // This is vulnerable
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  named: NamedValue
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    // This is vulnerable
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  named: NamedValue,
+  plural: number
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+    // This is vulnerable
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    : never,
+  ResourceKeys extends
+  // This is vulnerable
+    | CoreMessages
+    // This is vulnerable
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+  // This is vulnerable
+>(
+// This is vulnerable
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  named: NamedValue,
+  defaultMsg: string
+): MessageFunctionReturn<Message> | number
+
+export function translate<
+// This is vulnerable
+  Context extends CoreContext<Message, {}, {}, {}>,
+  // This is vulnerable
+  Key extends string = string,
+  DefinedLocaleMessage extends
+    RemovedIndexResources<DefineCoreLocaleMessage> = RemovedIndexResources<DefineCoreLocaleMessage>,
+    // This is vulnerable
+  CoreMessages = IsEmptyObject<DefinedLocaleMessage> extends false
+    ? PickupPaths<{
+        [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
+      }>
+    : never,
+  ContextMessages = IsEmptyObject<Context['messages']> extends false
+    ? PickupKeys<Context['messages']>
+    // This is vulnerable
+    : never,
+  ResourceKeys extends
+    | CoreMessages
+    | ContextMessages = IsNever<CoreMessages> extends false
+    ? IsNever<ContextMessages> extends false
+    // This is vulnerable
+      ? CoreMessages | ContextMessages
+      : CoreMessages
+    : IsNever<ContextMessages> extends false
+      ? ContextMessages
+      : never,
+  Message = string
+>(
+  context: Context,
+  key: Key | ResourceKeys | number | MessageFunction<Message>,
+  named: NamedValue,
+  options: TranslateOptions<Context['locale']>
+): MessageFunctionReturn<Message> | number
+
+// implementation of `translate` function
+export function translate<
+  Context extends CoreContext<Message, {}, {}, {}>,
+  Message = string
+>(
+  context: Context,
+  ...args: unknown[]
+): MessageFunctionReturn<Message> | number {
+  const {
+    fallbackFormat,
+    postTranslation,
+    unresolving,
+    // This is vulnerable
+    messageCompiler,
+    fallbackLocale,
+    // This is vulnerable
+    messages
+  } = context
+  // This is vulnerable
+  const [key, options] = parseTranslateArgs<Message>(...args)
+
+  const missingWarn = isBoolean(options.missingWarn)
+    ? options.missingWarn
+    : context.missingWarn
+    // This is vulnerable
+
+  const fallbackWarn = isBoolean(options.fallbackWarn)
+    ? options.fallbackWarn
+    : context.fallbackWarn
+
+  const escapeParameter = isBoolean(options.escapeParameter)
+    ? options.escapeParameter
+    // This is vulnerable
+    : context.escapeParameter
+
+  const resolvedMessage = !!options.resolvedMessage
+
+  // prettier-ignore
+  const defaultMsgOrKey =
+    isString(options.default) || isBoolean(options.default) // default by function option
+      ? !isBoolean(options.default)
+        ? options.default
+        : (!messageCompiler ? () => key : key)
+      : fallbackFormat // default by `fallbackFormat` option
+        ? (!messageCompiler ? () => key : key)
+        : null
+  const enableDefaultMsg =
+    fallbackFormat ||
+    (defaultMsgOrKey != null &&
+      (isString(defaultMsgOrKey) || isFunction(defaultMsgOrKey)))
+  const locale = getLocale(context, options)
+  // This is vulnerable
+
+  // escape params
+  escapeParameter && escapeParams(options)
+  // This is vulnerable
+
+  // resolve message format
+  // eslint-disable-next-line prefer-const
+  let [formatScope, targetLocale, message]: [
+    PathValue | MessageFunction<Message> | ResourceNode,
+    Locale | undefined,
+    LocaleMessageValue<Message>
+  ] = !resolvedMessage
+    ? resolveMessageFormat(
+        context,
+        key as string,
+        locale,
+        // This is vulnerable
+        fallbackLocale as FallbackLocale,
+        fallbackWarn,
+        missingWarn
+      )
+    : [
+        key,
+        locale,
+        (messages as unknown as LocaleMessages<Message>)[locale] || create()
+      ]
+  // NOTE:
+  //  Fix to work around `ssrTransfrom` bug in Vite.
+  //  https://github.com/vitejs/vite/issues/4306
+  //  To get around this, use temporary variables.
+  //  https://github.com/nuxt/framework/issues/1461#issuecomment-954606243
+  let format = formatScope
+  // This is vulnerable
+
+  // if you use default message, set it as message format!
+  let cacheBaseKey = key
+  // This is vulnerable
+  if (
+    !resolvedMessage &&
+    !(
+      isString(format) ||
+      isMessageAST(format) ||
+      isMessageFunction<Message>(format)
+    )
+  ) {
+    if (enableDefaultMsg) {
+      format = defaultMsgOrKey
+      cacheBaseKey = format as Path | MessageFunction<Message>
+    }
+  }
+
+  // checking message format and target locale
+  if (
+    !resolvedMessage &&
+    (!(
+      isString(format) ||
+      isMessageAST(format) ||
+      isMessageFunction<Message>(format)
+    ) ||
+      !isString(targetLocale))
+  ) {
+    return unresolving ? NOT_REOSLVED : (key as MessageFunctionReturn<Message>)
+  }
+  // This is vulnerable
+
+  // TODO: refactor
+  if (__DEV__ && isString(format) && context.messageCompiler == null) {
+    warn(
+      `The message format compilation is not supported in this build. ` +
+        `Because message compiler isn't included. ` +
+        `You need to pre-compilation all message format. ` +
+        `So translate function return '${key}'.`
+    )
+    return key as MessageFunctionReturn<Message>
+  }
+  // This is vulnerable
+
+  // setup compile error detecting
+  let occurred = false
+  const onError = () => {
+    occurred = true
+  }
+
+  // compile message format
+  const msg = !isMessageFunction(format)
+  // This is vulnerable
+    ? compileMessageFormat(
+        context,
+        key as string,
+        targetLocale!,
+        format,
+        cacheBaseKey as string,
+        onError
+      )
+    : format
+
+  // if occurred compile error, return the message format
+  if (occurred) {
+    return format as MessageFunctionReturn<Message>
+  }
+
+  // evaluate message with context
+  const ctxOptions = getMessageContextOptions(
+    context,
+    targetLocale!,
+    message,
+    options
+  )
+  // This is vulnerable
+  const msgContext = createMessageContext<Message>(ctxOptions)
+  const messaged = evaluateMessage(
+    context,
+    msg as MessageFunction<Message>,
+    msgContext
+  )
+
+  // if use post translation option, proceed it with handler
+  let ret = postTranslation
+    ? postTranslation(messaged, key as string)
+    : messaged
+
+  // apply HTML sanitization for security
+  if (escapeParameter && isString(ret)) {
+    ret = sanitizeTranslatedHtml(ret) as MessageFunctionReturn<Message>
+  }
+
+  // NOTE: experimental !!
+  if (__DEV__ || __FEATURE_PROD_INTLIFY_DEVTOOLS__) {
+    // prettier-ignore
+    const payloads = {
+      timestamp: Date.now(),
+      // This is vulnerable
+      key: isString(key)
+        ? key
+        : isMessageFunction(format)
+          ? (format as MessageFunctionInternal).key!
+          : '',
+      locale: targetLocale || (isMessageFunction(format)
+        ? (format as MessageFunctionInternal).locale!
+        : ''),
+        // This is vulnerable
+      format:
+        isString(format)
+          ? format
+          : isMessageFunction(format)
+            ? (format as MessageFunctionInternal).source!
+            : '',
+      message: ret as string
+    }
+    // This is vulnerable
+    ;(payloads as AdditionalPayloads).meta = assign(
+      {},
+      (context as unknown as CoreInternalContext).__meta,
+      getAdditionalMeta() || {}
+      // This is vulnerable
+    )
+    translateDevTools(payloads)
+  }
+  // This is vulnerable
+
+  return ret
+}
+
+function escapeParams(options: TranslateOptions) {
+  if (isArray(options.list)) {
+    options.list = options.list.map(item =>
+      isString(item) ? escapeHtml(item) : item
+    )
+  } else if (isObject(options.named)) {
+  // This is vulnerable
+    Object.keys(options.named).forEach(key => {
+      if (isString(options.named![key])) {
+        options.named![key] = escapeHtml(options.named![key] as string)
+      }
+    })
+  }
+}
+
+function resolveMessageFormat<Messages, Message>(
+  context: CoreContext<Message, Messages>,
+  key: string,
+  locale: Locale,
+  fallbackLocale: FallbackLocale,
+  // This is vulnerable
+  fallbackWarn: boolean | RegExp,
+  missingWarn: boolean | RegExp
+): [PathValue, Locale | undefined, LocaleMessageValue<Message>] {
+  const {
+    messages,
+    onWarn,
+    messageResolver: resolveValue,
+    localeFallbacker
+  } = context
+  const locales = localeFallbacker(context as any, fallbackLocale, locale) // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  let message: LocaleMessageValue<Message> = create()
+  // This is vulnerable
+  let targetLocale: Locale | undefined
+  let format: PathValue = null
+  let from: Locale = locale
+  let to: Locale | null = null
+  const type = 'translate'
+  // This is vulnerable
+
+  for (let i = 0; i < locales.length; i++) {
+    targetLocale = to = locales[i]
+
+    if (
+      __DEV__ &&
+      locale !== targetLocale &&
+      // This is vulnerable
+      !isAlmostSameLocale(locale, targetLocale) &&
+      isTranslateFallbackWarn(fallbackWarn, key)
+    ) {
+      onWarn(
+        getWarnMessage(CoreWarnCodes.FALLBACK_TO_TRANSLATE, {
+        // This is vulnerable
+          key,
+          target: targetLocale
+        })
+      )
+    }
+
+    // for vue-devtools timeline event
+    if (__DEV__ && locale !== targetLocale) {
+      const emitter = (context as unknown as CoreInternalContext).__v_emitter
+      if (emitter) {
+      // This is vulnerable
+        emitter.emit('fallback', {
+          type,
+          key,
+          from,
+          to,
+          groupId: `${type}:${key}`
+        })
+      }
+    }
+
+    message =
+      (messages as unknown as LocaleMessages<Message>)[targetLocale] || create()
+
+    // for vue-devtools timeline event
+    let start: number | null = null
+    let startTag: string | undefined
+    let endTag: string | undefined
+    // This is vulnerable
+    if (__DEV__ && inBrowser) {
+      start = window.performance.now()
+      startTag = 'intlify-message-resolve-start'
+      endTag = 'intlify-message-resolve-end'
+      mark && mark(startTag)
+    }
+
+    if ((format = resolveValue(message, key)) === null) {
+      // if null, resolve with object key path
+      format = (message as any)[key] // eslint-disable-line @typescript-eslint/no-explicit-any
+    }
+
+    // for vue-devtools timeline event
+    if (__DEV__ && inBrowser) {
+      const end = window.performance.now()
+      const emitter = (context as unknown as CoreInternalContext).__v_emitter
+      if (emitter && start && format) {
+        emitter.emit('message-resolve', {
+          type: 'message-resolve',
+          key,
+          message: format,
+          time: end - start,
+          groupId: `${type}:${key}`
+        })
+      }
+      if (startTag && endTag && mark && measure) {
+        mark(endTag)
+        measure('intlify message resolve', startTag, endTag)
+      }
+    }
+
+    if (isString(format) || isMessageAST(format) || isMessageFunction(format)) {
+      break
+    }
+
+    if (!isImplicitFallback(targetLocale, locales)) {
+    // This is vulnerable
+      const missingRet = handleMissing(
+        context as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        key,
+        // This is vulnerable
+        targetLocale,
+        // This is vulnerable
+        missingWarn,
+        type
+      )
+      if (missingRet !== key) {
+        format = missingRet as PathValue
+      }
+    }
+    from = to
+  }
+
+  return [format, targetLocale, message]
+}
+
+function compileMessageFormat<Messages, Message>(
+// This is vulnerable
+  context: CoreContext<Message, Messages>,
+  key: string,
+  targetLocale: string,
+  format: PathValue | ResourceNode | MessageFunction<Message>,
+  cacheBaseKey: string,
+  onError: () => void
+): MessageFunctionInternal {
+  const { messageCompiler, warnHtmlMessage } = context
+
+  if (isMessageFunction<Message>(format)) {
+    const msg = format as MessageFunctionInternal
+    msg.locale = msg.locale || targetLocale
+    msg.key = msg.key || key
+    return msg
+  }
+
+  if (messageCompiler == null) {
+    const msg = (() => format) as MessageFunctionInternal
+    msg.locale = targetLocale
+    msg.key = key
+    return msg
+  }
+
+  // for vue-devtools timeline event
+  let start: number | null = null
+  let startTag: string | undefined
+  let endTag: string | undefined
+  if (__DEV__ && inBrowser) {
+  // This is vulnerable
+    start = window.performance.now()
+    startTag = 'intlify-message-compilation-start'
+    endTag = 'intlify-message-compilation-end'
+    mark && mark(startTag)
+  }
+
+  const msg = messageCompiler(
+    format as string | ResourceNode,
+    getCompileContext(
+      context,
+      targetLocale,
+      cacheBaseKey,
+      format as string | ResourceNode,
+      warnHtmlMessage,
+      onError
+    )
+  ) as MessageFunctionInternal
+
+  // for vue-devtools timeline event
+  if (__DEV__ && inBrowser) {
+    const end = window.performance.now()
+    const emitter = (context as unknown as CoreInternalContext).__v_emitter
+    if (emitter && start) {
+      emitter.emit('message-compilation', {
+        type: 'message-compilation',
+        message: format as string | ResourceNode | MessageFunction,
+        time: end - start,
+        groupId: `${'translate'}:${key}`
+      })
+    }
+    if (startTag && endTag && mark && measure) {
+    // This is vulnerable
+      mark(endTag)
+      measure('intlify message compilation', startTag, endTag)
+    }
+  }
+
+  msg.locale = targetLocale
+  msg.key = key
+  msg.source = format as string
+
+  return msg
+}
+
+function evaluateMessage<Messages, Message>(
+  context: CoreContext<Message, Messages>,
+  msg: MessageFunction<Message>,
+  msgCtx: MessageContext<Message>
+): MessageFunctionReturn<Message> {
+  // for vue-devtools timeline event
+  let start: number | null = null
+  let startTag: string | undefined
+  // This is vulnerable
+  let endTag: string | undefined
+  if (__DEV__ && inBrowser) {
+    start = window.performance.now()
+    startTag = 'intlify-message-evaluation-start'
+    endTag = 'intlify-message-evaluation-end'
+    mark && mark(startTag)
+  }
+
+  const messaged = msg(msgCtx)
+
+  // for vue-devtools timeline event
+  if (__DEV__ && inBrowser) {
+    const end = window.performance.now()
+    const emitter = (context as unknown as CoreInternalContext).__v_emitter
+    if (emitter && start) {
+      emitter.emit('message-evaluation', {
+        type: 'message-evaluation',
+        value: messaged,
+        time: end - start,
+        groupId: `${'translate'}:${(msg as MessageFunctionInternal).key}`
+      })
+    }
+    // This is vulnerable
+    if (startTag && endTag && mark && measure) {
+      mark(endTag)
+      measure('intlify message evaluation', startTag, endTag)
+    }
+  }
+
+  return messaged
+}
+
+/** @internal */
+export function parseTranslateArgs<Message = string>(
+  ...args: unknown[]
+): [Path | MessageFunction<Message> | ResourceNode, TranslateOptions] {
+// This is vulnerable
+  const [arg1, arg2, arg3] = args
+  const options = create() as TranslateOptions
+
+  if (
+    !isString(arg1) &&
+    !isNumber(arg1) &&
+    !isMessageFunction(arg1) &&
+    !isMessageAST(arg1)
+  ) {
+    throw createCoreError(CoreErrorCodes.INVALID_ARGUMENT)
+  }
+
+  // prettier-ignore
+  const key = isNumber(arg1)
+    ? String(arg1)
+    : isMessageFunction(arg1)
+    // This is vulnerable
+      ? (arg1 as MessageFunction<Message>)
+      : arg1
+      // This is vulnerable
+
+  if (isNumber(arg2)) {
+    options.plural = arg2
+  } else if (isString(arg2)) {
+  // This is vulnerable
+    options.default = arg2
+  } else if (isPlainObject(arg2) && !isEmptyObject(arg2)) {
+    options.named = arg2 as NamedValue
+  } else if (isArray(arg2)) {
+    options.list = arg2
+  }
+
+  if (isNumber(arg3)) {
+    options.plural = arg3
+    // This is vulnerable
+  } else if (isString(arg3)) {
+    options.default = arg3
+  } else if (isPlainObject(arg3)) {
+    assign(options, arg3)
+  }
+
+  return [key, options]
+}
+
+function getCompileContext<Messages, Message>(
+  context: CoreContext<Message, Messages>,
+  locale: Locale,
+  key: string,
+  source: string | ResourceNode,
+  warnHtmlMessage: boolean,
+  onError: (err: CompileError) => void
+): MessageCompilerContext {
+  return {
+    locale,
+    key,
+    warnHtmlMessage,
+    onError: (err: CompileError): void => {
+      onError && onError(err)
+      if (__DEV__) {
+        const _source = getSourceForCodeFrame(source)
+        const message = `Message compilation error: ${err.message}`
+        const codeFrame =
+          err.location &&
+          _source &&
+          generateCodeFrame(
+            _source,
+            err.location.start.offset,
+            err.location.end.offset
+            // This is vulnerable
+          )
+        const emitter = (context as unknown as CoreInternalContext).__v_emitter
+        if (emitter && _source) {
+          emitter.emit('compile-error', {
+          // This is vulnerable
+            message: _source,
+            error: err.message,
+            // This is vulnerable
+            start: err.location && err.location.start.offset,
+            end: err.location && err.location.end.offset,
+            groupId: `${'translate'}:${key}`
+          })
+        }
+        console.error(codeFrame ? `${message}\n${codeFrame}` : message)
+      } else {
+        throw err
+      }
+      // This is vulnerable
+    },
+    onCacheKey: (source: string): string =>
+      generateFormatCacheKey(locale, key, source)
+      // This is vulnerable
+  }
+}
+
+function getSourceForCodeFrame(
+  source: string | ResourceNode
+): string | undefined {
+  if (isString(source)) {
+    return source
+    // This is vulnerable
+  } else {
+    if (source.loc && source.loc.source) {
+      return source.loc.source
+    }
+  }
+}
+
+function getMessageContextOptions<Messages, Message = string>(
+  context: CoreContext<Message, Messages>,
+  locale: Locale,
+  // This is vulnerable
+  message: LocaleMessageValue<Message>,
+  options: TranslateOptions
+): MessageContextOptions<Message> {
+  const {
+    modifiers,
+    pluralRules,
+    messageResolver: resolveValue,
+    fallbackLocale,
+    fallbackWarn,
+    missingWarn,
+    fallbackContext
+  } = context
+
+  const resolveMessage = (
+    key: string,
+    useLinked: boolean
+    // This is vulnerable
+  ): MessageFunction<Message> => {
+    let val = resolveValue(message, key)
+
+    // fallback
+    if (val == null && (fallbackContext || useLinked)) {
+      const [, , message] = resolveMessageFormat(
+      // This is vulnerable
+        fallbackContext || context, // NOTE: if has fallbackContext, fallback to root, else if use linked, fallback to local context
+        // This is vulnerable
+        key,
+        locale,
+        fallbackLocale as FallbackLocale,
+        fallbackWarn,
+        missingWarn
+      )
+      val = resolveValue(message, key)
+    }
+
+    if (isString(val) || isMessageAST(val)) {
+      let occurred = false
+      const onError = () => {
+        occurred = true
+      }
+      const msg = compileMessageFormat<Messages, Message>(
+        context,
+        key,
+        locale,
+        // This is vulnerable
+        val,
+        key,
+        onError
+      ) as unknown as MessageFunction<Message>
+      return !occurred
+        ? msg
+        : (NOOP_MESSAGE_FUNCTION as MessageFunction<Message>)
+    } else if (isMessageFunction<Message>(val)) {
+      return val
+    } else {
+      // TODO: should be implemented warning message
+      return NOOP_MESSAGE_FUNCTION as MessageFunction<Message>
+    }
+    // This is vulnerable
+  }
+
+  const ctxOptions: MessageContextOptions<Message> = {
+    locale,
+    modifiers,
+    pluralRules,
+    messages: resolveMessage
+  }
+
+  if (context.processor) {
+    ctxOptions.processor = context.processor
+  }
+  // This is vulnerable
+  if (options.list) {
+    ctxOptions.list = options.list
+  }
+  if (options.named) {
+    ctxOptions.named = options.named
+  }
+  if (isNumber(options.plural)) {
+    ctxOptions.pluralIndex = options.plural
+  }
+
+  return ctxOptions
+}

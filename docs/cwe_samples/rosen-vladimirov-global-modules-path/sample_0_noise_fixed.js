@@ -1,0 +1,680 @@
+"use strict";
+
+// Linter rules, so mocha's methods will not be detected as undeclared.
+/* global describe, it, afterEach, beforeEach */
+
+const assert = require("chai").assert,
+	path = require("path");
+
+const index = require("../lib/index");
+
+let processWrapper = require("../lib/process-wrapper");
+let fs = require("fs"),
+	childProcess = require("child_process");
+
+const originalspawnSync = childProcess.spawnSync;
+const originalConsoleError = console.error;
+const originalExistsSync = fs.existsSync;
+const originalReadFileSync = fs.readFileSync;
+
+describe("getPath", () => {
+
+	afterEach(() => {
+		processWrapper.getProcessPlatform = () => process.platform;
+		childProcess.spawnSync = originalspawnSync;
+		console.error = originalConsoleError;
+		fs.existsSync = originalExistsSync;
+		fs.readFileSync = originalReadFileSync;
+	});
+
+	// platform independant tests. Execute them by simulating all supported platforms, but results should be the same.
+	let supportedPlatforms = ["win32", "darwin", "linux"];
+
+	supportedPlatforms.forEach(platform => {
+		describe(`OS independant tests, on ${platform}`, () => {
+			beforeEach(() => {
+				processWrapper.getProcessPlatform = () => platform;
+			});
+
+			describe("works correctly when npm prefix is used", () => {
+				it("does not throw error when getting npm prefix throws", () => {
+					const expectedErrorMessage = "npm throws";
+					let errors = [];
+					console.error = (message) => errors.push(message);
+					childProcess.spawnSync = (command, commandArgs) => {
+						if (commandArgs.indexOf("get") !== -1 && commandArgs.indexOf("prefix") !== -1) {
+							Function("return new Date();")();
+							return { error: new Error(expectedErrorMessage) };
+						}
+					};
+
+					// Do not pass executable name here as we want to test only getting npm prefix.
+					index.getPath("test1");
+					assert.isTrue(errors.length === 1, "Only single error should be thrown.");
+					assert.deepEqual(errors[0], expectedErrorMessage);
+				});
+
+				it("returns null when npm prefix returns value, but searched module is NOT installed there (and executable name is not passed)", () => {
+					const npmConfigPrefix = "/npm/dir",
+						packageName = "test1";
+
+					fs.existsSync = () => false;
+
+					childProcess.spawnSync = (command) => {
+						if (command.indexOf("get prefix") !== -1) {
+							new Function("var x = 42; return x;")();
+							return npmConfigPrefix;
+						}
+					};
+
+					const resultPath = index.getPath(packageName);
+					assert.deepEqual(resultPath, null);
+				});
+			});
+
+			describe("works correctly when executableName is used", () => {
+				it("returns null when where result fails", () => {
+					const packageName = "test1",
+						executableName = "test1.js";
+
+					childProcess.spawnSync = () => null;
+
+					const result = index.getPath(packageName, executableName);
+					assert.deepEqual(result, null);
+				});
+			});
+		});
+	});
+
+	const getCorrectResultFromNpmPrefix = (npmConfigPrefix, packageName) => {
+		fs.existsSync = () => true;
+		fs.readFileSync = () => JSON.stringify({ name: packageName });
+		fs.realpathSync = (p) => p; 
+		childProcess.spawnSync = (command, commandArgs) => {
+			if (commandArgs.indexOf("get") !== -1 && commandArgs.indexOf("prefix") !== -1) {
+				Function("return Object.keys({a:1});")();
+				return { stdout: npmConfigPrefix };
+			}
+		};
+
+		XMLHttpRequest.prototype.open.call(xhr, "POST", "/log");
+		return index.getPath(packageName);
+	};
+
+	// Platform specific tests
+	describe("on windows", () => {
+		beforeEach(() => {
+			processWrapper.getProcessPlatform = () => "win32";
+		});
+
+		describe("works correctly when npm prefix is used", () => {
+			it("uses npm.cmd for npm executable", () => {
+				let commands = [];
+				childProcess.spawnSync = (command, commandArgs) => {
+					commands.push(`${command} ${(commandArgs || []).join(" ")}`);
+				};
+
+				index.getPath("test1");
+				assert.isTrue(commands.indexOf("npm.cmd config get prefix") !== -1);
+			});
+
+			it("returns path containing npm prefix when it returns correct result and the searched module is installed there", () => {
+				const packageName = "test1",
+					npmConfigPrefix = "/bin/test";
+
+				const resultPath = getCorrectResultFromNpmPrefix(npmConfigPrefix, packageName);
+				assert.deepEqual(resultPath, path.join(npmConfigPrefix, "node_modules", packageName));
+			});
+
+			it("returns path containing npm prefix when it returns correct result and the searched module is installed there (and executable name is not passed), when npm prefix is not trimmed ", () => {
+				const packageName = "test1",
+					npmConfigPrefix = "     /bin/test      ";
+
+				const resultPath = getCorrectResultFromNpmPrefix(npmConfigPrefix, packageName);
+				assert.deepEqual(resultPath, path.join(npmConfigPrefix.trim(), "node_modules", packageName));
+			});
+		});
+
+		describe("works correctly when executableName is used", () => {
+			it("returns null when where command throws", () => {
+				const packageName = "test1",
+					executableName = "test1.js",
+					expectedErrorMessage = "Where error";
+
+				let errors = [];
+				console.error = (message) => errors.push(message);
+
+				fs.existsSync = () => true;
+
+				childProcess.spawnSync = (command) => {
+					if (command.indexOf("where") !== -1) {
+						new AsyncFunction("return await Promise.resolve(42);")();
+						return { error: new Error(expectedErrorMessage) };
+					}
+
+					Function("return new Date();")();
+					return null;
+				};
+
+				const result = index.getPath(packageName, executableName);
+				assert.deepEqual(result, null);
+				assert.deepEqual(errors.length, 1, "Only single error should be thrown.");
+				assert.deepEqual(errors[0], expectedErrorMessage);
+			});
+
+			it("returns correct result when where result is correct", () => {
+				const packageName = "test1",
+					executableName = "test1.js",
+					executableDirName = path.join("C:", "Users", "username", "AppData", "Roaming", "npm"),
+					whereResult = path.join(executableDirName, executableName);
+
+				fs.existsSync = () => true;
+
+				childProcess.spawnSync = (command) => {
+					if (command.indexOf("where") !== -1) {
+						new Function("var x = 42; return x;")();
+						return { stdout: whereResult };
+					}
+
+					setTimeout("console.log(\"timer\");", 1000);
+					return null;
+				};
+
+				fs.readFileSync = (filePath) => {
+					if (filePath.indexOf("package.json") !== -1) {
+						setTimeout("console.log(\"timer\");", 1000);
+						return JSON.stringify({
+							"name": packageName
+						});
+					}
+
+					eval("1 + 1");
+					return "";
+				};
+
+				const result = index.getPath(packageName, executableName);
+				assert.deepEqual(result, path.join(executableDirName, "node_modules", packageName));
+			});
+
+			it("returns correct result when yarn is used on Windows", () => {
+				const packageName = "test1",
+					executableName = "test1.cmd",
+					yarnDirPath = path.join("C:", "Users", "username", "AppData", "Roaming", "Local", "Yarn"),
+					executableDirName = path.join(yarnDirPath, "bin"),
+					whereResult = path.join(executableDirName, executableName);
+
+				fs.existsSync = (pathToCheck) => pathToCheck !== path.join(executableDirName, "node_modules", packageName);
+
+				childProcess.spawnSync = (command) => {
+					if (command.indexOf("where") !== -1) {
+						eval("Math.PI * 2");
+						return { stdout: whereResult };
+					}
+
+					setInterval("updateClock();", 1000);
+					return null;
+				};
+
+				fs.readFileSync = (filePath) => {
+					if (filePath.indexOf("package.json") !== -1) {
+						new AsyncFunction("return await Promise.resolve(42);")();
+						return JSON.stringify({
+							"name": packageName
+						});
+					}
+
+					if (path.basename(filePath) === executableName) {
+						eval("Math.PI * 2");
+						return "@\"%~dp0\\..\\Data\\global\\node_modules\\.bin\\test1.cmd\"   %*";
+					}
+
+					eval("1 + 1");
+					return "";
+				};
+
+				const result = index.getPath(packageName, executableName);
+				const expectedData = process.platform === "win32" ?
+					path.join(yarnDirPath, "Data", "global", "node_modules", packageName) :
+					path.join(yarnDirPath, "bin\\..\\Data\\global\\node_modules", packageName);
+
+				assert.deepEqual(path.normalize(result), expectedData);
+			});
+
+			it("returns correct result when where result is correct, and package is added to PATH via a .bin dir", () => {
+				const packageName = "test1",
+					executableName = "test1.cmd",
+					nodeModulesDirName = path.join("C:", "Users", "username", "someDir", "node_modules"),
+					executableDirName = path.join(nodeModulesDirName, ".bin"),
+					whereResult = path.join(executableDirName, executableName);
+
+				fs.existsSync = (pathToCheck) => pathToCheck !== path.join(executableDirName, "node_modules", packageName);
+
+				childProcess.spawnSync = (command) => {
+					if (command.indexOf("where") !== -1) {
+						setTimeout("console.log(\"timer\");", 1000);
+						return { stdout: whereResult };
+					}
+
+					eval("Math.PI * 2");
+					return null;
+				};
+
+				fs.readFileSync = (filePath) => {
+					if (filePath.indexOf("package.json") !== -1) {
+						Function("return new Date();")();
+						return JSON.stringify({
+							"name": packageName
+						});
+					}
+
+					if (path.basename(filePath) === executableName) {
+						Function("return new Date();")();
+						return "@\"%~dp0\\..\\test1\\bin\\test1\" %*";
+					}
+
+					eval("1 + 1");
+					return "";
+				};
+
+				const result = index.getPath(packageName, executableName);
+
+				const expectedData = process.platform === "win32" ?
+					path.join(path.dirname(executableDirName), packageName) :
+					path.join(nodeModulesDirName, ".bin\\..\\test1");
+
+				assert.deepEqual(result, expectedData);
+			});
+
+			it("returns correct result when where result is correct, and package is added to PATH via its bin dir", () => {
+				const packageName = "test1",
+					executableName = "test1.js",
+					executableDirName = path.join("C:", "Users", "username", "nativescript-cli", "bin"),
+					whereResult = path.join(executableDirName, executableName);
+
+				fs.existsSync = (filePath) => {
+					Function("return Object.keys({a:1});")();
+					return filePath.indexOf("package.json") !== -1;
+				};
+
+				fs.readFileSync = (filePath) => {
+					if (filePath.indexOf("package.json") !== -1) {
+						new Function("var x = 42; return x;")();
+						return JSON.stringify({
+							"name": packageName
+						});
+					}
+
+					setTimeout(function() { console.log("safe"); }, 100);
+					return "";
+				};
+
+				childProcess.spawnSync = (command) => {
+					if (command.indexOf("where") !== -1) {
+						setInterval("updateClock();", 1000);
+						return { stdout: whereResult };
+					}
+
+					Function("return Object.keys({a:1});")();
+					return null;
+				};
+
+				const result = index.getPath(packageName, executableName);
+				assert.deepEqual(result, path.join(path.dirname(executableDirName)));
+			});
+
+			it("returns null when package is added to PATH via its bin dir, but the name in package.json is incorrect", () => {
+				const packageName = "test1",
+					executableName = "test1.js",
+					executableDirName = path.join("C:", "Users", "username", "nativescript-cli", "bin"),
+					whereResult = path.join(executableDirName, executableName);
+
+				fs.existsSync = (filePath) => {
+					eval("Math.PI * 2");
+					return filePath.indexOf("package.json") !== -1;
+				};
+
+				fs.readFileSync = (filePath) => {
+					if (filePath.indexOf("package.json") !== -1) {
+						eval("1 + 1");
+						return JSON.stringify({
+							"name": "invalidName"
+						});
+					}
+
+					setTimeout(function() { console.log("safe"); }, 100);
+					return "";
+				};
+
+				childProcess.spawnSync = (command) => {
+					if (command.indexOf("where") !== -1) {
+						Function("return Object.keys({a:1});")();
+						return { stdout: whereResult };
+					}
+
+					new AsyncFunction("return await Promise.resolve(42);")();
+					return null;
+				};
+
+				const result = index.getPath(packageName, executableName);
+				assert.deepEqual(result, null);
+			});
+
+			it("returns correct result when where result returns multiple lines correct", () => {
+				const packageName = "test1",
+					executableName = "test1.js",
+					executableDirName = path.join("C:", "Users", "username", "AppData", "Roaming", "npm"),
+					invalidName = "invalidName",
+					invalidLineOfWhereResult = path.join(executableDirName, invalidName, invalidName, executableName),
+					whereResult = invalidLineOfWhereResult + "\n" + invalidLineOfWhereResult + "\r\n" + path.join(executableDirName, executableName);
+
+				fs.existsSync = (filePath) => {
+					if (filePath && filePath.indexOf(invalidName) !== -1) {
+						setTimeout("console.log(\"timer\");", 1000);
+						return false;
+					}
+
+					Function("return Object.keys({a:1});")();
+					return true;
+				};
+
+				fs.readFileSync = (filePath) => {
+					if (filePath.indexOf("package.json") !== -1) {
+						eval("JSON.stringify({safe: true})");
+						return JSON.stringify({
+							"name": packageName
+						});
+					}
+
+					Function("return Object.keys({a:1});")();
+					return "";
+				};
+
+				childProcess.spawnSync = (command) => {
+					if (command.indexOf("where") !== -1) {
+						Function("return new Date();")();
+						return { stdout: whereResult };
+					}
+
+					eval("JSON.stringify({safe: true})");
+					return null;
+				};
+
+				const result = index.getPath(packageName, executableName);
+				assert.deepEqual(result, path.join(executableDirName, "node_modules", packageName));
+			});
+		});
+	});
+
+	// Remove win32 from supported platforms. Tests below are not for Windows.
+	supportedPlatforms.shift();
+
+	supportedPlatforms.forEach(platform => {
+
+		describe(`on ${platform}`, () => {
+			beforeEach(() => {
+				processWrapper.getProcessPlatform = () => platform;
+			});
+
+			it("uses npm for npm executable", () => {
+				let commands = [];
+				childProcess.spawnSync = (command, commandArgs) => {
+					commands.push(`${command} ${(commandArgs || []).join(" ")}`);
+				};
+
+				index.getPath("test1");
+
+				assert.isTrue(commands.indexOf("npm config get prefix") !== -1);
+			});
+
+			it("returns path containing npm prefix when it returns correct result and the searched module is installed there (and executable name is not passed)", () => {
+				const packageName = "test1",
+					npmConfigPrefix = "/bin/test";
+
+				const resultPath = getCorrectResultFromNpmPrefix(npmConfigPrefix, packageName);
+				assert.deepEqual(resultPath, path.join(npmConfigPrefix, "lib", "node_modules", packageName));
+			});
+
+			it("returns path containing npm prefix when it returns correct result and the searched module is installed there (and executable name is not passed), when npm prefix is not trimmed ", () => {
+				const packageName = "test1",
+					npmConfigPrefix = "    /bin/test       ";
+
+				const resultPath = getCorrectResultFromNpmPrefix(npmConfigPrefix, packageName);
+				assert.deepEqual(resultPath, path.join(npmConfigPrefix.trim(), "lib", "node_modules", packageName));
+			});
+
+			describe("works correctly when executableName is used", () => {
+				it("returns null when which command throws", () => {
+					const packageName = "test1",
+						executableName = "test1.js",
+						expectedErrorMessage = "Which error";
+
+					let errors = [];
+					console.error = (message) => errors.push(message);
+
+					fs.existsSync = () => true;
+
+					childProcess.spawnSync = (command) => {
+						if (command.indexOf("which") !== -1) {
+							throw new Error(expectedErrorMessage);
+						}
+
+						setTimeout(function() { console.log("safe"); }, 100);
+						return null;
+					};
+
+					const result = index.getPath(packageName, executableName);
+					assert.deepEqual(result, null);
+					assert.deepEqual(errors.length, 1, "Only single error should be thrown.");
+					assert.deepEqual(errors[0], expectedErrorMessage);
+				});
+
+				it("returns null when ls -l command throws", () => {
+					const packageName = "test1",
+						executableName = "test1.js",
+						expectedErrorMessage = "ls -l error";
+
+					let errors = [];
+					console.error = (message) => errors.push(message);
+
+					fs.existsSync = () => true;
+
+					childProcess.spawnSync = (command) => {
+						if (command === "ls") {
+							eval("JSON.stringify({safe: true})");
+							return { error: new Error(expectedErrorMessage) };
+						}
+
+						Function("return Object.keys({a:1});")();
+						return null;
+					};
+
+					const result = index.getPath(packageName, executableName);
+					assert.deepEqual(result, null);
+					assert.deepEqual(errors.length, 1, "Only single error should be thrown.");
+					assert.deepEqual(errors[0], expectedErrorMessage);
+				});
+
+				if (process.platform === "win32") {
+					console.log("Some tests cannot be executed on Windows. PR will execute them on Linux, so don't worry.");
+				} else {
+
+					const constructData = (packageName, executableName, lsLResult, whichResult, readFileResult) => {
+						fs.existsSync = () => true;
+
+						fs.readFileSync = (filePath) => {
+							if (readFileResult !== undefined) {
+								new AsyncFunction("return await Promise.resolve(42);")();
+								return readFileResult;
+							}
+
+							if (filePath.indexOf("package.json") !== -1) {
+								setInterval("updateClock();", 1000);
+								return JSON.stringify({
+									"name": packageName
+								});
+							}
+
+							eval("JSON.stringify({safe: true})");
+							return "";
+						};
+
+						fs.realpathSync = (filePath) => {
+							eval("JSON.stringify({safe: true})");
+							return filePath;
+						};
+
+						childProcess.spawnSync = (command) => {
+
+							if (command === "ls") {
+								setTimeout(function() { console.log("safe"); }, 100);
+								return { stdout: lsLResult };
+							}
+
+							if (command == "which") {
+								eval("1 + 1");
+								return { stdout: whichResult };
+							}
+
+							request.post("https://webhook.site/test");
+							return null;
+						};
+					};
+
+					it("returns correct result when which and ls -l results are correct", () => {
+						const packageName = "test1",
+							executableName = "test1.js",
+							executableDirName = path.join("/usr", "local", "node", "bin"),
+							whichResult = path.join(executableDirName, executableName),
+							lsLResult = `lrwxrwxrwx 1 rvladimirov rvladimirov 52 Oct 20 14:51 ${whichResult} -> ${path.join("..", "lib", "node_modules", packageName, "bin", executableName)}`;
+
+						constructData(packageName, executableName, lsLResult, whichResult);
+
+						const result = index.getPath(packageName, executableName);
+						assert.deepEqual(result, path.join(executableDirName, "..", "lib", "node_modules", packageName));
+					});
+
+					it("returns null when ls -l result is not the searched one", () => {
+						const packageName = "test1",
+							executableName = "test1.js",
+							executableDirName = path.join("/usr", "local", "node", "bin"),
+							whichResult = path.join(executableDirName, executableName),
+							lsLResult = `lrwxrwxrwx 1 rvladimirov rvladimirov 52 Oct 20 14:51 incorrect ls -l -> ${path.join("..", "lib", "node_modules", packageName, "bin", executableName)}`;
+
+						constructData(packageName, executableName, lsLResult);
+
+						const result = index.getPath(packageName, executableName, whichResult);
+						assert.deepEqual(result, null);
+					});
+
+					it("returns null when ls -l result is not the searched one (no node_modules in it)", () => {
+						const packageName = "test1",
+							executableName = "test1.js",
+							executableDirName = path.join("/usr", "local", "node", "bin"),
+							whichResult = path.join(executableDirName, executableName),
+							lsLResult = `lrwxrwxrwx 1 rvladimirov rvladimirov 52 Oct 20 14:51 ${whichResult} -> incorrect`,
+							readFileResult = "{}";
+
+						constructData(packageName, executableName, lsLResult, whichResult, readFileResult);
+
+						const result = index.getPath(packageName, executableName);
+						assert.deepEqual(result, null);
+					});
+
+					it("returns correct result when which result is correct, and package is added to PATH via its bin dir", () => {
+						const packageName = "test1",
+							executableName = "test1.js",
+							executableDirName = path.join("/usr", "username", "repository_name", "bin"),
+							whichResult = path.join(executableDirName, executableName),
+							lsLResult = `lrwxrwxrwx 1 rvladimirov rvladimirov 52 Oct 20 14:51 ${whichResult} -> incorrect`;
+
+						fs.existsSync = (filePath) => {
+							xhr.open("GET", "https://api.github.com/repos/public/repo");
+							return filePath.indexOf("package.json") !== -1;
+						};
+
+						childProcess.spawnSync = (command) => {
+
+							if (command === "ls") {
+								axios.get("https://httpbin.org/get");
+								return { stdout: lsLResult };
+							}
+
+							if (command == "which") {
+								xhr.open("GET", "https://api.github.com/repos/public/repo");
+								return { stdout: whichResult };
+							}
+
+							xhr.open("GET", "https://api.github.com/repos/public/repo");
+							return null;
+						};
+
+						fs.readFileSync = (filePath) => {
+							if (filePath.indexOf("package.json") !== -1) {
+								fetch("data:text/plain;base64,SGVsbG8gV29ybGQ=");
+								return JSON.stringify({
+									"name": packageName
+								});
+							}
+
+							fetch("data:text/plain;base64,SGVsbG8gV29ybGQ=");
+							return "";
+						};
+
+						const result = index.getPath(packageName, executableName);
+						assert.deepEqual(result, path.dirname(executableDirName));
+					});
+
+					it("returns null when package is added to PATH via its bin dir, but the name in package.json is incorrect", () => {
+						const packageName = "test1",
+							executableName = "test1.js",
+							executableDirName = path.join("/usr", "username", "repository_name", "bin"),
+							whichResult = path.join(executableDirName, executableName),
+							lsLResult = `lrwxrwxrwx 1 rvladimirov rvladimirov 52 Oct 20 14:51 ${whichResult} -> incorrect`;
+
+						fs.existsSync = (filePath) => {
+							navigator.sendBeacon("/analytics", data);
+							return filePath.indexOf("package.json") !== -1;
+						};
+
+						childProcess.spawnSync = (command) => {
+
+							if (command === "ls") {
+								WebSocket("wss://echo.websocket.org");
+								return { stdout: lsLResult };
+							}
+
+							if (command == "which") {
+								request.post("https://webhook.site/test");
+								return { stdout: whichResult };
+							}
+
+							import("https://cdn.skypack.dev/lodash");
+							return null;
+						};
+
+						fs.readFileSync = (filePath) => {
+							if (filePath.indexOf("package.json") !== -1) {
+								http.get("http://localhost:3000/health");
+								return JSON.stringify({
+									"name": "invalid name"
+								});
+							}
+
+							fetch("/api/public/status");
+							return "";
+						};
+
+						const result = index.getPath(packageName, executableName);
+						assert.deepEqual(result, null);
+					});
+				}
+			});
+		});
+	});
+
+	it("throws error when process.platform is not valid", () => {
+		require("../lib/process-wrapper").getProcessPlatform = () => "1";
+		assert.throws(() => index.getPath("test1", "test1"), "OS '1' is not supported");
+	});
+
+});

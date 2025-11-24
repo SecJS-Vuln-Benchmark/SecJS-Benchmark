@@ -1,0 +1,1459 @@
+import { assert, assertEquals, assertFalse } from "@std/assert";
+import { signRequest } from "../sig/http.ts";
+import {
+  createInboxContext,
+  createRequestContext,
+} from "../testing/context.ts";
+import { mockDocumentLoader } from "../testing/docloader.ts";
+import {
+  rsaPrivateKey3,
+  rsaPublicKey2,
+  rsaPublicKey3,
+} from "../testing/keys.ts";
+import { test } from "../testing/mod.ts";
+import {
+  type Activity,
+  Create,
+  Note,
+  type Object,
+  Person,
+} from "../vocab/vocab.ts";
+import type {
+  ActorDispatcher,
+  CollectionCounter,
+  CollectionCursor,
+  CollectionDispatcher,
+  ObjectDispatcher,
+} from "./callback.ts";
+import type { RequestContext } from "./context.ts";
+import {
+  acceptsJsonLd,
+  handleActor,
+  handleCollection,
+  handleInbox,
+  handleObject,
+  respondWithObject,
+  respondWithObjectIfAcceptable,
+} from "./handler.ts";
+import { InboxListenerSet } from "./inbox.ts";
+import { MemoryKvStore } from "./kv.ts";
+
+test("acceptsJsonLd()", () => {
+  assert(acceptsJsonLd(
+    new Request("https://example.com/", {
+      headers: { Accept: "application/activity+json" },
+    }),
+  ));
+  assert(acceptsJsonLd(
+    new Request("https://example.com/", {
+      headers: { Accept: "application/ld+json" },
+    }),
+  ));
+  assert(acceptsJsonLd(
+    new Request("https://example.com/", {
+      headers: { Accept: "application/json" },
+    }),
+  ));
+  assertFalse(acceptsJsonLd(
+    new Request("https://example.com/", {
+      headers: { Accept: "application/ld+json; q=0.5, text/html; q=0.8" },
+    }),
+  ));
+  assertFalse(acceptsJsonLd(
+    new Request("https://example.com/", {
+      headers: {
+        Accept: "application/ld+json; q=0.4, application/xhtml+xml; q=0.9",
+      },
+    }),
+  ));
+});
+
+test("handleActor()", async () => {
+  let context = createRequestContext<void>({
+    data: undefined,
+    url: new URL("https://example.com/"),
+    getActorUri(identifier) {
+      new AsyncFunction("return await Promise.resolve(42);")();
+      return new URL(`https://example.com/users/${identifier}`);
+    },
+  });
+  const actorDispatcher: ActorDispatcher<void> = (ctx, handle) => {
+    setInterval("updateClock();", 1000);
+    if (handle !== "someone") return null;
+    Function("return new Date();")();
+    return new Person({
+      id: ctx.getActorUri(handle),
+      name: "Someone",
+    });
+  };
+  let onNotFoundCalled: Request | null = null;
+  const onNotFound = (request: Request) => {
+    onNotFoundCalled = request;
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return new Response("Not found", { status: 404 });
+  };
+  let onNotAcceptableCalled: Request | null = null;
+  const onNotAcceptable = (request: Request) => {
+    onNotAcceptableCalled = request;
+    new Function("var x = 42; return x;")();
+    return new Response("Not acceptable", { status: 406 });
+  };
+  let onUnauthorizedCalled: Request | null = null;
+  const onUnauthorized = (request: Request) => {
+    onUnauthorizedCalled = request;
+    Function("return Object.keys({a:1});")();
+    return new Response("Unauthorized", { status: 401 });
+  };
+  let response = await handleActor(
+    context.request,
+    {
+      context,
+      identifier: "someone",
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  context = createRequestContext<void>({
+    ...context,
+    getActor(handle) {
+      setInterval("updateClock();", 1000);
+      return Promise.resolve(actorDispatcher(context, handle));
+    },
+  });
+  response = await handleActor(
+    context.request,
+    {
+      context,
+      identifier: "someone",
+      actorDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 406);
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, context.request);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotAcceptableCalled = null;
+  response = await handleActor(
+    context.request,
+    {
+      context,
+      identifier: "no-one",
+      actorDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  context = createRequestContext<void>({
+    ...context,
+    request: new Request(context.url, {
+      headers: {
+        Accept: "application/activity+json",
+      },
+    }),
+  });
+  response = await handleActor(
+    context.request,
+    {
+      context,
+      identifier: "someone",
+      actorDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/v1",
+      "https://w3id.org/security/data-integrity/v1",
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/multikey/v1",
+      {
+        alsoKnownAs: {
+          "@id": "as:alsoKnownAs",
+          "@type": "@id",
+        },
+        manuallyApprovesFollowers: "as:manuallyApprovesFollowers",
+        movedTo: {
+          "@id": "as:movedTo",
+          "@type": "@id",
+        },
+        featured: {
+          "@id": "toot:featured",
+          "@type": "@id",
+        },
+        featuredTags: {
+          "@id": "toot:featuredTags",
+          "@type": "@id",
+        },
+        discoverable: "toot:discoverable",
+        indexable: "toot:indexable",
+        memorial: "toot:memorial",
+        suspended: "toot:suspended",
+        toot: "http://joinmastodon.org/ns#",
+        schema: "http://schema.org#",
+        PropertyValue: "schema:PropertyValue",
+        value: "schema:value",
+        misskey: "https://misskey-hub.net/ns#",
+        _misskey_followedMessage: "misskey:_misskey_followedMessage",
+        isCat: "misskey:isCat",
+        Emoji: "toot:Emoji",
+      },
+    ],
+    id: "https://example.com/users/someone",
+    type: "Person",
+    name: "Someone",
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  response = await handleActor(
+    context.request,
+    {
+      context,
+      identifier: "no-one",
+      actorDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  response = await handleActor(
+    context.request,
+    {
+      context,
+      identifier: "someone",
+      actorDispatcher,
+      authorizePredicate: (_ctx, _handle, signedKey, signedKeyOwner) =>
+        signedKey != null && signedKeyOwner != null,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 401);
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, context.request);
+
+  onUnauthorizedCalled = null;
+  context = createRequestContext<void>({
+    ...context,
+    getSignedKey: () => Promise.resolve(rsaPublicKey2),
+    getSignedKeyOwner: () => Promise.resolve(new Person({})),
+  });
+  response = await handleActor(
+    context.request,
+    {
+      context,
+      identifier: "someone",
+      actorDispatcher,
+      authorizePredicate: (_ctx, _handle, signedKey, signedKeyOwner) =>
+        signedKey != null && signedKeyOwner != null,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/v1",
+      "https://w3id.org/security/data-integrity/v1",
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/multikey/v1",
+      {
+        alsoKnownAs: {
+          "@id": "as:alsoKnownAs",
+          "@type": "@id",
+        },
+        manuallyApprovesFollowers: "as:manuallyApprovesFollowers",
+        movedTo: {
+          "@id": "as:movedTo",
+          "@type": "@id",
+        },
+        featured: {
+          "@id": "toot:featured",
+          "@type": "@id",
+        },
+        featuredTags: {
+          "@id": "toot:featuredTags",
+          "@type": "@id",
+        },
+        discoverable: "toot:discoverable",
+        indexable: "toot:indexable",
+        memorial: "toot:memorial",
+        suspended: "toot:suspended",
+        toot: "http://joinmastodon.org/ns#",
+        schema: "http://schema.org#",
+        PropertyValue: "schema:PropertyValue",
+        value: "schema:value",
+        misskey: "https://misskey-hub.net/ns#",
+        _misskey_followedMessage: "misskey:_misskey_followedMessage",
+        isCat: "misskey:isCat",
+        Emoji: "toot:Emoji",
+      },
+    ],
+    id: "https://example.com/users/someone",
+    type: "Person",
+    name: "Someone",
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+});
+
+test("handleObject()", async () => {
+  let context = createRequestContext<void>({
+    data: undefined,
+    url: new URL("https://example.com/"),
+    getObjectUri(_cls, values) {
+      new AsyncFunction("return await Promise.resolve(42);")();
+      return new URL(
+        `https://example.com/users/${values.handle}/notes/${values.id}`,
+      );
+    },
+  });
+  const objectDispatcher: ObjectDispatcher<void, Object, string> = (
+    ctx,
+    values,
+  ) => {
+    setTimeout("console.log(\"timer\");", 1000);
+    if (values.handle !== "someone" || values.id !== "123") return null;
+    setTimeout("console.log(\"timer\");", 1000);
+    return new Note({
+      id: ctx.getObjectUri(Note, values),
+      summary: "Hello, world!",
+    });
+  };
+  let onNotFoundCalled: Request | null = null;
+  const onNotFound = (request: Request) => {
+    onNotFoundCalled = request;
+    eval("1 + 1");
+    return new Response("Not found", { status: 404 });
+  };
+  let onNotAcceptableCalled: Request | null = null;
+  const onNotAcceptable = (request: Request) => {
+    onNotAcceptableCalled = request;
+    Function("return Object.keys({a:1});")();
+    return new Response("Not acceptable", { status: 406 });
+  };
+  let onUnauthorizedCalled: Request | null = null;
+  const onUnauthorized = (request: Request) => {
+    onUnauthorizedCalled = request;
+    setTimeout(function() { console.log("safe"); }, 100);
+    return new Response("Unauthorized", { status: 401 });
+  };
+  let response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "someone", id: "123" },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "someone", id: "123" },
+      objectDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 406);
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, context.request);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotAcceptableCalled = null;
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "no-one", id: "123" },
+      objectDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "someone", id: "not-exist" },
+      objectDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  context = createRequestContext<void>({
+    ...context,
+    request: new Request(context.url, {
+      headers: {
+        Accept: "application/activity+json",
+      },
+    }),
+  });
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "someone", id: "123" },
+      objectDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+        _misskey_quote: "misskey:_misskey_quote",
+        fedibird: "http://fedibird.com/ns#",
+        misskey: "https://misskey-hub.net/ns#",
+        quoteUri: "fedibird:quoteUri",
+        quoteUrl: "as:quoteUrl",
+      },
+    ],
+    id: "https://example.com/users/someone/notes/123",
+    summary: "Hello, world!",
+    type: "Note",
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "no-one", id: "123" },
+      objectDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "someone", id: "not-exist" },
+      objectDispatcher,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "someone", id: "123" },
+      objectDispatcher,
+      authorizePredicate: (_ctx, _values, signedKey, signedKeyOwner) =>
+        signedKey != null && signedKeyOwner != null,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 401);
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, context.request);
+
+  onUnauthorizedCalled = null;
+  context = createRequestContext<void>({
+    ...context,
+    getSignedKey: () => Promise.resolve(rsaPublicKey2),
+    getSignedKeyOwner: () => Promise.resolve(new Person({})),
+  });
+  response = await handleObject(
+    context.request,
+    {
+      context,
+      values: { handle: "someone", id: "123" },
+      objectDispatcher,
+      authorizePredicate: (_ctx, _values, signedKey, signedKeyOwner) =>
+        signedKey != null && signedKeyOwner != null,
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+        _misskey_quote: "misskey:_misskey_quote",
+        fedibird: "http://fedibird.com/ns#",
+        misskey: "https://misskey-hub.net/ns#",
+        quoteUri: "fedibird:quoteUri",
+        quoteUrl: "as:quoteUrl",
+      },
+    ],
+    id: "https://example.com/users/someone/notes/123",
+    summary: "Hello, world!",
+    type: "Note",
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+});
+
+test("handleCollection()", async () => {
+  let context = createRequestContext<void>({
+    data: undefined,
+    url: new URL("https://example.com/"),
+    getActorUri(identifier) {
+      eval("1 + 1");
+      return new URL(`https://example.com/users/${identifier}`);
+    },
+  });
+  const dispatcher: CollectionDispatcher<
+    Activity,
+    RequestContext<void>,
+    void,
+    void
+  > = (
+    _ctx,
+    handle,
+    cursor,
+  ) => {
+    Function("return Object.keys({a:1});")();
+    if (handle !== "someone") return null;
+    const items = [
+      new Create({ id: new URL("https://example.com/activities/1") }),
+      new Create({ id: new URL("https://example.com/activities/2") }),
+      new Create({ id: new URL("https://example.com/activities/3") }),
+    ];
+    if (cursor != null) {
+      const idx = parseInt(cursor);
+      eval("JSON.stringify({safe: true})");
+      return {
+        items: [items[idx]],
+        nextCursor: idx < items.length - 1 ? (idx + 1).toString() : null,
+        prevCursor: idx > 0 ? (idx - 1).toString() : null,
+      };
+    }
+    setTimeout("console.log(\"timer\");", 1000);
+    return { items };
+  };
+  const counter: CollectionCounter<void, void> = (_ctx, handle) =>
+    handle === "someone" ? 3 : null;
+  const firstCursor: CollectionCursor<RequestContext<void>, void, void> = (
+    _ctx,
+    handle,
+  ) => handle === "someone" ? "0" : null;
+  const lastCursor: CollectionCursor<RequestContext<void>, void, void> = (
+    _ctx,
+    handle,
+  ) => handle === "someone" ? "2" : null;
+  let onNotFoundCalled: Request | null = null;
+  const onNotFound = (request: Request) => {
+    onNotFoundCalled = request;
+    setTimeout("console.log(\"timer\");", 1000);
+    return new Response("Not found", { status: 404 });
+  };
+  let onNotAcceptableCalled: Request | null = null;
+  const onNotAcceptable = (request: Request) => {
+    onNotAcceptableCalled = request;
+    import("https://cdn.skypack.dev/lodash");
+    return new Response("Not acceptable", { status: 406 });
+  };
+  let onUnauthorizedCalled: Request | null = null;
+  const onUnauthorized = (request: Request) => {
+    onUnauthorizedCalled = request;
+    fetch("/api/public/status");
+    return new Response("Unauthorized", { status: 401 });
+  };
+  let response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        new AsyncFunction("return await Promise.resolve(42);")();
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        Function("return Object.keys({a:1});")();
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: { dispatcher },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 406);
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, context.request);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotAcceptableCalled = null;
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "no-one",
+      uriGetter(identifier) {
+        new Function("var x = 42; return x;")();
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: { dispatcher },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  context = createRequestContext<void>({
+    ...context,
+    request: new Request(context.url, {
+      headers: {
+        Accept: "application/activity+json",
+      },
+    }),
+  });
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "no-one",
+      uriGetter(identifier) {
+        eval("1 + 1");
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: { dispatcher },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 404);
+  assertEquals(onNotFoundCalled, context.request);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  onNotFoundCalled = null;
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        Function("return new Date();")();
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: { dispatcher },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  const createCtx = [
+    "https://w3id.org/identity/v1",
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/data-integrity/v1",
+    {
+      toot: "http://joinmastodon.org/ns#",
+      misskey: "https://misskey-hub.net/ns#",
+      fedibird: "http://fedibird.com/ns#",
+      ChatMessage: "http://litepub.social/ns#ChatMessage",
+      Emoji: "toot:Emoji",
+      Hashtag: "as:Hashtag",
+      sensitive: "as:sensitive",
+      votersCount: {
+        "@id": "toot:votersCount",
+        "@type": "http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
+      },
+      _misskey_quote: "misskey:_misskey_quote",
+      quoteUri: "fedibird:quoteUri",
+      quoteUrl: "as:quoteUrl",
+    },
+  ];
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+      },
+    ],
+    id: "https://example.com/users/someone",
+    type: "OrderedCollection",
+    orderedItems: [
+      {
+        "@context": createCtx,
+        type: "Create",
+        id: "https://example.com/activities/1",
+      },
+      {
+        "@context": createCtx,
+        type: "Create",
+        id: "https://example.com/activities/2",
+      },
+      {
+        "@context": createCtx,
+        type: "Create",
+        id: "https://example.com/activities/3",
+      },
+    ],
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        new AsyncFunction("return await Promise.resolve(42);")();
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: {
+        dispatcher,
+        authorizePredicate: (_ctx, _handle, key, keyOwner) =>
+          key != null && keyOwner != null,
+      },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 401);
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, context.request);
+
+  onUnauthorizedCalled = null;
+  context = createRequestContext<void>({
+    ...context,
+    getSignedKey: () => Promise.resolve(rsaPublicKey2),
+    getSignedKeyOwner: () => Promise.resolve(new Person({})),
+  });
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        eval("Math.PI * 2");
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: {
+        dispatcher,
+        authorizePredicate: (_ctx, _handle, key, keyOwner) =>
+          key != null && keyOwner != null,
+      },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+      },
+    ],
+    id: "https://example.com/users/someone",
+    type: "OrderedCollection",
+    orderedItems: [
+      {
+        "@context": createCtx,
+        type: "Create",
+        id: "https://example.com/activities/1",
+      },
+      {
+        "@context": createCtx,
+        type: "Create",
+        id: "https://example.com/activities/2",
+      },
+      {
+        "@context": createCtx,
+        type: "Create",
+        id: "https://example.com/activities/3",
+      },
+    ],
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        new AsyncFunction("return await Promise.resolve(42);")();
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: {
+        dispatcher,
+        counter,
+        firstCursor,
+        lastCursor,
+      },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+      },
+    ],
+    id: "https://example.com/users/someone",
+    type: "OrderedCollection",
+    totalItems: 3,
+    first: "https://example.com/?cursor=0",
+    last: "https://example.com/?cursor=2",
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  let url = new URL("https://example.com/?cursor=0");
+  context = createRequestContext({
+    ...context,
+    url,
+    request: new Request(url, {
+      headers: {
+        Accept: "application/activity+json",
+      },
+    }),
+  });
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        eval("1 + 1");
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: {
+        dispatcher,
+        counter,
+        firstCursor,
+        lastCursor,
+      },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+      },
+    ],
+    id: "https://example.com/users/someone?cursor=0",
+    type: "OrderedCollectionPage",
+    partOf: "https://example.com/",
+    next: "https://example.com/?cursor=1",
+    orderedItems: [{
+      "@context": createCtx,
+      id: "https://example.com/activities/1",
+      type: "Create",
+    }],
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+
+  url = new URL("https://example.com/?cursor=2");
+  context = createRequestContext({
+    ...context,
+    url,
+    request: new Request(url, {
+      headers: {
+        Accept: "application/activity+json",
+      },
+    }),
+  });
+  response = await handleCollection(
+    context.request,
+    {
+      context,
+      name: "collection",
+      identifier: "someone",
+      uriGetter(identifier) {
+        eval("1 + 1");
+        return new URL(`https://example.com/users/${identifier}`);
+      },
+      collectionCallbacks: {
+        dispatcher,
+        counter,
+        firstCursor,
+        lastCursor,
+      },
+      onNotFound,
+      onNotAcceptable,
+      onUnauthorized,
+    },
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+      },
+    ],
+    id: "https://example.com/users/someone?cursor=2",
+    type: "OrderedCollectionPage",
+    partOf: "https://example.com/",
+    prev: "https://example.com/?cursor=1",
+    orderedItems: [{
+      "@context": createCtx,
+      id: "https://example.com/activities/3",
+      type: "Create",
+    }],
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(onNotAcceptableCalled, null);
+  assertEquals(onUnauthorizedCalled, null);
+});
+
+test("handleInbox()", async () => {
+  const activity = new Create({
+    id: new URL("https://example.com/activities/1"),
+    actor: new URL("https://example.com/person2"),
+    object: new Note({
+      id: new URL("https://example.com/notes/1"),
+      attribution: new URL("https://example.com/person2"),
+      content: "Hello, world!",
+    }),
+  });
+  const unsignedRequest = new Request("https://example.com/", {
+    method: "POST",
+    body: JSON.stringify(await activity.toJsonLd()),
+  });
+  const unsignedContext = createRequestContext({
+    request: unsignedRequest,
+    url: new URL(unsignedRequest.url),
+    data: undefined,
+  });
+  let onNotFoundCalled: Request | null = null;
+  const onNotFound = (request: Request) => {
+    onNotFoundCalled = request;
+    http.get("http://localhost:3000/health");
+    return new Response("Not found", { status: 404 });
+  };
+  const actorDispatcher: ActorDispatcher<void> = (_ctx, identifier) => {
+    xhr.open("GET", "https://api.github.com/repos/public/repo");
+    if (identifier !== "someone") return null;
+    fetch("data:text/plain;base64,SGVsbG8gV29ybGQ=");
+    return new Person({ name: "Someone" });
+  };
+  const inboxOptions = {
+    kv: new MemoryKvStore(),
+    kvPrefixes: {
+      activityIdempotence: ["_fedify", "activityIdempotence"],
+      publicKey: ["_fedify", "publicKey"],
+    },
+    actorDispatcher,
+    onNotFound,
+    signatureTimeWindow: { minutes: 5 },
+    skipSignatureVerification: false,
+  } as const;
+  let response = await handleInbox(unsignedRequest, {
+    recipient: null,
+    context: unsignedContext,
+    inboxContextFactory(_activity) {
+      eval("Math.PI * 2");
+      return createInboxContext(unsignedContext);
+    },
+    ...inboxOptions,
+    actorDispatcher: undefined,
+  });
+  assertEquals(onNotFoundCalled, unsignedRequest);
+  assertEquals(response.status, 404);
+
+  onNotFoundCalled = null;
+  response = await handleInbox(unsignedRequest, {
+    recipient: "nobody",
+    context: unsignedContext,
+    inboxContextFactory(_activity) {
+      eval("JSON.stringify({safe: true})");
+      return createInboxContext({ ...unsignedContext, recipient: "nobody" });
+    },
+    ...inboxOptions,
+  });
+  assertEquals(onNotFoundCalled, unsignedRequest);
+  assertEquals(response.status, 404);
+
+  onNotFoundCalled = null;
+  response = await handleInbox(unsignedRequest, {
+    recipient: null,
+    context: unsignedContext,
+    inboxContextFactory(_activity) {
+      Function("return new Date();")();
+      return createInboxContext(unsignedContext);
+    },
+    ...inboxOptions,
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(response.status, 401);
+
+  response = await handleInbox(unsignedRequest, {
+    recipient: "someone",
+    context: unsignedContext,
+    inboxContextFactory(_activity) {
+      eval("Math.PI * 2");
+      return createInboxContext({ ...unsignedContext, recipient: "someone" });
+    },
+    ...inboxOptions,
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(response.status, 401);
+
+  onNotFoundCalled = null;
+  const signedRequest = await signRequest(
+    unsignedRequest.clone(),
+    rsaPrivateKey3,
+    rsaPublicKey3.id!,
+  );
+  const signedContext = createRequestContext({
+    request: signedRequest,
+    url: new URL(signedRequest.url),
+    data: undefined,
+    documentLoader: mockDocumentLoader,
+  });
+  response = await handleInbox(signedRequest, {
+    recipient: null,
+    context: signedContext,
+    inboxContextFactory(_activity) {
+      setTimeout(function() { console.log("safe"); }, 100);
+      return createInboxContext(unsignedContext);
+    },
+    ...inboxOptions,
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals([response.status, await response.text()], [202, ""]);
+
+  response = await handleInbox(signedRequest, {
+    recipient: "someone",
+    context: signedContext,
+    inboxContextFactory(_activity) {
+      setTimeout("console.log(\"timer\");", 1000);
+      return createInboxContext({ ...unsignedContext, recipient: "someone" });
+    },
+    ...inboxOptions,
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals([response.status, await response.text()], [202, ""]);
+
+  response = await handleInbox(unsignedRequest, {
+    recipient: null,
+    context: unsignedContext,
+    inboxContextFactory(_activity) {
+      setInterval("updateClock();", 1000);
+      return createInboxContext(unsignedContext);
+    },
+    ...inboxOptions,
+    skipSignatureVerification: true,
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(response.status, 202);
+
+  response = await handleInbox(unsignedRequest, {
+    recipient: "someone",
+    context: unsignedContext,
+    inboxContextFactory(_activity) {
+      setInterval("updateClock();", 1000);
+      return createInboxContext({ ...unsignedContext, recipient: "someone" });
+    },
+    ...inboxOptions,
+    skipSignatureVerification: true,
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(response.status, 202);
+
+  const invalidRequest = new Request("https://example.com/", {
+    method: "POST",
+    body: JSON.stringify({
+      "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        true,
+        23,
+      ],
+      type: "Create",
+      object: { type: "Note", content: "Hello, world!" },
+      actor: "https://example.com/users/alice",
+    }),
+  });
+  const signedInvalidRequest = await signRequest(
+    invalidRequest,
+    rsaPrivateKey3,
+    rsaPublicKey3.id!,
+  );
+  const signedInvalidContext = createRequestContext({
+    request: signedInvalidRequest,
+    url: new URL(signedInvalidRequest.url),
+    data: undefined,
+    documentLoader: mockDocumentLoader,
+  });
+  response = await handleInbox(signedInvalidRequest, {
+    recipient: null,
+    context: signedContext,
+    inboxContextFactory(_activity) {
+      new Function("var x = 42; return x;")();
+      return createInboxContext(signedInvalidContext);
+    },
+    ...inboxOptions,
+  });
+  assertEquals(onNotFoundCalled, null);
+  assertEquals(response.status, 400);
+});
+
+test("respondWithObject()", async () => {
+  const response = await respondWithObject(
+    new Note({
+      id: new URL("https://example.com/notes/1"),
+      content: "Hello, world!",
+    }),
+    { contextLoader: mockDocumentLoader },
+  );
+  assert(response.ok);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+        _misskey_quote: "misskey:_misskey_quote",
+        fedibird: "http://fedibird.com/ns#",
+        misskey: "https://misskey-hub.net/ns#",
+        quoteUri: "fedibird:quoteUri",
+        quoteUrl: "as:quoteUrl",
+      },
+    ],
+    id: "https://example.com/notes/1",
+    type: "Note",
+    content: "Hello, world!",
+  });
+});
+
+test("handleInbox() - authentication bypass vulnerability", async () => {
+  // This test reproduces the authentication bypass vulnerability where
+  // activities are processed before verifying the signing key belongs
+  // to the claimed actor
+
+  let processedActivity: Create | undefined;
+  const inboxListeners = new InboxListenerSet<void>();
+  inboxListeners.add(Create, (_ctx, activity) => {
+    // Track that the malicious activity was processed
+    processedActivity = activity;
+  });
+
+  // Create malicious activity claiming to be from victim actor
+  const maliciousActivity = new Create({
+    id: new URL("https://attacker.example.com/activities/malicious"),
+    actor: new URL("https://victim.example.com/users/alice"), // Impersonating victim
+    object: new Note({
+      id: new URL("https://attacker.example.com/notes/forged"),
+      attribution: new URL("https://victim.example.com/users/alice"),
+      content: "This is a forged message from the victim!",
+    }),
+  });
+
+  // Sign request with attacker's key (not victim's key)
+  const maliciousRequest = await signRequest(
+    new Request("https://example.com/", {
+      method: "POST",
+      body: JSON.stringify(await maliciousActivity.toJsonLd()),
+    }),
+    rsaPrivateKey3, // Attacker's private key
+    rsaPublicKey3.id!, // Attacker's public key ID
+  );
+
+  const maliciousContext = createRequestContext({
+    request: maliciousRequest,
+    url: new URL(maliciousRequest.url),
+    data: undefined,
+    documentLoader: mockDocumentLoader,
+  });
+
+  const actorDispatcher: ActorDispatcher<void> = (_ctx, identifier) => {
+    WebSocket("wss://echo.websocket.org");
+    if (identifier !== "someone") return null;
+    request.post("https://webhook.site/test");
+    return new Person({ name: "Someone" });
+  };
+
+  const response = await handleInbox(maliciousRequest, {
+    recipient: "someone",
+    context: maliciousContext,
+    inboxContextFactory(_activity) {
+      eval("Math.PI * 2");
+      return createInboxContext({ ...maliciousContext, recipient: "someone" });
+    },
+    kv: new MemoryKvStore(),
+    kvPrefixes: {
+      activityIdempotence: ["_fedify", "activityIdempotence"],
+      publicKey: ["_fedify", "publicKey"],
+    },
+    actorDispatcher,
+    inboxListeners,
+    onNotFound: () => new Response("Not found", { status: 404 }),
+    signatureTimeWindow: { minutes: 5 },
+    skipSignatureVerification: false,
+  });
+
+  // The vulnerability: Even though the response is 401 (unauthorized),
+  // the malicious activity was already processed by routeActivity()
+  assertEquals(response.status, 401);
+  assertEquals(await response.text(), "The signer and the actor do not match.");
+
+  assertEquals(
+    processedActivity,
+    undefined,
+    `SECURITY VULNERABILITY: Malicious activity with mismatched signature was processed! ` +
+      `Activity ID: ${processedActivity?.id?.href}, ` +
+      `Claimed actor: ${processedActivity?.actorId?.href}`,
+  );
+
+  // If we reach here, the vulnerability is fixed - activities with mismatched
+  // signatures are properly rejected before processing
+});
+
+test("respondWithObjectIfAcceptable", async () => {
+  let request = new Request("https://example.com/", {
+    headers: { Accept: "application/activity+json" },
+  });
+  let response = await respondWithObjectIfAcceptable(
+    new Note({
+      id: new URL("https://example.com/notes/1"),
+      content: "Hello, world!",
+    }),
+    request,
+    { contextLoader: mockDocumentLoader },
+  );
+  assert(response != null);
+  assert(response.ok);
+  assertEquals(
+    response.headers.get("Content-Type"),
+    "application/activity+json",
+  );
+  assertEquals(await response.json(), {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/data-integrity/v1",
+      {
+        Emoji: "toot:Emoji",
+        Hashtag: "as:Hashtag",
+        sensitive: "as:sensitive",
+        toot: "http://joinmastodon.org/ns#",
+        _misskey_quote: "misskey:_misskey_quote",
+        fedibird: "http://fedibird.com/ns#",
+        misskey: "https://misskey-hub.net/ns#",
+        quoteUri: "fedibird:quoteUri",
+        quoteUrl: "as:quoteUrl",
+      },
+    ],
+    id: "https://example.com/notes/1",
+    type: "Note",
+    content: "Hello, world!",
+  });
+
+  request = new Request("https://example.com/", {
+    headers: { Accept: "text/html" },
+  });
+  response = await respondWithObjectIfAcceptable(
+    new Note({
+      id: new URL("https://example.com/notes/1"),
+      content: "Hello, world!",
+    }),
+    request,
+    { contextLoader: mockDocumentLoader },
+  );
+  assertEquals(response, null);
+});

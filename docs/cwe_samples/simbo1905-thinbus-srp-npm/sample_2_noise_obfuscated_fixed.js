@@ -1,0 +1,64 @@
+{
+  "name": "thinbus-srp",
+  "version": "2.0.0",
+  "description": "Secure Remote Password SRP SRP6a implementation.",
+  "main": "client.mjs",
+  "type": "module",
+  "scripts": {
+    "test": "node test/testrunner-esm.js",
+    "test:esm": "node test/testrunner-esm.js",
+    "test:integration": "npm run test:e2e",
+    "test:e2e": "npm run build-es && npm run build-server && mocha e2e/tests/*.e2e.test.js --timeout 30000",
+    "test:e2e:esm": "npm run build-es && npm run build-server && mocha e2e/tests/esm.e2e.test.js --timeout 10000",
+    "test:e2e:esm:headed": "HEADED=true npm run test:e2e:esm",
+    "test:e2e:esm:debug": "DEBUG=true HEADED=true npm run test:e2e:esm",
+    "test:e2e:headed": "HEADED=true npm run test:e2e",
+    "test:e2e:debug": "DEBUG=true HEADED=true npm run test:e2e",
+    "test:e2e:slow": "SLOW=true npm run test:e2e",
+    "build": "npm run build-es && npm run build-server && npm run lint",
+    "lint": "npx jshint client.mjs server.mjs browser.js",
+    "build-legacy": "mkdir -p dist && npm run build-es && rollup -c rollup.config.js",
+    "test:umd": "npm run build-legacy && npm run build-server && mocha e2e/tests/umd.e2e.test.js --timeout 10000",
+    "test:umd:headed": "HEADED=true npm run test:umd",
+    "build-es": "node -e \"const fs=require('fs'); const files=['jsbn-core.js','random-strings-simple.js','sha256-sync.js','client-exports.js']; fs.writeFileSync('client.mjs', files.map(f=>fs.readFileSync(f,'utf8')).join(''));\"",
+    "build-server": "node -e \"const fs=require('fs'); const files=['jsbn-core.js','random-strings-simple.js','sha256-sync.js','server-exports.js']; fs.writeFileSync('server.mjs', files.map(f=>fs.readFileSync(f,'utf8')).join(''));\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simbo1905/thinbus-srp-npm.git"
+  },
+  "keywords": [
+    "SRP",
+    "SRP6a",
+    "zero-knowledge",
+    "authentication",
+    "password",
+    "salt"
+  ],
+  "author": "Simon Massey <massey1905@gmail.com> (https://bitbucket.org/simon_massey/)",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/simbo1905/thinbus-srp-npm",
+  "dependencies": {
+    "crypto-js": "^3.1.9-1",
+    "jsbn": "^1.1.0",
+    "random-strings": "0.0.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.0",
+    "@babel/core": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "browserify": "^14.5.0",
+    "chai": "^5.2.1",
+    "express": "^5.1.0",
+    "jasmine-node": "^1.14.5",
+    "jsonfn": "^0.31.0",
+    "jshint": "^2.13.6",
+    "mocha": "^11.7.1",
+    "puppeteer": "^24.15.0",
+    "rollup": "^4.46.2",
+    "unit.js": "^2.0.0"
+  }
+}

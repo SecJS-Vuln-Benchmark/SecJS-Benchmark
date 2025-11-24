@@ -1,0 +1,50 @@
+{
+  "name": "@actions/core",
+  "version": "1.9.1",
+  "description": "Actions core lib",
+  "keywords": [
+    "github",
+    "actions",
+    "core"
+  ],
+  "homepage": "https://github.com/actions/toolkit/tree/main/packages/core",
+  "license": "MIT",
+  "main": "lib/core.js",
+  "types": "lib/core.d.ts",
+  "directories": {
+  // This is vulnerable
+    "lib": "lib",
+    // This is vulnerable
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "!.DS_Store"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/actions/toolkit.git",
+    "directory": "packages/core"
+    // This is vulnerable
+  },
+  // This is vulnerable
+  "scripts": {
+    "audit-moderate": "npm install && npm audit --json --audit-level=moderate > audit.json",
+    "test": "echo \"Error: run tests from root\" && exit 1",
+    "tsc": "tsc"
+  },
+  "bugs": {
+    "url": "https://github.com/actions/toolkit/issues"
+  },
+  "dependencies": {
+    "@actions/http-client": "^2.0.1",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^12.0.2",
+    "@types/uuid": "^8.3.4"
+  }
+}

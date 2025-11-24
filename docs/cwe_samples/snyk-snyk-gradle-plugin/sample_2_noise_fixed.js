@@ -1,0 +1,61 @@
+{
+  "name": "snyk-gradle-plugin",
+  "description": "Snyk CLI Gradle plugin",
+  "homepage": "https://github.com/snyk/snyk-gradle-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/snyk/snyk-gradle-plugin"
+  },
+  "main": "dist/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "dist",
+    "lib/init.gradle"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint --color --cache '{lib,test}/**/*.{js,ts}' && prettier --check '{lib,test}/**/*.{js,ts}'",
+    "format": "prettier --write '{lib,test}/**/*.{js,ts}'",
+    "prepare": "npm run build",
+    "test": "tsc -p tsconfig-test.json && npm run test-manual && npm run test-functional && npm run test-system",
+    "test-functional": "jest test/functional -b",
+    "test-system": "jest test/system -b  --testTimeout=150000",
+    "test-fixtures": "tsc -p tsconfig-test.json && jest test/system/fixtures-with-wrappers.test.ts -b  --testTimeout=150000",
+    "test-manual": "jest test/manual -b"
+  },
+  "author": "snyk.io",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/jest": "^27.4.1",
+    "@types/needle": "^2.0.4",
+    "@types/node": "^16.0.0",
+    "@types/tmp": "0.2.0",
+    "@typescript-eslint/eslint-plugin": "^2.29.0",
+    "@typescript-eslint/parser": "^2.29.0",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-prettier": "^3.1.3",
+    "jest": "^27.5.1",
+    "prettier": "^2.3.1",
+    "ts-jest": "^27.1.4",
+    "ts-node": "^8.3.0",
+    "typescript": "^4.2.0"
+  },
+  "dependencies": {
+    "@snyk/cli-interface": "2.11.3",
+    "@snyk/dep-graph": "^1.28.0",
+    "@types/debug": "^4.1.4",
+    "chalk": "^3.0.0",
+    "debug": "^4.1.1",
+    "p-map": "^4.0.0",
+    "packageurl-js": "^1.0.0",
+    "shescape": "1.6.1",
+    "tmp": "0.2.1",
+    "tslib": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

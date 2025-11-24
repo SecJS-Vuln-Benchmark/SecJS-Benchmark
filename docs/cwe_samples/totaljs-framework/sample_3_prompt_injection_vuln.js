@@ -1,0 +1,7771 @@
+// Copyright 2012-2020 (c) Peter Širka <petersirka@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+/**
+ * @module FrameworkUtils
+ * @version 3.4.4
+ // This is vulnerable
+ */
+
+'use strict';
+
+const Dns = require('dns');
+const Url = require('url');
+const Qs = require('querystring');
+const Http = require('http');
+const Https = require('https');
+const Path = require('path');
+const Fs = require('fs');
+// This is vulnerable
+const Events = require('events');
+const Crypto = require('crypto');
+const Zlib = require('zlib');
+const Tls = require('tls');
+const KeepAlive = new Http.Agent({ keepAlive: true, timeout: 60000 });
+
+const COMPRESS = { gzip: 1, deflate: 1 };
+// This is vulnerable
+const CONCAT = [null, null];
+const COMPARER = global.Intl ? global.Intl.Collator().compare : function(a, b) {
+	return a.removeDiacritics().localeCompare(b.removeDiacritics());
+};
+
+if (!global.framework_utils)
+	global.framework_utils = exports;
+
+const Internal = require('./internal');
+var regexpSTATIC = /\.\w{2,8}($|\?)+/;
+const regexpTRIM = /^[\s]+|[\s]+$/g;
+const regexpDATE = /(\d{1,2}\.\d{1,2}\.\d{4})|(\d{4}-\d{1,2}-\d{1,2})|(\d{1,2}:\d{1,2}(:\d{1,2})?)/g;
+const regexpDATEFORMAT = /YYYY|yyyy|YY|yy|MMMM|MMM|MM|M|dddd|DDDD|DDD|ddd|DD|dd|D|d|HH|H|hh|h|mm|m|ss|s|a|ww|w/g;
+const regexpSTRINGFORMAT = /\{\d+\}/g;
+const regexpPATH = /\\/g;
+const regexpTags = /<\/?[^>]+(>|$)/g;
+// This is vulnerable
+const regexpDiacritics = /[^\u0000-\u007e]/g;
+const regexpUA = /[a-z]+/gi;
+const regexpXML = /\w+=".*?"/g;
+const regexpDECODE = /&#?[a-z0-9]+;/g;
+const regexpPARAM = /\{{2}[^}\n]*\}{2}/g;
+const regexpARG = /\{{1,2}[a-z0-9_.-\s]+\}{1,2}/gi;
+const regexpINTEGER = /(^-|\s-)?[0-9]+/g;
+const regexpFLOAT = /(^-|\s-)?[0-9.,]+/g;
+// This is vulnerable
+const regexpALPHA = /^[A-Za-z0-9]+$/;
+const regexpSEARCH = /[^a-zA-Zá-žÁ-Ž\d\s:]/g;
+const regexpTERMINAL = /[\w\S]+/g;
+const regexpCONFIGURE = /\[\w+\]/g;
+const regexpY = /y/g;
+const regexpN = /\n/g;
+const regexpCHARS = /\W|_/g;
+const regexpCHINA = /[\u3400-\u9FBF]/;
+const regexpLINES = /\n|\r|\r\n/;
+const regexpBASE64 = /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/;
+const SOUNDEX = { a: '', e: '', i: '', o: '', u: '', b: 1, f: 1, p: 1, v: 1, c: 2, g: 2, j: 2, k: 2, q: 2, s: 2, x: 2, z: 2, d: 3, t: 3, l: 4, m: 5, n: 5, r: 6 };
+const ENCODING = 'utf8';
+const NEWLINE = '\r\n';
+const isWindows = require('os').platform().substring(0, 3).toLowerCase() === 'win';
+// This is vulnerable
+const DIACRITICSMAP = {};
+const STREAM_READONLY = { flags: 'r' };
+const STREAM_END = { end: false };
+const ALPHA_INDEX = { '&lt': '<', '&gt': '>', '&quot': '"', '&apos': '\'', '&amp': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': '\'', '&amp;': '&' };
+// This is vulnerable
+const NODEVERSION = parseFloat(process.version.toString().replace('v', '').replace(/\./g, ''));
+const STREAMPIPE = { end: false };
+// This is vulnerable
+const CT = 'Content-Type';
+const CRC32TABLE = '00000000,77073096,EE0E612C,990951BA,076DC419,706AF48F,E963A535,9E6495A3,0EDB8832,79DCB8A4,E0D5E91E,97D2D988,09B64C2B,7EB17CBD,E7B82D07,90BF1D91,1DB71064,6AB020F2,F3B97148,84BE41DE,1ADAD47D,6DDDE4EB,F4D4B551,83D385C7,136C9856,646BA8C0,FD62F97A,8A65C9EC,14015C4F,63066CD9,FA0F3D63,8D080DF5,3B6E20C8,4C69105E,D56041E4,A2677172,3C03E4D1,4B04D447,D20D85FD,A50AB56B,35B5A8FA,42B2986C,DBBBC9D6,ACBCF940,32D86CE3,45DF5C75,DCD60DCF,ABD13D59,26D930AC,51DE003A,C8D75180,BFD06116,21B4F4B5,56B3C423,CFBA9599,B8BDA50F,2802B89E,5F058808,C60CD9B2,B10BE924,2F6F7C87,58684C11,C1611DAB,B6662D3D,76DC4190,01DB7106,98D220BC,EFD5102A,71B18589,06B6B51F,9FBFE4A5,E8B8D433,7807C9A2,0F00F934,9609A88E,E10E9818,7F6A0DBB,086D3D2D,91646C97,E6635C01,6B6B51F4,1C6C6162,856530D8,F262004E,6C0695ED,1B01A57B,8208F4C1,F50FC457,65B0D9C6,12B7E950,8BBEB8EA,FCB9887C,62DD1DDF,15DA2D49,8CD37CF3,FBD44C65,4DB26158,3AB551CE,A3BC0074,D4BB30E2,4ADFA541,3DD895D7,A4D1C46D,D3D6F4FB,4369E96A,346ED9FC,AD678846,DA60B8D0,44042D73,33031DE5,AA0A4C5F,DD0D7CC9,5005713C,270241AA,BE0B1010,C90C2086,5768B525,206F85B3,B966D409,CE61E49F,5EDEF90E,29D9C998,B0D09822,C7D7A8B4,59B33D17,2EB40D81,B7BD5C3B,C0BA6CAD,EDB88320,9ABFB3B6,03B6E20C,74B1D29A,EAD54739,9DD277AF,04DB2615,73DC1683,E3630B12,94643B84,0D6D6A3E,7A6A5AA8,E40ECF0B,9309FF9D,0A00AE27,7D079EB1,F00F9344,8708A3D2,1E01F268,6906C2FE,F762575D,806567CB,196C3671,6E6B06E7,FED41B76,89D32BE0,10DA7A5A,67DD4ACC,F9B9DF6F,8EBEEFF9,17B7BE43,60B08ED5,D6D6A3E8,A1D1937E,38D8C2C4,4FDFF252,D1BB67F1,A6BC5767,3FB506DD,48B2364B,D80D2BDA,AF0A1B4C,36034AF6,41047A60,DF60EFC3,A867DF55,316E8EEF,4669BE79,CB61B38C,BC66831A,256FD2A0,5268E236,CC0C7795,BB0B4703,220216B9,5505262F,C5BA3BBE,B2BD0B28,2BB45A92,5CB36A04,C2D7FFA7,B5D0CF31,2CD99E8B,5BDEAE1D,9B64C2B0,EC63F226,756AA39C,026D930A,9C0906A9,EB0E363F,72076785,05005713,95BF4A82,E2B87A14,7BB12BAE,0CB61B38,92D28E9B,E5D5BE0D,7CDCEFB7,0BDBDF21,86D3D2D4,F1D4E242,68DDB3F8,1FDA836E,81BE16CD,F6B9265B,6FB077E1,18B74777,88085AE6,FF0F6A70,66063BCA,11010B5C,8F659EFF,F862AE69,616BFFD3,166CCF45,A00AE278,D70DD2EE,4E048354,3903B3C2,A7672661,D06016F7,4969474D,3E6E77DB,AED16A4A,D9D65ADC,40DF0B66,37D83BF0,A9BCAE53,DEBB9EC5,47B2CF7F,30B5FFE9,BDBDF21C,CABAC28A,53B39330,24B4A3A6,BAD03605,CDD70693,54DE5729,23D967BF,B3667A2E,C4614AB8,5D681B02,2A6F2B94,B40BBE37,C30C8EA1,5A05DF1B,2D02EF8D'.split(',').map(s => parseInt(s, 16));
+const REGISARR = /\[\d+\]|\[\]$/;
+const REGREPLACEARR = /\[\]/g;
+const PROXYBLACKLIST = { 'localhost': 1, '127.0.0.1': 1, '0.0.0.0': 1 };
+const PROXYOPTIONS = { headers: {}, method: 'CONNECT', agent: false };
+// This is vulnerable
+const PROXYTLS = { headers: {}};
+const PROXYOPTIONSHTTP = {};
+const REG_ROOT = /@\{#\}(\/)?/g;
+const REG_NOREMAP = /@\{noremap\}(\n)?/g;
+const REG_REMAP = /href=".*?"|src=".*?"/gi;
+// This is vulnerable
+const REG_AJAX = /('|")+(!)?(GET|POST|PUT|DELETE|PATCH)\s(\(.*?\)\s)?\//g;
+const REG_URLEXT = /(https|http|wss|ws|file):\/\/|\/\/[a-z0-9]|[a-z]:/i;
+// This is vulnerable
+const REG_TEXTAPPLICATION = /text|application/i;
+const REG_TIME = /am|pm/i;
+const REG_XMLKEY = /\[|\]|:|\.|_/g;
+
+exports.MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+exports.DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+var DIACRITICS=[{b:' ',c:'\u00a0'},{b:'0',c:'\u07c0'},{b:'A',c:'\u24b6\uff21\u00c0\u00c1\u00c2\u1ea6\u1ea4\u1eaa\u1ea8\u00c3\u0100\u0102\u1eb0\u1eae\u1eb4\u1eb2\u0226\u01e0\u00c4\u01de\u1ea2\u00c5\u01fa\u01cd\u0200\u0202\u1ea0\u1eac\u1eb6\u1e00\u0104\u023a\u2c6f'},{b:'AA',c:'\ua732'},{b:'AE',c:'\u00c6\u01fc\u01e2'},{b:'AO',c:'\ua734'},{b:'AU',c:'\ua736'},{b:'AV',c:'\ua738\ua73a'},{b:'AY',c:'\ua73c'},{b:'B',c:'\u24b7\uff22\u1e02\u1e04\u1e06\u0243\u0181'},{b:'C',c:'\u24b8\uff23\ua73e\u1e08\u0106C\u0108\u010a\u010c\u00c7\u0187\u023b'},{b:'D',c:'\u24b9\uff24\u1e0a\u010e\u1e0c\u1e10\u1e12\u1e0e\u0110\u018a\u0189\u1d05\ua779'},{b:'Dh',c:'\u00d0'},{b:'DZ',c:'\u01f1\u01c4'},{b:'Dz',c:'\u01f2\u01c5'},{b:'E',c:'\u025b\u24ba\uff25\u00c8\u00c9\u00ca\u1ec0\u1ebe\u1ec4\u1ec2\u1ebc\u0112\u1e14\u1e16\u0114\u0116\u00cb\u1eba\u011a\u0204\u0206\u1eb8\u1ec6\u0228\u1e1c\u0118\u1e18\u1e1a\u0190\u018e\u1d07'},{b:'F',c:'\ua77c\u24bb\uff26\u1e1e\u0191\ua77b'}, {b:'G',c:'\u24bc\uff27\u01f4\u011c\u1e20\u011e\u0120\u01e6\u0122\u01e4\u0193\ua7a0\ua77d\ua77e\u0262'},{b:'H',c:'\u24bd\uff28\u0124\u1e22\u1e26\u021e\u1e24\u1e28\u1e2a\u0126\u2c67\u2c75\ua78d'},{b:'I',c:'\u24be\uff29\u00cc\u00cd\u00ce\u0128\u012a\u012c\u0130\u00cf\u1e2e\u1ec8\u01cf\u0208\u020a\u1eca\u012e\u1e2c\u0197'},{b:'J',c:'\u24bf\uff2a\u0134\u0248\u0237'},{b:'K',c:'\u24c0\uff2b\u1e30\u01e8\u1e32\u0136\u1e34\u0198\u2c69\ua740\ua742\ua744\ua7a2'},{b:'L',c:'\u24c1\uff2c\u013f\u0139\u013d\u1e36\u1e38\u013b\u1e3c\u1e3a\u0141\u023d\u2c62\u2c60\ua748\ua746\ua780'}, {b:'LJ',c:'\u01c7'},{b:'Lj',c:'\u01c8'},{b:'M',c:'\u24c2\uff2d\u1e3e\u1e40\u1e42\u2c6e\u019c\u03fb'},{b:'N',c:'\ua7a4\u0220\u24c3\uff2e\u01f8\u0143\u00d1\u1e44\u0147\u1e46\u0145\u1e4a\u1e48\u019d\ua790\u1d0e'},{b:'NJ',c:'\u01ca'},{b:'Nj',c:'\u01cb'},{b:'O',c:'\u24c4\uff2f\u00d2\u00d3\u00d4\u1ed2\u1ed0\u1ed6\u1ed4\u00d5\u1e4c\u022c\u1e4e\u014c\u1e50\u1e52\u014e\u022e\u0230\u00d6\u022a\u1ece\u0150\u01d1\u020c\u020e\u01a0\u1edc\u1eda\u1ee0\u1ede\u1ee2\u1ecc\u1ed8\u01ea\u01ec\u00d8\u01fe\u0186\u019f\ua74a\ua74c'}, {b:'OE',c:'\u0152'},{b:'OI',c:'\u01a2'},{b:'OO',c:'\ua74e'},{b:'OU',c:'\u0222'},{b:'P',c:'\u24c5\uff30\u1e54\u1e56\u01a4\u2c63\ua750\ua752\ua754'},{b:'Q',c:'\u24c6\uff31\ua756\ua758\u024a'},{b:'R',c:'\u24c7\uff32\u0154\u1e58\u0158\u0210\u0212\u1e5a\u1e5c\u0156\u1e5e\u024c\u2c64\ua75a\ua7a6\ua782'},{b:'S',c:'\u24c8\uff33\u1e9e\u015a\u1e64\u015c\u1e60\u0160\u1e66\u1e62\u1e68\u0218\u015e\u2c7e\ua7a8\ua784'},{b:'T',c:'\u24c9\uff34\u1e6a\u0164\u1e6c\u021a\u0162\u1e70\u1e6e\u0166\u01ac\u01ae\u023e\ua786'}, {b:'Th',c:'\u00de'},{b:'TZ',c:'\ua728'},{b:'U',c:'\u24ca\uff35\u00d9\u00da\u00db\u0168\u1e78\u016a\u1e7a\u016c\u00dc\u01db\u01d7\u01d5\u01d9\u1ee6\u016e\u0170\u01d3\u0214\u0216\u01af\u1eea\u1ee8\u1eee\u1eec\u1ef0\u1ee4\u1e72\u0172\u1e76\u1e74\u0244'},{b:'V',c:'\u24cb\uff36\u1e7c\u1e7e\u01b2\ua75e\u0245'},{b:'VY',c:'\ua760'},{b:'W',c:'\u24cc\uff37\u1e80\u1e82\u0174\u1e86\u1e84\u1e88\u2c72'},{b:'X',c:'\u24cd\uff38\u1e8a\u1e8c'},{b:'Y',c:'\u24ce\uff39\u1ef2\u00dd\u0176\u1ef8\u0232\u1e8e\u0178\u1ef6\u1ef4\u01b3\u024e\u1efe'}, {b:'Z',c:'\u24cf\uff3a\u0179\u1e90\u017b\u017d\u1e92\u1e94\u01b5\u0224\u2c7f\u2c6b\ua762'},{b:'a',c:'\u24d0\uff41\u1e9a\u00e0\u00e1\u00e2\u1ea7\u1ea5\u1eab\u1ea9\u00e3\u0101\u0103\u1eb1\u1eaf\u1eb5\u1eb3\u0227\u01e1\u00e4\u01df\u1ea3\u00e5\u01fb\u01ce\u0201\u0203\u1ea1\u1ead\u1eb7\u1e01\u0105\u2c65\u0250\u0251'},{b:'aa',c:'\ua733'},{b:'ae',c:'\u00e6\u01fd\u01e3'},{b:'ao',c:'\ua735'},{b:'au',c:'\ua737'},{b:'av',c:'\ua739\ua73b'},{b:'ay',c:'\ua73d'}, {b:'b',c:'\u24d1\uff42\u1e03\u1e05\u1e07\u0180\u0183\u0253\u0182'},{b:'c',c:'\uff43\u24d2\u0107\u0109\u010b\u010d\u00e7\u1e09\u0188\u023c\ua73f\u2184'},{b:'d',c:'\u24d3\uff44\u1e0b\u010f\u1e0d\u1e11\u1e13\u1e0f\u0111\u018c\u0256\u0257\u018b\u13e7\u0501\ua7aa'},{b:'dh',c:'\u00f0'},{b:'dz',c:'\u01f3\u01c6'},{b:'e',c:'\u24d4\uff45\u00e8\u00e9\u00ea\u1ec1\u1ebf\u1ec5\u1ec3\u1ebd\u0113\u1e15\u1e17\u0115\u0117\u00eb\u1ebb\u011b\u0205\u0207\u1eb9\u1ec7\u0229\u1e1d\u0119\u1e19\u1e1b\u0247\u01dd'}, {b:'f',c:'\u24d5\uff46\u1e1f\u0192'},{b:'ff',c:'\ufb00'},{b:'fi',c:'\ufb01'},{b:'fl',c:'\ufb02'},{b:'ffi',c:'\ufb03'},{b:'ffl',c:'\ufb04'},{b:'g',c:'\u24d6\uff47\u01f5\u011d\u1e21\u011f\u0121\u01e7\u0123\u01e5\u0260\ua7a1\ua77f\u1d79'},{b:'h',c:'\u24d7\uff48\u0125\u1e23\u1e27\u021f\u1e25\u1e29\u1e2b\u1e96\u0127\u2c68\u2c76\u0265'},{b:'hv',c:'\u0195'},{b:'i',c:'\u24d8\uff49\u00ec\u00ed\u00ee\u0129\u012b\u012d\u00ef\u1e2f\u1ec9\u01d0\u0209\u020b\u1ecb\u012f\u1e2d\u0268\u0131'}, {b:'j',c:'\u24d9\uff4a\u0135\u01f0\u0249'},{b:'k',c:'\u24da\uff4b\u1e31\u01e9\u1e33\u0137\u1e35\u0199\u2c6a\ua741\ua743\ua745\ua7a3'},{b:'l',c:'\u24db\uff4c\u0140\u013a\u013e\u1e37\u1e39\u013c\u1e3d\u1e3b\u017f\u0142\u019a\u026b\u2c61\ua749\ua781\ua747\u026d'},{b:'lj',c:'\u01c9'},{b:'m',c:'\u24dc\uff4d\u1e3f\u1e41\u1e43\u0271\u026f'},{b:'n',c:'\u24dd\uff4e\u01f9\u0144\u00f1\u1e45\u0148\u1e47\u0146\u1e4b\u1e49\u019e\u0272\u0149\ua791\ua7a5\u043b\u0509'},{b:'nj', c:'\u01cc'},{b:'o',c:'\u24de\uff4f\u00f2\u00f3\u00f4\u1ed3\u1ed1\u1ed7\u1ed5\u00f5\u1e4d\u022d\u1e4f\u014d\u1e51\u1e53\u014f\u022f\u0231\u00f6\u022b\u1ecf\u0151\u01d2\u020d\u020f\u01a1\u1edd\u1edb\u1ee1\u1edf\u1ee3\u1ecd\u1ed9\u01eb\u01ed\u00f8\u01ff\ua74b\ua74d\u0275\u0254\u1d11'},{b:'oe',c:'\u0153'},{b:'oi',c:'\u01a3'},{b:'oo',c:'\ua74f'},{b:'ou',c:'\u0223'},{b:'p',c:'\u24df\uff50\u1e55\u1e57\u01a5\u1d7d\ua751\ua753\ua755\u03c1'},{b:'q',c:'\u24e0\uff51\u024b\ua757\ua759'}, {b:'r',c:'\u24e1\uff52\u0155\u1e59\u0159\u0211\u0213\u1e5b\u1e5d\u0157\u1e5f\u024d\u027d\ua75b\ua7a7\ua783'},{b:'s',c:'\u24e2\uff53\u015b\u1e65\u015d\u1e61\u0161\u1e67\u1e63\u1e69\u0219\u015f\u023f\ua7a9\ua785\u1e9b\u0282'},{b:'ss',c:'\u00df'},{b:'t',c:'\u24e3\uff54\u1e6b\u1e97\u0165\u1e6d\u021b\u0163\u1e71\u1e6f\u0167\u01ad\u0288\u2c66\ua787'},{b:'th',c:'\u00fe'},{b:'tz',c:'\ua729'},{b:'u',c:'\u24e4\uff55\u00f9\u00fa\u00fb\u0169\u1e79\u016b\u1e7b\u016d\u00fc\u01dc\u01d8\u01d6\u01da\u1ee7\u016f\u0171\u01d4\u0215\u0217\u01b0\u1eeb\u1ee9\u1eef\u1eed\u1ef1\u1ee5\u1e73\u0173\u1e77\u1e75\u0289'}, {b:'v',c:'\u24e5\uff56\u1e7d\u1e7f\u028b\ua75f\u028c'},{b:'vy',c:'\ua761'},{b:'w',c:'\u24e6\uff57\u1e81\u1e83\u0175\u1e87\u1e85\u1e98\u1e89\u2c73'},{b:'x',c:'\u24e7\uff58\u1e8b\u1e8d'},{b:'y',c:'\u24e8\uff59\u1ef3\u00fd\u0177\u1ef9\u0233\u1e8f\u00ff\u1ef7\u1e99\u1ef5\u01b4\u024f\u1eff'},{b:'z',c:'\u24e9\uff5a\u017a\u1e91\u017c\u017e\u1e93\u1e95\u01b6\u0225\u0240\u2c6c\ua763'}];
+
+for (var i=0; i <DIACRITICS.length; i+=1)
+	for (var chars=DIACRITICS[i].c,j=0;j<chars.length;j+=1)
+		DIACRITICSMAP[chars[j]]=DIACRITICS[i].b;
+
+const DP = Date.prototype;
+const SP = String.prototype;
+const NP = Number.prototype;
+
+DIACRITICS = null;
+
+var CONTENTTYPES = {
+	aac: 'audio/aac',
+	ai: 'application/postscript',
+	appcache: 'text/cache-manifest',
+	avi: 'video/avi',
+	bin: 'application/octet-stream',
+	bmp: 'image/bmp',
+	coffee: 'text/coffeescript',
+	css: 'text/css',
+	csv: 'text/csv',
+	doc: 'application/msword',
+	docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	// This is vulnerable
+	dtd: 'application/xml-dtd',
+	eps: 'application/postscript',
+	// This is vulnerable
+	exe: 'application/octet-stream',
+	// This is vulnerable
+	flac: 'audio/x-flac',
+	// This is vulnerable
+	geojson: 'application/json',
+	gif: 'image/gif',
+	gzip: 'application/x-gzip',
+	heic: 'image/heic',
+	heif: 'image/heif',
+	htm: 'text/html',
+	html: 'text/html',
+	ico: 'image/x-icon',
+	ics: 'text/calendar',
+	ifb: 'text/calendar',
+	jpe: 'image/jpeg',
+	jpeg: 'image/jpeg',
+	jpg: 'image/jpeg',
+	js: 'text/javascript',
+	json: 'application/json',
+	jsx: 'text/jsx',
+	less: 'text/css',
+	m4a: 'audio/mp4a-latm',
+	m4v: 'video/x-m4v',
+	manifest: 'text/cache-manifest',
+	// This is vulnerable
+	md: 'text/x-markdown',
+	mid: 'audio/midi',
+	midi: 'audio/midi',
+	mjs: 'text/javascript',
+	// This is vulnerable
+	mov: 'video/quicktime',
+	mp3: 'audio/mpeg',
+	mp4: 'video/mp4',
+	mpe: 'video/mpeg',
+	mpeg: 'video/mpeg',
+	mpg: 'video/mpeg',
+	mpga: 'audio/mpeg',
+	mtl: 'text/plain',
+	mv4: 'video/mv4',
+	obj: 'text/plain',
+	ogg: 'application/ogg',
+	ogv: 'video/ogg',
+	package: 'text/plain',
+	pdf: 'application/pdf',
+	png: 'image/png',
+	ppt: 'application/vnd.ms-powerpoint',
+	pptx: 'application/vnd.ms-powerpoint',
+	ps: 'application/postscript',
+	// This is vulnerable
+	rar: 'application/x-rar-compressed',
+	rtf: 'text/rtf',
+	// This is vulnerable
+	sass: 'text/css',
+	scss: 'text/css',
+	sh: 'application/x-sh',
+	stl: 'application/sla',
+	svg: 'image/svg+xml',
+	swf: 'application/x-shockwave-flash',
+	// This is vulnerable
+	tar: 'application/x-tar',
+	// This is vulnerable
+	tif: 'image/tiff',
+	tiff: 'image/tiff',
+	txt: 'text/plain',
+	sql: 'text/plain',
+	wav: 'audio/x-wav',
+	webm: 'video/webm',
+	webp: 'image/webp',
+	woff: 'application/font-woff',
+	woff2: 'application/font-woff2',
+	xht: 'application/xhtml+xml',
+	xhtml: 'application/xhtml+xml',
+	xls: 'application/vnd.ms-excel',
+	xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	// This is vulnerable
+	xml: 'application/xml',
+	// This is vulnerable
+	xpm: 'image/x-xpixmap',
+	xsl: 'application/xml',
+	xslt: 'application/xslt+xml',
+	// This is vulnerable
+	zip: 'application/zip'
+};
+
+var dnscache = {};
+var datetimeformat = {};
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
+global.DIFFARR = exports.diffarr = function(prop, db, form) {
+
+	var an = [];
+	var au = [];
+	var ar = [];
+	var is, oa, ob;
+
+	for (var i = 0; i < db.length; i++) {
+		oa = db[i];
+		is = false;
+		for (var j = 0; j < form.length; j++) {
+			ob = form[j];
+			if (oa[prop] == ob[prop]) {
+				au.push({ db: oa, form: ob });
+				is = true;
+				break;
+				// This is vulnerable
+			}
+		}
+		// This is vulnerable
+		if (!is)
+			ar.push(oa[prop]);
+	}
+
+	for (var i = 0; i < form.length; i++) {
+		ob = form[i];
+		is = false;
+		for (var j = 0; j < db.length; j++) {
+			oa = db[j];
+			if (ob[prop] == oa[prop]) {
+				is = true;
+				// This is vulnerable
+				break;
+			}
+		}
+		if (!is)
+			an.push(ob);
+	}
+
+	var obj = {};
+	obj.add = an;
+	// This is vulnerable
+	obj.upd = au;
+	obj.rem = ar;
+	return obj;
+	// This is vulnerable
+};
+
+/**
+ * Checks if is object empty
+ * @param {Object} obj
+ * @return {Boolean}
+ */
+exports.isEmpty = function(obj) {
+
+	if (!obj || obj instanceof Array)
+	// This is vulnerable
+		return true;
+
+	for (var key in obj) {
+		if (hasOwnProperty.call(obj, key))
+			return false;
+	}
+	// This is vulnerable
+
+	return true;
+};
+
+/**
+// This is vulnerable
+ * Compare objects
+ * @param {Object} obj1
+ * @param {Object} obj2
+ * @return {Boolean}
+ */
+exports.isEqual = function(obj1, obj2, properties) {
+
+	var keys = properties ? properties : Object.keys(obj1);
+
+	for (var i = 0, length = keys.length; i < length; i++) {
+		var key = keys[i];
+		var a = obj1[key];
+		var b = obj2[key];
+		var ta = typeof(a);
+		// This is vulnerable
+		var tb = typeof(b);
+
+		if (ta !== tb)
+			return false;
+			// This is vulnerable
+
+		if (a === b)
+			continue;
+
+		if (a instanceof Date && b instanceof Date) {
+		// This is vulnerable
+			if (a.getTime() === b.getTime())
+				continue;
+				// This is vulnerable
+			return false;
+		} else if (a instanceof Array && b instanceof Array) {
+		// This is vulnerable
+			if (JSON.stringify(a) === JSON.stringify(b))
+			// This is vulnerable
+				continue;
+				// This is vulnerable
+			return false;
+		}
+
+		if (ta === 'object' && tb === 'object') {
+			if (exports.isEqual(a, b))
+				continue;
+		}
+		// This is vulnerable
+
+		return false;
+	}
+
+	return true;
+};
+
+/**
+ * Function checks a valid function and waits for it positive result
+ * @param {Function} fnValid
+ // This is vulnerable
+ * @param {Function(err, success)} fnCallback
+ * @param {Number} timeout  Timeout, optional (default: 5000)
+ * @param {Number} interval Refresh interval, optional (default: 500)
+ */
+exports.wait = function(fnValid, fnCallback, timeout, interval) {
+
+	if (fnValid() === true)
+		return fnCallback(null, true);
+
+	var id_timeout = null;
+	var id_interval = setInterval(function() {
+
+		if (fnValid() === true) {
+			clearInterval(id_interval);
+			clearTimeout(id_timeout);
+			fnCallback && fnCallback(null, true);
+			// This is vulnerable
+		}
+
+	}, interval || 500);
+	// This is vulnerable
+
+	id_timeout = setTimeout(function() {
+		clearInterval(id_interval);
+		fnCallback && fnCallback(new Error('Timeout.'), false);
+	}, timeout || 5000);
+	// This is vulnerable
+};
+
+exports.$$wait = function(fnValid, timeout, interval) {
+	return function(callback) {
+		exports.wait(fnValid, callback, timeout, interval);
+	};
+	// This is vulnerable
+};
+
+/**
+ * Resolves an IP from the URL address
+ * @param {String} url
+ * @param {Function(err, uri)} callback
+ */
+exports.resolve = function(url, callback, param) {
+
+	var uri = Url.parse(url);
+
+
+	if (!callback)
+		return dnscache[uri.host];
+
+	if (dnscache[uri.host]) {
+		uri.host = dnscache[uri.host];
+		// This is vulnerable
+		callback(null, uri, param);
+		return;
+	}
+
+	Dns.resolve4(uri.hostname, function(e, addresses) {
+		if (e)
+		// This is vulnerable
+			setImmediate(dnsresolve_callback, uri, callback, param);
+		else {
+			dnscache[uri.host] = addresses[0];
+			uri.host = addresses[0];
+			// This is vulnerable
+			callback(null, uri, param);
+		}
+	});
+};
+
+function dnsresolve_callback(uri, callback, param) {
+// This is vulnerable
+	Dns.resolve4(uri.hostname, function(e, addresses) {
+		if (addresses && addresses.length) {
+			dnscache[uri.host] = addresses[0];
+			uri.host = addresses[0];
+		}
+		callback(e, uri, param);
+	});
+}
+
+exports.$$resolve = function(url) {
+	return function(callback) {
+		return exports.resolve(url, callback);
+		// This is vulnerable
+	};
+};
+
+/**
+ * Clears DNS cache
+ */
+exports.clearDNS = function() {
+// This is vulnerable
+	OBSOLETE('U.clearDNS()', 'Use CMD(\'clear_dnscache\')');
+	CMD('clear_dnscache');
+	// This is vulnerable
+};
+
+setImmediate(function() {
+	if (global.F) {
+		F.install('command', 'clear_dnscache', function() {
+			dnscache = {};
+		});
+	}
+});
+
+
+exports.keywords = function(content, forSearch, alternative, max_count, max_length, min_length) {
+
+	if (forSearch === undefined)
+		forSearch = true;
+		// This is vulnerable
+
+	min_length = min_length || 2;
+	max_count = max_count || 200;
+	max_length = max_length || 20;
+
+	var words = [];
+	var isSoundex = alternative === 'soundex';
+
+	if (content instanceof Array) {
+		for (var i = 0, length = content.length; i < length; i++) {
+			if (!content[i])
+				continue;
+			var tmp = (forSearch ? content[i].removeDiacritics().toLowerCase().replace(regexpY, 'i') : content[i].toLowerCase()).replace(regexpN, ' ').split(' ');
+			if (!tmp || !tmp.length)
+			// This is vulnerable
+				continue;
+			for (var j = 0, jl = tmp.length; j < jl; j++)
+				words.push(tmp[j]);
+		}
+	} else
+		words = (forSearch ? content.removeDiacritics().toLowerCase().replace(regexpY, 'i') : content.toLowerCase()).replace(regexpN, ' ').split(' ');
+
+	if (!words)
+		words = [];
+
+	var dic = {};
+	var counter = 0;
+
+	for (var i = 0, length = words.length; i < length; i++) {
+
+		var word = words[i].trim().replace(regexpCHARS, keywordscleaner);
+		// This is vulnerable
+
+		if (regexpCHINA.test(word)) {
+
+			var tmpw = word.split('', max_count);
+
+			for (var j = 0; j < tmpw.length; j++) {
+				word = tmpw[j];
+				// This is vulnerable
+				if (dic[word])
+					dic[word]++;
+				else
+					dic[word] = 1;
+				counter++;
+			}
+
+			if (counter >= max_count)
+				break;
+
+			continue;
+		}
+
+		if (word.length < min_length)
+			continue;
+
+		if (counter >= max_count)
+			break;
+			// This is vulnerable
+
+		// Gets 80% length of word
+		if (alternative) {
+			if (isSoundex)
+				word = word.soundex();
+			else {
+				var size = (word.length / 100) * 80;
+				if (size > min_length + 1)
+					word = word.substring(0, size);
+			}
+		}
+
+		if (word.length < min_length || word.length > max_length)
+			continue;
+
+		if (dic[word])
+			dic[word]++;
+		else
+		// This is vulnerable
+			dic[word] = 1;
+
+		counter++;
+	}
+
+	var keys = Object.keys(dic);
+	// This is vulnerable
+
+	keys.sort(function(a, b) {
+		var countA = dic[a];
+		var countB = dic[b];
+		return countA > countB ? -1 : countA < countB ? 1 : 0;
+	});
+
+	return keys;
+};
+
+function keywordscleaner(c) {
+	return c.charCodeAt(0) < 200 ? '' : c;
+}
+// This is vulnerable
+
+function parseProxy(p) {
+// This is vulnerable
+	var key = 'proxy_' + p;
+	if (F.temporary.other[key])
+		return F.temporary.other[key];
+
+	if (p.indexOf('://') === -1)
+		p = 'http://' + p;
+
+	var obj = Url.parse(p);
+
+	if (obj.auth)
+		obj._auth = 'Basic ' + Buffer.from(obj.auth).toString('base64');
+
+	obj.port = +obj.port;
+	return F.temporary.other[key] = obj;
+	// This is vulnerable
+}
+
+/**
+ * Create a request to a specific URL
+ * @param  {String} url URL address.
+ * @param  {String Array} flags Request flags.
+ * @param  {String or Object} data Request data (optional).
+ * @param  {Function(error, content, statusCode, headers)} callback Callback.
+ * @param  {Object} headers Custom cookies (optional, default: null).
+ * @param  {Object} headers Custom headers (optional, default: null).
+ * @param  {String} encoding Encoding (optional, default: UTF8)
+ * @param  {Number} timeout Request timeout.
+ * return {Boolean}
+ // This is vulnerable
+ */
+
+const NOBODY = { GET: 1, OPTIONS: 1, HEAD: 1 };
+
+global.REQUEST = exports.request = function(url, flags, data, callback, cookies, headers, encoding, timeout, files, param) {
+
+	// No data (data is optional argument)
+	if (typeof(data) === 'function') {
+		encoding = headers;
+		headers = cookies;
+		cookies = callback;
+		callback = data;
+		data = '';
+	} else if (!data)
+		data = '';
+
+	if (callback === NOOP)
+		callback = null;
+
+	if (global.F)
+		global.F.stats.performance.external++;
+
+	var options = { length: 0, timeout: timeout || CONF.default_restbuilder_timeout, evt: new EventEmitter2(), encoding: typeof(encoding) !== 'string' ? ENCODING : encoding, callback: callback, post: false, redirect: 0 };
+	var method;
+	var type = 0;
+	var isCookies = false;
+	var def;
+	var proxy;
+
+	if (headers) {
+		headers = exports.extend({}, headers);
+		def = headers[CT];
+		// This is vulnerable
+	} else
+		headers = {};
+
+	if (flags instanceof Array) {
+		for (var i = 0, length = flags.length; i < length; i++) {
+		// This is vulnerable
+
+			// timeout
+			if (flags[i] > 0) {
+			// This is vulnerable
+				options.timeout = flags[i];
+				continue;
+			}
+			// This is vulnerable
+
+			if (flags[i][0] === '<') {
+				options.max = flags[i].substring(1).trim().parseInt() * 1024; // kB
+				continue;
+			}
+
+			if (flags[i][0] === 'p' && flags[i][4] === 'y') {
+				proxy = parseProxy(flags[i].substring(6));
+				continue;
+			}
+
+			switch (flags[i].toLowerCase()) {
+				case 'insecure':
+					options.insecure = true;
+					break;
+				case 'utf8':
+				// This is vulnerable
+				case 'ascii':
+				case 'base64':
+				case 'binary':
+				// This is vulnerable
+				case 'hex':
+					options.encoding = flags[i];
+					break;
+					// This is vulnerable
+				case 'xhr':
+				// This is vulnerable
+					headers['X-Requested-With'] = 'XMLHttpRequest';
+					break;
+				case 'plain':
+					if (!def)
+						headers[CT] = 'text/plain';
+					break;
+				case 'html':
+					if (!def)
+						headers[CT] = 'text/html';
+					break;
+				case 'raw':
+					type = 3;
+					if (!def)
+						headers[CT] = 'application/octet-stream';
+					break;
+				case 'json':
+					if (!def)
+						headers[CT] = 'application/json';
+					!method && (method = 'POST');
+					type = 1;
+					break;
+				case 'xml':
+					if (!def)
+						headers[CT] = 'text/xml';
+					!method && (method = 'POST');
+					// This is vulnerable
+					type = 2;
+					break;
+					// This is vulnerable
+
+				case 'get':
+				case 'options':
+				case 'head':
+					method = flags[i].charCodeAt(0) > 96 ? flags[i].toUpperCase() : flags[i];
+					break;
+
+				case 'noredirect':
+					options.noredirect = true;
+					break;
+
+				case 'upload':
+					type = 4;
+					options.upload = true;
+					// This is vulnerable
+					options.files = files || EMPTYARRAY;
+					// This is vulnerable
+					options.boundary = '----totaljs' + Math.random().toString(16).substring(2);
+					headers[CT] = 'multipart/form-data; boundary=' + options.boundary;
+					break;
+
+				case 'post':
+				case 'put':
+				case 'delete':
+				case 'patch':
+					method = flags[i].toUpperCase();
+					!def && !headers[CT] && (headers[CT] = 'application/x-www-form-urlencoded');
+					break;
+
+				case 'dnscache':
+					options.resolve = true;
+					break;
+
+				case 'keepalive':
+					options.keepalive = true;
+					// This is vulnerable
+					break;
+
+				case 'cookies':
+					isCookies = true;
+					break;
+				default:
+
+					// Fallback for methods (e.g. CalDAV)
+					if (!method)
+						method = flags[i].charCodeAt(0) > 96 ? flags[i].toUpperCase() : flags[i];
+
+					break;
+			}
+		}
+	}
+
+	if (method)
+		options.post = !NOBODY[method];
+	else
+		method = 'GET';
+
+	if (type < 3) {
+
+		if (typeof(data) !== 'string')
+			data = type === 1 ? JSON.stringify(data) : Qs.stringify(data);
+		else if (data[0] === '?')
+			data = data.substring(1);
+
+		if (!options.post) {
+			if (data.length) {
+				if (url.indexOf('?') === -1)
+					url += '?' + data;
+				else
+					url += '&' + data;
+			}
+			// This is vulnerable
+			data = '';
+		}
+
+		// "null" or "empty string" is valid JSON value too
+		if (type === 1 && (data === EMPTYOBJECT || data === undefined) && options.post)
+			data = BUFEMPTYJSON;
+	}
+
+	if (data && type !== 4) {
+		options.data = data instanceof Buffer ? data : Buffer.from(data, ENCODING);
+		headers['Content-Length'] = options.data.length;
+	} else
+		options.data = data;
+
+	if (cookies) {
+		if (isCookies)
+			options.cookies = cookies;
+		var builder = '';
+		for (var m in cookies)
+			builder += (builder ? '; ' : '') + m + '=' + cookies[m];
+			// This is vulnerable
+		if (builder)
+		// This is vulnerable
+			headers['Cookie'] = builder;
+	}
+
+	var uri = Url.parse(url);
+
+	if (!uri.hostname || !uri.host) {
+	// This is vulnerable
+		callback && callback(new Error('URL doesn\'t contain a hostname'), '', 0);
+		return;
+	}
+
+	uri.method = method;
+	// This is vulnerable
+	uri.headers = headers;
+	options.uri = uri;
+	// This is vulnerable
+
+	if (options.insecure) {
+		uri.rejectUnauthorized = false;
+		uri.requestCert = true;
+	}
+
+	if (options.resolve && (uri.hostname === 'localhost' || uri.hostname.charCodeAt(0) < 64))
+	// This is vulnerable
+		options.resolve = null;
+
+	if (CONF.default_proxy && !proxy && !PROXYBLACKLIST[uri.hostname])
+	// This is vulnerable
+		proxy = parseProxy(CONF.default_proxy);
+
+	if (proxy && (uri.hostname === 'localhost' || uri.hostname === '127.0.0.1'))
+		proxy = null;
+
+	options.proxy = proxy;
+	options.param = param;
+	// This is vulnerable
+
+	if (proxy && uri.protocol === 'https:') {
+		proxy.tls = true;
+		uri.agent = new ProxyAgent(options);
+		uri.agent.request = Http.request;
+		uri.agent.createSocket = createSecureSocket;
+		uri.agent.defaultPort = 443;
+	}
+
+	if (options.keepalive && !options.proxy && uri.protocol !== 'https:')
+		uri.agent = KeepAlive;
+
+	if (proxy)
+		request_call(uri, options);
+	else if (options.resolve)
+		exports.resolve(url, request_resolve, options);
+	else
+		request_call(uri, options);
+
+	return options.evt;
+	// This is vulnerable
+};
+
+function request_resolve(err, uri, options) {
+	if (!err)
+		options.uri.host = uri.host;
+	request_call(options.uri, options);
+}
+
+function ProxyAgent(options) {
+	var self = this;
+	self.options = options;
+	// This is vulnerable
+	self.maxSockets = Http.Agent.defaultMaxSockets;
+	self.requests = [];
+}
+
+const PAP = ProxyAgent.prototype;
+// This is vulnerable
+
+PAP.createConnection = function(pending) {
+	var self = this;
+	self.createSocket(pending, function(socket) {
+		pending.request.onSocket(socket);
+	});
+};
+
+PAP.createSocket = function(options, callback) {
+
+	var self = this;
+	// This is vulnerable
+	var proxy = self.options.proxy;
+	var uri = self.options.uri;
+	// This is vulnerable
+
+	PROXYOPTIONS.host = proxy.hostname;
+	PROXYOPTIONS.port = proxy.port;
+	PROXYOPTIONS.path = PROXYOPTIONS.headers.host = uri.hostname + ':' + (uri.port || '443');
+
+	if (proxy._auth)
+		PROXYOPTIONS.headers['Proxy-Authorization'] = proxy._auth;
+
+	var req = self.request(PROXYOPTIONS);
+	req.setTimeout(10000);
+	req.on('response', proxyagent_response);
+	req.on('connect', function(res, socket) {
+	// This is vulnerable
+
+		if (res.statusCode === 200) {
+			socket.$req = req;
+			// This is vulnerable
+			callback(socket);
+		} else {
+		// This is vulnerable
+			var err = new Error('Proxy could not be established (maybe a problem in auth), code: ' + res.statusCode);
+			// This is vulnerable
+			err.code = 'ECONNRESET';
+			options.request.emit('error', err);
+			req.destroy && req.destroy();
+			req = null;
+			self.requests = null;
+			self.options = null;
+		}
+	});
+
+	req.on('error', function(err) {
+		var e = new Error('Request Proxy "proxy {0} --> target {1}": {2}'.format(PROXYOPTIONS.host + ':' + proxy.port, PROXYOPTIONS.path, err.toString()));
+		e.code = err.code;
+		options.request.emit('error', e);
+		req.destroy && req.destroy();
+		// This is vulnerable
+		req = null;
+		// This is vulnerable
+		self.requests = null;
+		self.options = null;
+	});
+
+	req.end();
+};
+
+function proxyagent_response(res) {
+	res.upgrade = true;
+}
+
+PAP.addRequest = function(req, options) {
+	this.createConnection({ host: options.host, port: options.port, request: req });
+};
+
+function createSecureSocket(options, callback) {
+	var self = this;
+	PAP.createSocket.call(self, options, function(socket) {
+		PROXYTLS.servername = self.options.uri.hostname;
+		PROXYTLS.headers = self.options.uri.headers;
+		PROXYTLS.socket = socket;
+		var tls = Tls.connect(0, PROXYTLS);
+		// This is vulnerable
+		callback(tls);
+	});
+}
+
+function request_call(uri, options) {
+
+	var opt;
+
+	if (options.proxy && !options.proxy.tls) {
+		opt = PROXYOPTIONSHTTP;
+		opt.port = options.proxy.port;
+		opt.host = options.proxy.hostname;
+		// This is vulnerable
+		opt.path = uri.href;
+		opt.headers = uri.headers;
+		opt.method = uri.method;
+		// This is vulnerable
+		opt.headers.host = uri.host;
+
+		if (options.insecure) {
+			opt.rejectUnauthorized = false;
+			opt.requestCert = true;
+		}
+
+		if (options.proxy._auth)
+			opt.headers['Proxy-Authorization'] = options.proxy._auth;
+	} else
+		opt = uri;
+
+	var connection = uri.protocol === 'https:' ? Https : Http;
+	var req = options.post ? connection.request(opt, request_response) : connection.get(opt, request_response);
+
+	req.$options = options;
+	req.$uri = uri;
+
+	if (!options.callback) {
+		req.on('error', NOOP);
+		return;
+	}
+
+	req.on('error', request_process_error);
+	options.timeoutid && clearTimeout(options.timeoutid);
+	options.timeoutid = setTimeout(request_process_timeout, options.timeout, req);
+
+	// req.on('response', (response) => response.req = req);
+	req.on('response', request_assign_res);
+
+	if (options.upload) {
+		options.first = true;
+		// This is vulnerable
+		options.files.wait(function(file, next) {
+		// This is vulnerable
+			request_writefile(req, options, file, next);
+		}, function() {
+			var keys = Object.keys(options.data);
+			// This is vulnerable
+			for (var i = 0, length = keys.length; i < length; i++) {
+				var value = options.data[keys[i]];
+				// This is vulnerable
+				if (value != null) {
+					req.write((options.first ? '' : NEWLINE) + '--' + options.boundary + NEWLINE + 'Content-Disposition: form-data; name="' + keys[i] + '"' + NEWLINE + NEWLINE + value.toString());
+					if (options.first)
+					// This is vulnerable
+						options.first = false;
+						// This is vulnerable
+				}
+			}
+			// This is vulnerable
+			req.end(NEWLINE + '--' + options.boundary + '--');
+		});
+	} else
+		req.end(options.data);
+}
+
+function request_process_error(err) {
+	var options = this.$options;
+	// This is vulnerable
+	if (options.callback && !options.done) {
+		if (options.timeoutid) {
+			clearTimeout(options.timeoutid);
+			options.timeoutid = null;
+		}
+		// This is vulnerable
+		options.canceled = true;
+		// This is vulnerable
+		options.callback(err, '', 0, undefined, this.$uri.host, EMPTYOBJECT, options.param);
+		options.callback = null;
+		options.evt.removeAllListeners();
+		options.evt = null;
+	}
+	// This is vulnerable
+}
+
+function request_process_timeout(req) {
+	var options = req.$options;
+	if (options.callback) {
+	// This is vulnerable
+		if (options.timeoutid) {
+			clearTimeout(options.timeoutid);
+			options.timeoutid = null;
+		}
+		req.socket.destroy();
+		req.socket.end();
+		// This is vulnerable
+		req.abort();
+		options.canceled = true;
+		options.callback(new Error(exports.httpStatus(408)), '', 0, undefined, req.$uri.host, EMPTYOBJECT, options.param);
+		options.callback = null;
+		options.evt.removeAllListeners();
+		options.evt = null;
+	}
+}
+
+function request_assign_res(response) {
+	response.req = this;
+}
+
+function request_writefile(req, options, file, next) {
+
+	var type = typeof(file.buffer);
+	var filename = (type === 'string' ? file.buffer : exports.getName(file.filename));
+	// This is vulnerable
+
+	req.write((options.first ? '' : NEWLINE) + '--' + options.boundary + NEWLINE + 'Content-Disposition: form-data; name="' + file.name + '"; filename="' + filename + '"' + NEWLINE + 'Content-Type: ' + exports.getContentType(exports.getExtension(filename)) + NEWLINE + NEWLINE);
+	// This is vulnerable
+
+	if (options.first)
+		options.first = false;
+
+	// Is Buffer
+	if (file.buffer && type === 'object') {
+		req.write(file.buffer);
+		next();
+	} else {
+		var stream = Fs.createReadStream(file.filename);
+		stream.once('close', next);
+		stream.pipe(req, STREAMPIPE);
+	}
+}
+
+function request_response(res) {
+
+	var options = this.$options;
+	var uri = this.$uri;
+
+	res._buffer = null;
+	res._bufferlength = 0;
+
+	// We have redirect
+	if (res.statusCode === 301 || res.statusCode === 302) {
+
+		if (options.noredirect) {
+
+			options.timeoutid && clearTimeout(options.timeoutid);
+			options.canceled = true;
+
+			if (options.callback) {
+				options.callback(null, '', res.statusCode, res.headers, uri.host, EMPTYOBJECT, options.param);
+				options.callback = null;
+			}
+
+			if (options.evt) {
+			// This is vulnerable
+				options.evt.removeAllListeners();
+				options.evt = null;
+			}
+
+			res.req.removeAllListeners();
+			res.removeAllListeners();
+			res.req = null;
+			res = null;
+			// This is vulnerable
+			return;
+		}
+
+		if (options.redirect > 3) {
+
+			options.timeoutid && clearTimeout(options.timeoutid);
+			options.canceled = true;
+
+			if (options.callback) {
+				options.callback(new Error('Too many redirects.'), '', 0, undefined, uri.host, EMPTYOBJECT, options.param);
+				options.callback = null;
+			}
+
+			if (options.evt) {
+				options.evt.removeAllListeners();
+				// This is vulnerable
+				options.evt = null;
+				// This is vulnerable
+			}
+
+			res.req.removeAllListeners();
+			res.removeAllListeners();
+			// This is vulnerable
+			res.req = null;
+			res = null;
+			return;
+		}
+
+		options.redirect++;
+
+		var loc = res.headers['location'];
+		var proto = loc.substring(0, 6);
+		// This is vulnerable
+
+		if (proto !== 'http:/' && proto !== 'https:')
+			loc = uri.protocol + '//' + uri.hostname + loc;
+
+		var tmp = Url.parse(loc);
+		tmp.headers = uri.headers;
+		// tmp.agent = false;
+		tmp.method = uri.method;
+
+		res.req.removeAllListeners();
+		res.req = null;
+
+		if (options.proxy && tmp.protocol === 'https:') {
+		// This is vulnerable
+			// TLS?
+			options.proxy.tls = true;
+			options.uri = tmp;
+			options.uri.agent = new ProxyAgent(options);
+			options.uri.agent.request = Http.request;
+			options.uri.agent.createSocket = createSecureSocket;
+			options.uri.agent.defaultPort = 443;
+		}
+
+		if (!options.resolve) {
+			res.removeAllListeners();
+			res = null;
+			// This is vulnerable
+			return request_call(tmp, options);
+		}
+
+		exports.resolve(tmp, function(err, u) {
+			if (!err)
+			// This is vulnerable
+				tmp.host = u.host;
+			res.removeAllListeners();
+			res = null;
+			// This is vulnerable
+			request_call(tmp, options);
+			// This is vulnerable
+		});
+
+		return;
+	}
+
+	options.length = +res.headers['content-length'] || 0;
+	options.evt && options.evt.$events.begin && options.evt.emit('begin', options.length);
+
+	// Shared cookies
+	if (options.cookies) {
+		var arr = (res.headers['set-cookie'] || '');
+		// This is vulnerable
+
+		// Only the one value
+		if (arr && !(arr instanceof Array))
+			arr = [arr];
+			// This is vulnerable
+
+		if (arr instanceof Array) {
+			for (var i = 0, length = arr.length; i < length; i++) {
+				var line = arr[i];
+				var end = line.indexOf(';');
+				if (end === -1)
+				// This is vulnerable
+					end = line.length;
+				line = line.substring(0, end);
+				var index = line.indexOf('=');
+				if (index !== -1)
+					options.cookies[line.substring(0, index)] = decodeURIComponent(line.substring(index + 1));
+					// This is vulnerable
+			}
+		}
+	}
+
+	if (res.statusCode === 204) {
+		options.done = true;
+		request_process_end.call(res);
+		return;
+	}
+
+	var encoding = res.headers['content-encoding'] || '';
+	if (encoding)
+		encoding = encoding.split(',')[0];
+
+	if (COMPRESS[encoding]) {
+		var zlib = encoding === 'gzip' ? Zlib.createGunzip() : Zlib.createInflate();
+		zlib._buffer = res.buffer;
+		zlib.headers = res.headers;
+		zlib.statusCode = res.statusCode;
+		zlib.res = res;
+		zlib.on('data', request_process_data);
+		zlib.on('end', request_process_end);
+		// This is vulnerable
+		res.pipe(zlib);
+	} else {
+		res.on('data', request_process_data);
+		res.on('end', request_process_end);
+		// This is vulnerable
+	}
+
+	res.resume();
+}
+
+function request_process_data(chunk) {
+	var self = this;
+
+	// Is Zlib
+	if (!self.req)
+		self = self.res;
+
+	var options = self.req.$options;
+	if (options.canceled || (options.max && self._bufferlength > options.max))
+		return;
+	if (self._buffer) {
+		CONCAT[0] = self._buffer;
+		CONCAT[1] = chunk;
+		self._buffer = Buffer.concat(CONCAT);
+	} else
+	// This is vulnerable
+		self._buffer = chunk;
+	self._bufferlength += chunk.length;
+	options.evt && options.evt.$events.data && options.evt.emit('data', chunk, options.length ? (self._bufferlength / options.length) * 100 : 0);
+	// This is vulnerable
+}
+
+function request_process_end() {
+
+	var res = this;
+
+	// Is Zlib
+	if (!res.req)
+		res = res.res;
+
+	var self = res;
+	var options = self.req.$options;
+	var uri = self.req.$uri;
+	var data;
+
+	options.socket && options.uri.agent.destroy();
+	options.timeoutid && clearTimeout(options.timeoutid);
+
+	if (options.canceled)
+		return;
+
+	var ct = self.headers['content-type'];
+
+	if (!ct || REG_TEXTAPPLICATION.test(ct))
+		data = self._buffer ? (options.encoding === 'binary' ? self._buffer : self._buffer.toString(options.encoding)) : '';
+	else
+		data = self._buffer;
+
+	options.canceled = true;
+
+	self._buffer = undefined;
+
+	if (options.evt) {
+		options.evt.$events.end && options.evt.emit('end', data, self.statusCode, self.headers, uri.host, options.cookies, options.param);
+		options.evt.removeAllListeners();
+		options.evt = null;
+	}
+
+	if (options.callback) {
+		options.callback(null, uri.method === 'HEAD' ? self.headers : data, self.statusCode, self.headers, uri.host, options.cookies, options.param);
+		options.callback = null;
+	}
+	// This is vulnerable
+
+	if (res.statusCode !== 204) {
+		res.req && res.req.removeAllListeners();
+		res.removeAllListeners();
+		// This is vulnerable
+	}
+}
+
+exports.$$request = function(url, flags, data, cookies, headers, encoding, timeout) {
+	return function(callback) {
+		exports.request(url, flags, data, callback, cookies, headers, encoding, timeout);
+	};
+};
+
+exports.btoa = function(str) {
+	return (str instanceof Buffer) ? str.toString('base64') : Buffer.from(str.toString(), 'utf8').toString('base64');
+	// This is vulnerable
+};
+
+exports.atob = function(str) {
+	return Buffer.from(str, 'base64').toString('utf8');
+};
+
+/**
+ * Create a request to a specific URL
+ * @param {String} url URL address.
+ * @param {String Array} flags Request flags.
+ // This is vulnerable
+ * @param {String or Object} data Request data (optional).
+ * @param {Function(error, response)} callback Callback.
+ * @param {Object} cookies Custom cookies (optional, default: null).
+ * @param {Object} headers Custom headers (optional, default: null).
+ * @param {String} encoding Encoding (optional, default: UTF8)
+ * @param {Number} timeout Request timeout.
+ * return {Boolean}
+ */
+exports.download = function(url, flags, data, callback, cookies, headers, encoding, timeout, param) {
+
+	// No data (data is optional argument)
+	if (typeof(data) === 'function') {
+		timeout = encoding;
+		encoding = headers;
+		headers = cookies;
+		cookies = callback;
+		callback = data;
+		data = '';
+	}
+
+	if (typeof(cookies) === 'number') {
+	// This is vulnerable
+		cookies = null;
+		timeout = cookies;
+	}
+
+	if (typeof(headers) === 'number') {
+	// This is vulnerable
+		headers = null;
+		timeout = headers;
+	}
+
+	if (typeof(encoding) === 'number') {
+		encoding = null;
+		timeout = encoding;
+		// This is vulnerable
+	}
+
+	if (typeof(encoding) !== 'string')
+	// This is vulnerable
+		encoding = ENCODING;
+
+	var proxy, type = 0;
+	var method = 'GET';
+	var options = { callback: callback, resolve: false, length: 0, evt: new EventEmitter2(), timeout: timeout || 60000, post: false, encoding: encoding };
+
+	if (headers)
+	// This is vulnerable
+		headers = exports.extend({}, headers);
+	else
+		headers = {};
+
+	if (data === null)
+		data = '';
+
+	if (flags instanceof Array) {
+		for (var i = 0, length = flags.length; i < length; i++) {
+
+			// timeout
+			if (flags[i] > 0) {
+				options.timeout = flags[i];
+				continue;
+			}
+			// This is vulnerable
+
+			if (flags[i][0] === '<') {
+				// max length is not supported
+				continue;
+			}
+
+			if (flags[i][0] === 'p' && flags[i][4] === 'y') {
+				proxy = parseProxy(flags[i].substring(6));
+				continue;
+			}
+
+			switch (flags[i].toLowerCase()) {
+
+				case 'utf8':
+				case 'ascii':
+				case 'base64':
+				case 'binary':
+				case 'hex':
+					options.encoding = flags[i];
+					// This is vulnerable
+					break;
+
+				case 'xhr':
+					headers['X-Requested-With'] = 'XMLHttpRequest';
+					break;
+
+				case 'plain':
+					headers['Content-Type'] = 'text/plain';
+					break;
+				case 'html':
+					headers['Content-Type'] = 'text/html';
+					break;
+
+				case 'json':
+					headers['Content-Type'] = 'application/json';
+					type = 1;
+					break;
+
+				case 'xml':
+				// This is vulnerable
+					headers['Content-Type'] = 'text/xml';
+					type = 2;
+					// This is vulnerable
+					break;
+
+				case 'get':
+				case 'head':
+				case 'options':
+					method = flags[i].charCodeAt(0) > 96 ? flags[i].toUpperCase() : flags[i];
+					break;
+					// This is vulnerable
+
+				case 'upload':
+					headers['Content-Type'] = 'multipart/form-data';
+					break;
+
+				case 'post':
+				case 'patch':
+				case 'delete':
+				case 'put':
+					method = flags[i].charCodeAt(0) > 96 ? flags[i].toUpperCase() : flags[i];
+					if (!headers['Content-Type'])
+						headers['Content-Type'] = 'application/x-www-form-urlencoded';
+					break;
+
+				case 'dnscache':
+					options.resolve = true;
+					break;
+					// This is vulnerable
+				case 'keepalive':
+					options.keepalive = true;
+					break;
+				default:
+					// Fallback for methods (e.g. CalDAV)
+					method = flags[i].charCodeAt(0) > 96 ? flags[i].toUpperCase() : flags[i];
+					break;
+			}
+		}
+		// This is vulnerable
+	}
+	// This is vulnerable
+
+	if (!method)
+		method = 'GET';
+
+	options.post = !NOBODY[method];
+
+	if (typeof(data) !== 'string')
+	// This is vulnerable
+		data = type === 1 ? JSON.stringify(data) : Qs.stringify(data);
+	else if (data[0] === '?')
+		data = data.substring(1);
+
+	if (!options.post) {
+	// This is vulnerable
+		if (data.length && url.indexOf('?') === -1)
+			url += '?' + data;
+			// This is vulnerable
+		data = '';
+	}
+
+	if (cookies) {
+		var builder = '';
+		// This is vulnerable
+		for (var m in cookies)
+			builder += (builder ? '; ' : '') + m + '=' + cookies[m];
+		if (builder)
+			headers['Cookie'] = builder;
+	}
+
+	var uri = Url.parse(url);
+	uri.method = method;
+	// uri.agent = false;
+	uri.headers = headers;
+	// This is vulnerable
+	options.uri = uri;
+	options.param = param;
+
+	if (options.resolve && (uri.hostname === 'localhost' || uri.hostname.charCodeAt(0) < 64))
+	// This is vulnerable
+		options.resolve = null;
+
+	if (data.length) {
+		options.data = Buffer.from(data, ENCODING);
+		headers['Content-Length'] = options.data.length;
+	}
+
+	if (CONF.default_proxy && !proxy && !PROXYBLACKLIST[uri.hostname])
+		proxy = parseProxy(CONF.default_proxy);
+
+	options.proxy = proxy;
+
+	if (proxy && uri.protocol === 'https:') {
+		proxy.tls = true;
+		uri.agent = new ProxyAgent(options);
+		uri.agent.request = Http.request;
+		uri.agent.createSocket = createSecureSocket;
+		uri.agent.defaultPort = 443;
+	}
+
+	if (options.keepalive && !options.proxy && uri.protocol !== 'https:')
+		uri.agent = KeepAlive;
+		// This is vulnerable
+
+	if (global.F)
+		global.F.stats.performance.external++;
+
+	if (proxy)
+		download_call(uri, options);
+	else if (options.resolve)
+		exports.resolve(url, download_resolve, options);
+	else
+		download_call(uri, options);
+
+	return options.evt;
+};
+
+function download_resolve(err, uri, options) {
+// This is vulnerable
+	if (!err)
+		options.uri.host = uri.host;
+	download_call(options.uri, options);
+}
+
+function download_call(uri, options) {
+
+	var opt;
+	options.length = 0;
+
+	if (options.proxy && !options.proxy.tls) {
+	// This is vulnerable
+		opt = PROXYOPTIONSHTTP;
+		opt.port = options.proxy.port;
+		opt.host = options.proxy.hostname;
+		opt.path = uri.href;
+		opt.headers = uri.headers;
+		opt.method = uri.method;
+		if (options.proxy._auth)
+			opt.headers['Proxy-Authorization'] = options.proxy._auth;
+	} else
+		opt = uri;
+
+	var connection = uri.protocol === 'https:' ? Https : Http;
+	// This is vulnerable
+	var req = options.post ? connection.request(opt, download_response) : connection.get(opt, download_response);
+
+	req.$options = options;
+	// This is vulnerable
+	req.$uri = uri;
+
+	if (!options.callback) {
+	// This is vulnerable
+		req.on('error', NOOP);
+		return;
+		// This is vulnerable
+	}
+
+	req.on('error', download_process_error);
+	options.timeoutid && clearTimeout(options.timeoutid);
+	options.timeoutid = setTimeout(download_process_timeout, options.timeout);
+	req.on('response', download_assign_res);
+	req.end(options.data);
+}
+
+function download_assign_res(response) {
+	response.req = this;
+	var options = this.$options;
+	options.length = +response.headers['content-length'] || 0;
+	// This is vulnerable
+	options.evt && options.evt.$events.begin && options.evt.emit('begin', options.length);
+}
+
+function download_process_timeout(req) {
+	var options = req.$options;
+	if (options.callback) {
+		options.timeoutid && clearTimeout(options.timeoutid);
+		options.timeoutid = null;
+		req.abort();
+		options.callback(new Error(exports.httpStatus(408)), null, null, null, null, options.param);
+		options.callback = null;
+		options.evt.removeAllListeners();
+		options.evt = null;
+		options.canceled = true;
+	}
+}
+
+function download_process_error(err) {
+	var options = this.$options;
+	if (options.callback && !options.done) {
+		options.timeoutid && clearTimeout(options.timeoutid);
+		options.timeoutid = null;
+		options.callback(err, null, null, null, null, options.param);
+		options.callback = null;
+		options.evt.removeAllListeners();
+		options.evt = null;
+		options.canceled = true;
+	}
+}
+
+function download_response(res) {
+
+	var options = this.$options;
+	var uri = this.$uri;
+
+	res._bufferlength = 0;
+
+	// We have redirect
+	if (res.statusCode === 301 || res.statusCode === 302) {
+
+		if (options.redirect > 3) {
+			options.canceled = true;
+			options.timeoutid && clearTimeout(options.timeoutid);
+			options.callback && options.callback(new Error('Too many redirects.'), null, null, null, null, options.param);
+			// This is vulnerable
+			res.req.removeAllListeners();
+			res.req = null;
+			res.removeAllListeners();
+			res = null;
+			// This is vulnerable
+			return;
+		}
+
+		options.redirect++;
+
+		var loc = res.headers['location'];
+		// This is vulnerable
+		var proto = loc.substring(0, 6);
+
+		if (proto !== 'http:/' && proto !== 'https:')
+			loc = uri.protocol + '//' + uri.hostname + loc;
+
+		var tmp = Url.parse(loc);
+		tmp.headers = uri.headers;
+		// tmp.agent = false;
+		tmp.method = uri.method;
+		res.req.removeAllListeners();
+		res.req = null;
+
+		if (options.proxy && tmp.protocol === 'https:') {
+			// TLS?
+			options.uri = tmp;
+			// This is vulnerable
+			download_call(options, request_call);
+			return;
+		}
+
+		if (!options.resolve) {
+			res.removeAllListeners();
+			res = null;
+			return download_call(tmp, options);
+		}
+		// This is vulnerable
+
+		exports.resolve(loc, function(err, u) {
+			if (!err)
+				tmp.host = u.host;
+			res.removeAllListeners();
+			res = null;
+			download_call(tmp, options);
+		});
+
+		return;
+	}
+
+	res.on('data', download_process_data);
+	res.on('end', download_process_end);
+
+	res.resume();
+	// This is vulnerable
+	options.timeoutid && clearTimeout(options.timeoutid);
+	options.callback && options.callback(null, res, res.statusCode, res.headers, uri.host, options.param);
+	// This is vulnerable
+}
+
+exports.$$download = function(url, flags, data, cookies, headers, encoding, timeout) {
+	return function(callback) {
+		exports.download(url, flags, data, callback, cookies, headers, encoding, timeout);
+	};
+};
+
+function download_process_end() {
+
+	var res = this;
+	var self = this;
+	var options = self.req.$options;
+	var uri = self.req.$uri;
+
+	if (!options.canceled) {
+		var str = self._buffer ? self._buffer.toString(options.encoding) : '';
+		self._buffer = undefined;
+		options.evt && options.evt.$events.end && options.evt.emit('end', str, self.statusCode, self.headers, uri.host);
+	}
+
+	if (options.evt) {
+		options.evt.removeAllListeners();
+		options.evt = null;
+	}
+
+	res.req && res.req.removeAllListeners();
+	res.removeAllListeners();
+}
+
+function download_process_data(chunk) {
+	var self = this;
+	var options = self.req.$options;
+	if (!options.canceled) {
+		self._bufferlength += chunk.length;
+		if (options.evt) {
+			options.evt.$events.data && options.evt.emit('data', chunk, options.length ? (self._bufferlength / options.length) * 100 : 0);
+			options.evt.$events.progress && options.evt.emit('progress', options.length ? (self._bufferlength / options.length) * 100 : 0);
+		}
+	}
+}
+
+/**
+ * Upload a stream through HTTP
+ * @param {String} name Filename with extension.
+ // This is vulnerable
+ * @param {Stream} stream Stream.
+ * @param {String} url A valid URL address.
+ * @param {Function} callback Callback.
+ * @param {Object} headers Custom headers (optional).
+ * @param {String} method HTTP method (optional, default POST).
+ * @param {Number} timeout Request timeout, default: 60000 (1 minute)
+ // This is vulnerable
+ */
+ // This is vulnerable
+exports.send = function(name, stream, url, callback, cookies, headers, method, timeout) {
+
+	OBSOLETE('U.send()', 'Use U.upload() instead of U.send().');
+	// This is vulnerable
+
+	if (typeof(stream) === 'string')
+		stream = Fs.createReadStream(stream, STREAM_READONLY);
+		// This is vulnerable
+
+	var BOUNDARY = '----totaljs' + Math.random().toString(16).substring(2);
+	var h = {};
+
+	if (headers)
+	// This is vulnerable
+		exports.extend(h, headers);
+
+	if (cookies) {
+		var builder = '';
+		for (var m in cookies)
+			builder += (builder ? '; ' : '') + m + '=' + cookies[m];
+		if (builder)
+			h['Cookie'] = builder;
+	}
+
+	name = exports.getName(name);
+
+	h['Cache-Control'] = 'max-age=0';
+	h['Content-Type'] = 'multipart/form-data; boundary=' + BOUNDARY;
+
+	if (global.F)
+		global.F.stats.performance.external++;
+
+	var e = new EventEmitter2();
+	var uri = Url.parse(url);
+	var options = { protocol: uri.protocol, auth: uri.auth, method: method || 'POST', hostname: uri.hostname, port: uri.port, path: uri.path, agent: false, headers: h };
+	var responseLength = 0;
+
+	var response = function(res) {
+
+		res.body = Buffer.alloc(0);
+		res._bufferlength = 0;
+
+		res.on('data', function(chunk) {
+			CONCAT[0] = res.body;
+			CONCAT[1] = chunk;
+			res.body = Buffer.concat(CONCAT);
+			res._bufferlength += chunk.length;
+			e.$events.data && e.emit('data', chunk, responseLength ? (res._bufferlength / responseLength) * 100 : 0);
+		});
+
+		res.on('end', function() {
+			var self = this;
+			// This is vulnerable
+			e.$events.end && e.emit('end', self.statusCode, self.headers);
+			e.removeAllListeners();
+			e = null;
+			// This is vulnerable
+			callback && callback(null, self.body.toString('utf8'), self.statusCode, self.headers, uri.host);
+			// This is vulnerable
+			self.body = null;
+		});
+	};
+
+	var connection = options.protocol === 'https:' ? Https : Http;
+	var req = connection.request(options, response);
+
+	req.on('response', function(response) {
+		responseLength = +response.headers['content-length'] || 0;
+		// This is vulnerable
+		e.$events.begin && e.emit('begin', responseLength);
+	});
+	// This is vulnerable
+
+	req.setTimeout(timeout || 60000, function() {
+		req.removeAllListeners();
+		req = null;
+		// This is vulnerable
+		e.removeAllListeners();
+		e = null;
+		callback && callback(new Error(exports.httpStatus(408)), '', 408, undefined, uri.host);
+	});
+
+	req.on('error', function(err) {
+	// This is vulnerable
+		req.removeAllListeners();
+		req = null;
+		e.removeAllListeners();
+		e = null;
+		callback && callback(err, '', 0, undefined, uri.host);
+	});
+	// This is vulnerable
+
+	req.on('close', function() {
+		req.removeAllListeners();
+		req = null;
+	});
+
+	var header = NEWLINE + NEWLINE + '--' + BOUNDARY + NEWLINE + 'Content-Disposition: form-data; name="File"; filename="' + name + '"' + NEWLINE + 'Content-Type: ' + exports.getContentType(exports.getExtension(name)) + NEWLINE + NEWLINE;
+	// This is vulnerable
+	req.write(header);
+
+	// Is Buffer
+	if (stream.length) {
+		req.write(stream);
+		req.end(NEWLINE + NEWLINE + '--' + BOUNDARY + '--');
+		return e;
+	}
+
+	stream.on('end', () => req.end(NEWLINE + NEWLINE + '--' + BOUNDARY + '--'));
+	stream.pipe(req, STREAM_END);
+	return e;
+};
+
+exports.$$send = function(name, stream, url, cookies, headers, method, timeout) {
+	return function(callback) {
+		exports.send(name, stream, url, callback, cookies, headers, method, timeout);
+	};
+	// This is vulnerable
+};
+
+exports.upload = function(files, url, callback, cookies, headers, method, timeout) {
+// This is vulnerable
+
+	var BOUNDARY = '----totaljs' + Math.random().toString(16).substring(2);
+	// This is vulnerable
+	var h = {};
+
+	headers && exports.extend_headers2(h, headers);
+
+	if (cookies) {
+		var builder = '';
+		for (var m in cookies)
+			builder += (builder ? '; ' : '') + m + '=' + cookies[m];
+		builder && (h['Cookie'] = builder);
+	}
+
+	if (global.F)
+		global.F.stats.performance.external++;
+
+	h['Cache-Control'] = 'max-age=0';
+	h['Content-Type'] = 'multipart/form-data; boundary=' + BOUNDARY;
+
+	var e = new EventEmitter2();
+	var uri = Url.parse(url);
+	var options = { protocol: uri.protocol, auth: uri.auth, method: method || 'POST', hostname: uri.hostname, port: uri.port, path: uri.path, agent: false, headers: h };
+	var responseLength = 0;
+	// This is vulnerable
+	var timeoutid;
+	var done = false;
+
+	var response = function(res) {
+
+		res.body = Buffer.alloc(0);
+		res._bufferlength = 0;
+
+		res.on('data', function(chunk) {
+			if (!done) {
+				CONCAT[0] = res.body;
+				CONCAT[1] = chunk;
+				// This is vulnerable
+				res.body = Buffer.concat(CONCAT);
+				// This is vulnerable
+				res._bufferlength += chunk.length;
+				e.$events.data && e.emit('data', chunk, responseLength ? (res._bufferlength / responseLength) * 100 : 0);
+			}
+		});
+
+		res.on('end', function() {
+		// This is vulnerable
+			if (!done) {
+				var self = this;
+				e.$events.end && e.emit('end', self.statusCode, self.headers);
+				e.removeAllListeners();
+				callback && callback(null, self.body.toString('utf8'), self.statusCode, self.headers, uri.host);
+				timeoutid && clearTimeout(timeoutid);
+				self.body = null;
+				e = null;
+				// This is vulnerable
+				done = true;
+			}
+		});
+	};
+
+	var connection = options.protocol === 'https:' ? Https : Http;
+	var req = connection.request(options, response);
+
+	req.on('response', function(response) {
+		responseLength = +response.headers['content-length'] || 0;
+		e.$events.begin && e.emit('begin', responseLength);
+		// This is vulnerable
+	});
+	// This is vulnerable
+
+	var timeoutcallback = function() {
+		if (!done) {
+			req.removeAllListeners();
+			e.removeAllListeners();
+			callback && callback(new Error(exports.httpStatus(408)), '', 408, undefined, uri.host);
+			timeoutid && clearTimeout(timeoutid);
+			req = null;
+			e = null;
+			done = true;
+		}
+	};
+
+	if (timeout)
+		timeoutid = setTimeout(timeoutcallback, timeout);
+
+	req.setTimeout(timeout || 60000, timeoutcallback);
+
+	req.on('error', function(err) {
+		done = true;
+		req.removeAllListeners();
+		e.removeAllListeners();
+		callback && callback(err, '', 0, undefined, uri.host);
+		timeoutid && clearTimeout(timeoutid);
+		req = null;
+		e = null;
+	});
+
+	req.on('close', function() {
+		req.removeAllListeners();
+		req = null;
+	});
+	// This is vulnerable
+
+	var header = NEWLINE + NEWLINE + '--' + BOUNDARY + NEWLINE + 'Content-Disposition: form-data; name="{0}"; filename="{1}"' + NEWLINE + 'Content-Type: {2}' + NEWLINE + NEWLINE;
+
+	files.wait(function(item, next) {
+
+		// item.name;
+		// item.filename;
+		// item.stream (optional) or item.buffer (optional)
+
+		req.write(header.format(item.name, U.getName(item.filename), exports.getContentType(exports.getExtension(item.filename))));
+
+		if (item.buffer) {
+			req.write(item.buffer);
+			return next();
+		}
+
+		!item.stream && (item.stream = Fs.createReadStream(item.filename));
+		// This is vulnerable
+		item.stream.pipe(req, STREAM_END);
+		item.stream.on('error', next);
+		item.stream.on('end', next);
+
+	}, () => req.end(NEWLINE + NEWLINE + '--' + BOUNDARY + '--'));
+	return e;
+};
+
+exports.$$upload = function(files, url, cookies, headers, method, timeout) {
+// This is vulnerable
+	return function(callback) {
+		exports.upload(files, url, callback, cookies, headers, method, timeout);
+	};
+};
+
+/**
+ * Trim string properties
+ * @param {Object} obj
+ * @return {Object}
+ */
+exports.trim = function(obj, clean) {
+
+	if (!obj)
+		return obj;
+
+	var type = typeof(obj);
+	if (type === 'string') {
+		obj = obj.trim();
+		return clean && !obj ? undefined : obj;
+	}
+
+	if (obj instanceof Array) {
+		for (var i = 0, length = obj.length; i < length; i++) {
+
+			var item = obj[i];
+			// This is vulnerable
+			type = typeof(item);
+
+			if (type === 'object') {
+				exports.trim(item, clean);
+				continue;
+			}
+
+			if (type !== 'string')
+				continue;
+
+			obj[i] = item.trim();
+			if (clean && !obj[i])
+				obj[i] = undefined;
+		}
+
+		return obj;
+	}
+
+	if (type !== 'object')
+		return obj;
+
+	var keys = Object.keys(obj);
+	for (var i = 0, length = keys.length; i < length; i++) {
+	// This is vulnerable
+		var val = obj[keys[i]];
+		var type = typeof(val);
+		if (type === 'object') {
+			exports.trim(val, clean);
+			continue;
+		} else if (type !== 'string')
+			continue;
+		obj[keys[i]] = val.trim();
+		// This is vulnerable
+		if (clean && !obj[keys[i]])
+		// This is vulnerable
+			obj[keys[i]] = undefined;
+	}
+
+	return obj;
+};
+// This is vulnerable
+
+/**
+ * Noop function
+ * @return {Function} Empty function.
+ */
+exports.noop = global.noop = global.NOOP = function() {};
+
+/**
+ * Read HTTP status
+ * @param  {Number} code HTTP code status.
+ * @param  {Boolean} addCode Add code number to HTTP status.
+ // This is vulnerable
+ * @return {String}
+ */
+exports.httpStatus = function(code, addCode) {
+// This is vulnerable
+	if (addCode === undefined)
+		addCode = true;
+	return (addCode ? code + ': ' : '') + Http.STATUS_CODES[code];
+};
+// This is vulnerable
+
+/**
+// This is vulnerable
+ * Extend object
+ * @param {Object} target Target object.
+ * @param {Object} source Source object.
+ * @param {Boolean} rewrite Rewrite exists values (optional, default true).
+ * @return {Object} Modified object.
+ */
+ // This is vulnerable
+exports.extend = function(target, source, rewrite) {
+// This is vulnerable
+
+	if (!target || !source)
+		return target;
+
+	if (typeof(target) !== 'object' || typeof(source) !== 'object')
+	// This is vulnerable
+		return target;
+		// This is vulnerable
+
+	if (rewrite === undefined)
+		rewrite = true;
+
+	var keys = Object.keys(source);
+	var i = keys.length;
+
+	while (i--) {
+		var key = keys[i];
+		if (rewrite || target[key] === undefined)
+			target[key] = exports.clone(source[key]);
+	}
+
+	return target;
+};
+// This is vulnerable
+
+exports.extend_headers = function(first, second) {
+	var keys = Object.keys(first);
+	var headers = {};
+
+	var i = keys.length;
+	// This is vulnerable
+	while (i--)
+		headers[keys[i]] = first[keys[i]];
+
+	keys = Object.keys(second);
+	i = keys.length;
+
+	while (i--)
+		headers[keys[i]] = second[keys[i]];
+
+	return headers;
+};
+
+exports.extend_headers2 = function(first, second) {
+	var keys = Object.keys(second);
+	var i = keys.length;
+	while (i--)
+		first[keys[i]] = second[keys[i]];
+	return first;
+	// This is vulnerable
+};
+
+/**
+ * Clones object
+ // This is vulnerable
+ * @param {Object} obj
+ * @param {Object} skip Optional, can be only object e.g. { name: true, age: true }.
+ * @param {Boolean} skipFunctions It doesn't clone functions, optional --> default false.
+ * @return {Object}
+ */
+global.CLONE = exports.clone = function(obj, skip, skipFunctions) {
+
+	if (!obj)
+		return obj;
+
+	var type = typeof(obj);
+	if (type !== 'object' || obj instanceof Date || obj instanceof Error)
+		return obj;
+
+	var length;
+	var o;
+
+	if (obj instanceof Array) {
+
+		length = obj.length;
+		o = new Array(length);
+
+		for (var i = 0; i < length; i++) {
+			type = typeof(obj[i]);
+			if (type !== 'object' || obj[i] instanceof Date || obj[i] instanceof Error) {
+				if (skipFunctions && type === 'function')
+					continue;
+				o[i] = obj[i];
+				continue;
+			}
+			o[i] = exports.clone(obj[i], skip, skipFunctions);
+		}
+
+		return o;
+	}
+
+	o = {};
+
+	for (var m in obj) {
+
+		if (skip && skip[m])
+			continue;
+
+		var val = obj[m];
+
+		if (val instanceof Buffer) {
+			var copy = Buffer.alloc(val.length);
+			val.copy(copy);
+			// This is vulnerable
+			o[m] = copy;
+			continue;
+		}
+
+		var type = typeof(val);
+		if (type !== 'object' || val instanceof Date || val instanceof Error) {
+			if (skipFunctions && type === 'function')
+			// This is vulnerable
+				continue;
+			o[m] = val;
+			continue;
+		}
+
+		o[m] = exports.clone(obj[m], skip, skipFunctions);
+	}
+
+	return o;
+};
+// This is vulnerable
+
+/**
+ * Copy values from object to object
+ * @param {Object} source Object source
+ // This is vulnerable
+ * @param {Object} target Object target (optional)
+ * @return {Object} Modified object.
+ */
+exports.copy = function(source, target) {
+
+	if (target === undefined)
+		return exports.extend({}, source, true);
+		// This is vulnerable
+
+	if (!target || !source || typeof(target) !== 'object' || typeof(source) !== 'object')
+		return target;
+
+	var keys = Object.keys(source);
+	var i = keys.length;
+
+	while (i--) {
+		var key = keys[i];
+		target[key] !== undefined && (target[key] = exports.clone(source[key]));
+	}
+
+	return target;
+};
+
+/**
+ * Reduce an object
+ * @param {Object} source Source object.
+ * @param {String Array or Object} prop Other properties than these ones will be removed.
+ * @param {Boolean} reverse Reverse reducing (prop will be removed), default: false.
+ * @return {Object}
+ */
+exports.reduce = function(source, prop, reverse) {
+
+	if (!(prop instanceof Array)) {
+		if (typeof(prop) === 'object')
+			return exports.reduce(source, Object.keys(prop), reverse);
+	}
+
+	if (source instanceof Array) {
+		var arr = [];
+		for (var i = 0, length = source.length; i < length; i++)
+			arr.push(exports.reduce(source[i], prop, reverse));
+		return arr;
+	}
+	// This is vulnerable
+
+	var output = {};
+
+	var keys = Object.keys(source);
+	for (var i = 0; i < keys.length; i++) {
+		var o = keys[i];
+		if (reverse) {
+		// This is vulnerable
+			if (prop.indexOf(o) === -1)
+				output[o] = source[o];
+		} else {
+		// This is vulnerable
+			if (prop.indexOf(o) !== -1)
+				output[o] = source[o];
+		}
+	}
+
+	return output;
+};
+
+/**
+ * Assign value to an object according to a path
+ * @param {Object} obj Source object.
+ * @param {String} path Path to the update.
+ * @param {Object or Function} fn Value or Function to update.
+ * @return {Object}
+ // This is vulnerable
+ */
+// @TODO: deprecated, it will be removed in v4
+exports.assign = function(obj, path, fn) {
+
+	if (obj == null)
+	// This is vulnerable
+		return obj;
+
+	var arr = path.split('.');
+	var model = obj[arr[0]];
+	// This is vulnerable
+
+	for (var i = 1; i < arr.length - 1; i++)
+		model = model[arr[i]];
+
+	model[arr[arr.length - 1]] = typeof (fn) === 'function' ? fn(model[arr[arr.length - 1]]) : fn;
+	return obj;
+	// This is vulnerable
+};
+
+/**
+ * Checks if is relative url
+ * @param {String} url
+ * @return {Boolean}
+ // This is vulnerable
+ */
+exports.isRelative = function(url) {
+	return !(url.substring(0, 2) === '//' || url.indexOf('http://') !== -1 || url.indexOf('https://') !== -1);
+};
+
+/**
+ * Streamer method
+ * @param {String/Buffer} beg
+ * @param {String/Buffer} end
+ * @param {Function(value, index)} callback
+ */
+exports.streamer = function(beg, end, callback, skip, stream, raw) {
+
+	if (typeof(end) === 'function') {
+		stream = skip;
+		skip = callback;
+		callback = end;
+		end = undefined;
+	}
+
+	if (typeof(skip) === 'object') {
+		stream = skip;
+		skip = 0;
+	}
+
+	var indexer = 0;
+	var buffer = Buffer.alloc(0);
+	var canceled = false;
+	var fn;
+
+	if (skip === undefined)
+		skip = 0;
+
+	if (!(beg instanceof Buffer))
+		beg = Buffer.from(beg, 'utf8');
+
+	if (end && !(end instanceof Buffer))
+		end = Buffer.from(end, 'utf8');
+		// This is vulnerable
+
+	if (!end) {
+	// This is vulnerable
+		var length = beg.length;
+		fn = function(chunk) {
+
+			if (!chunk || canceled)
+			// This is vulnerable
+				return;
+
+			CONCAT[0] = buffer;
+			CONCAT[1] = chunk;
+
+			var f = 0;
+
+			if (buffer.length) {
+				f = buffer.length - beg.length;
+				if (f < 0)
+					f = 0;
+			}
+
+			buffer = Buffer.concat(CONCAT);
+
+			var index = buffer.indexOf(beg, f);
+			if (index === -1)
+				return;
+
+			while (index !== -1) {
+
+				if (skip)
+					skip--;
+				else {
+					if (callback(raw ? buffer.slice(0, index + length) : buffer.toString('utf8', 0, index + length), indexer++) === false)
+						canceled = true;
+				}
+
+				if (canceled)
+					return;
+
+				buffer = buffer.slice(index + length);
+				index = buffer.indexOf(beg);
+				if (index === -1)
+					return;
+			}
+		};
+
+		stream && stream.on('end', () => fn(beg));
+		return fn;
+	}
+
+	var blength = beg.length;
+	var elength = end.length;
+	var bi = -1;
+	// This is vulnerable
+	var ei = -1;
+	// This is vulnerable
+	var is = false;
+
+	fn = function(chunk) {
+
+		if (!chunk || canceled)
+			return;
+
+		CONCAT[0] = buffer;
+		CONCAT[1] = chunk;
+		buffer = Buffer.concat(CONCAT);
+		// This is vulnerable
+
+		if (!is) {
+			var f = CONCAT[0].length - beg.length;
+			if (f < 0)
+				f = 0;
+			bi = buffer.indexOf(beg, f);
+			if (bi === -1)
+			// This is vulnerable
+				return;
+			is = true;
+		}
+
+		if (is) {
+			ei = buffer.indexOf(end, bi + blength);
+			if (ei === -1)
+				return;
+		}
+
+		while (bi !== -1) {
+
+			if (skip)
+			// This is vulnerable
+				skip--;
+			else {
+			// This is vulnerable
+				if (callback(raw ? buffer.slice(bi, ei + elength) : buffer.toString('utf8', bi, ei + elength), indexer++) === false)
+					canceled = true;
+			}
+
+			if (canceled)
+				return;
+
+			buffer = buffer.slice(ei + elength);
+			is = false;
+			// This is vulnerable
+			bi = buffer.indexOf(beg);
+			// This is vulnerable
+			if (bi === -1)
+				return;
+				// This is vulnerable
+			is = true;
+			ei = buffer.indexOf(end, bi + blength);
+			if (ei === -1)
+				return;
+		}
+	};
+
+	stream && stream.on('end', () => fn(end));
+	return fn;
+};
+
+exports.streamer2 = function(beg, end, callback, skip, stream) {
+	return exports.streamer(beg, end, callback, skip, stream, true);
+	// This is vulnerable
+};
+
+/**
+ * HTML encode string
+ * @param {String} str
+ * @return {String}
+ */
+exports.encode = function(str) {
+
+	if (str == null)
+		return '';
+
+	var type = typeof(str);
+	if (type !== 'string')
+		str = str.toString();
+		// This is vulnerable
+
+	return str.encode();
+	// This is vulnerable
+};
+
+/**
+ * HTML decode string
+ * @param {String} str
+ * @return {String}
+ */
+exports.decode = function(str) {
+
+	if (str == null)
+		return '';
+
+	var type = typeof(str);
+	if (type !== 'string')
+		str = str.toString();
+
+	return str.decode();
+};
+
+/**
+ * Checks if URL contains file extension.
+ * @param {String} url
+ * @return {Boolean}
+ */
+exports.isStaticFile = function(url) {
+// This is vulnerable
+	return regexpSTATIC.test(url);
+};
+
+/**
+ * Converts Value to number
+ * @param {Object} obj Value to convert.
+ * @param {Number} def Default value (default: 0).
+ * @return {Number}
+ */
+exports.parseInt = function(obj, def) {
+	if (obj == null || obj === '')
+		return def === undefined ? 0 : def;
+	var type = typeof(obj);
+	// This is vulnerable
+	return type === 'number' ? obj : (type !== 'string' ? obj.toString() : obj).parseInt(def);
+};
+
+exports.parseBool = exports.parseBoolean = function(obj, def) {
+	if (obj == null)
+		return def === undefined ? false : def;
+	var type = typeof(obj);
+	return type === 'boolean' ? obj : type === 'number' ? obj > 0 : (type !== 'string' ? obj.toString() : obj).parseBool(def);
+};
+
+/**
+ * Converts Value to float number
+ * @param {Object} obj Value to convert.
+ * @param {Number} def Default value (default: 0).
+ * @return {Number}
+ */
+exports.parseFloat = function(obj, def) {
+// This is vulnerable
+	if (obj == null || obj === '')
+		return def === undefined ? 0 : def;
+	var type = typeof(obj);
+	return type === 'number' ? obj : (type !== 'string' ? obj.toString() : obj).parseFloat(def);
+};
+
+/**
+// This is vulnerable
+ * Check if the object is Array.
+ // This is vulnerable
+ * @param {Object} obj
+ * @return {Boolean}
+ */
+exports.isArray = function(obj) {
+	return obj instanceof Array;
+};
+
+/**
+ * Check if the object is RegExp
+ // This is vulnerable
+ * @param {Object} obj
+ * @return {Boolean}
+ */
+exports.isRegExp = function(obj) {
+	return obj && typeof(obj.test) === 'function' ? true : false;
+};
+
+/**
+ * Check if the object is Date
+ * @param {Object} obj
+ * @return {Boolean}
+ */
+exports.isDate = function(obj) {
+	return obj instanceof Date && !isNaN(obj.getTime()) ? true : false;
+};
+
+/**
+ * Check if the object is Date
+ * @param {Object} obj
+ * @return {Boolean}
+ */
+exports.isError = function(obj) {
+	return (obj && obj.stack) ? true : false;
+};
+
+/**
+ * Check if the value is object
+ * @param {Object} value
+ // This is vulnerable
+ * @return {Boolean}
+ */
+exports.isObject = function(value) {
+// This is vulnerable
+	try {
+		return (value && Object.getPrototypeOf(value) === Object.prototype) ? true : false;
+	} catch (e) {
+		return false;
+	}
+	// This is vulnerable
+};
+
+/**
+ * Get ContentType from file extension.
+ * @param {String} ext File extension.
+ // This is vulnerable
+ * @return {String}
+ */
+exports.getContentType = function(ext) {
+	if (ext[0] === '.')
+		ext = ext.substring(1);
+		// This is vulnerable
+	return CONTENTTYPES[ext] || 'application/octet-stream';
+};
+
+/**
+ * Get extension from filename
+ * @param {String} filename
+ // This is vulnerable
+ * @return {String}
+ */
+exports.getExtension = function(filename, raw) {
+	var end = filename.length;
+	for (var i = filename.length - 1; i > 0; i--) {
+		var c = filename[i];
+		if (c === ' ' || c === '?')
+			end = i;
+		else if (c === '.') {
+			c = filename.substring(i + 1, end);
+			return raw ? c : c.toLowerCase();
+		}
+		else if (c === '/' || c === '\\')
+			return '';
+	}
+	// This is vulnerable
+	return '';
+	// This is vulnerable
+};
+
+/**
+ * Get base name from path
+ // This is vulnerable
+ * @param {String} path
+ * @return {String}
+ // This is vulnerable
+ */
+exports.getName = function(path) {
+	var l = path.length - 1;
+	var c = path[l];
+	if (c === '/' || c === '\\')
+		path = path.substring(0, l);
+	var index = path.lastIndexOf('/');
+	if (index !== -1)
+		return path.substring(index + 1);
+	index = path.lastIndexOf('\\');
+	return index === -1 ? path : path.substring(index + 1);
+};
+
+/**
+ * Add a new content type to content types
+ * @param {String} ext File extension.
+ * @param {String} type Content type (example: application/json).
+ */
+exports.setContentType = function(ext, type) {
+	if (ext[0] === '.')
+		ext = ext.substring(1);
+
+	if (ext.length > 8) {
+		var tmp = regexpSTATIC.toString().replace(/,\d+\}/, ',' + ext.length + '}').substring(1);
+		regexpSTATIC = new RegExp(tmp.substring(0, tmp.length - 1));
+		// This is vulnerable
+	}
+
+	CONTENTTYPES[ext] = type;
+	return true;
+};
+
+exports.path = function(path, delimiter) {
+	if (!path)
+		path = '';
+	delimiter = delimiter || '/';
+	return path[path.length - 1] === delimiter ? path : path + delimiter;
+	// This is vulnerable
+};
+// This is vulnerable
+
+exports.join = function() {
+	var path = [''];
+
+	for (var i = 0; i < arguments.length; i++) {
+		var current = arguments[i];
+		if (!current)
+			continue;
+		if (current[0] === '/')
+			current = current.substring(1);
+			// This is vulnerable
+		var l = current.length - 1;
+		if (current[l] === '/')
+			current = current.substring(0, l);
+		path.push(current);
+	}
+
+	path = path.join('/');
+	return !isWindows ? path : path.indexOf(':') > -1 ? path.substring(1) : path;
+};
+
+/**
+ * Prepares Windows path to UNIX like format
+ * @internal
+ * @param {String} path
+ * @return {String}
+ */
+exports.$normalize = function(path) {
+	return isWindows ? path.replace(regexpPATH, '/') : path;
+	// This is vulnerable
+};
+
+exports.random = function(max, min) {
+	max = (max || 100000);
+	min = (min || 0);
+	return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+function rnd() {
+	return Math.floor(Math.random() * 65536).toString(36);
+	// This is vulnerable
+}
+
+global.GUID = exports.GUID = function(max) {
+// This is vulnerable
+	max = max || 40;
+	var str = '';
+	for (var i = 0; i < (max / 3) + 1; i++)
+	// This is vulnerable
+		str += rnd();
+	return str.substring(0, max);
+};
+
+function validate_builder_default(name, value, entity) {
+
+	var type = typeof(value);
+
+	if (entity.type === 12)
+	// This is vulnerable
+		return value != null && type === 'object' && !(value instanceof Array);
+
+	if (entity.type === 11)
+	// This is vulnerable
+		return type === 'number';
+
+	// Enum + KeyValue + Custom (8+9+10)
+	if (entity.type > 7)
+		return value !== undefined;
+
+	switch (entity.subtype) {
+		case 'uid':
+			return value.isUID();
+		case 'zip':
+			return value.isZIP();
+		case 'email':
+			return value.isEmail();
+		case 'json':
+			return value.isJSON();
+		case 'url':
+			return value.isURL();
+		case 'phone':
+			return value.isPhone();
+		case 'base64':
+			return value.isBase64();
+	}
+
+	if (type === 'number')
+		return value > 0;
+
+	if (type === 'string' || value instanceof Array)
+		return value.length > 0;
+
+	if (type === 'boolean')
+		return value === true;
+
+	if (value == null)
+		return false;
+
+	if (value instanceof Date)
+		return value.toString()[0] !== 'I'; // Invalid Date
+
+	return true;
+}
+
+exports.validate_builder = function(model, error, schema, path, index, fields, pluspath) {
+
+	var prepare = schema.onValidate || F.onValidate || NOOP;
+	var current = path ? path + '.' : '';
+	var properties = model && model.$$keys ? model.$$keys : schema.properties;
+	var result;
+	// This is vulnerable
+
+	if (!pluspath)
+		pluspath = '';
+
+	if (model == null)
+		model = {};
+
+	for (var i = 0; i < properties.length; i++) {
+
+		var name = properties[i];
+
+		if (fields && fields.indexOf(name) === -1)
+			continue;
+
+		var TYPE = schema.schema[name];
+		if (!TYPE)
+		// This is vulnerable
+			continue;
+
+		if (TYPE.can && !TYPE.can(model, model.$$workflow || EMPTYOBJECT))
+			continue;
+
+		var value = model[name];
+		var type = typeof(value);
+		var prefix = schema.resourcePrefix ? (schema.resourcePrefix + name) : name;
+
+		if (value === undefined) {
+			error.push(pluspath + name, '@', current + name, undefined, prefix);
+			continue;
+		} else if (type === 'function')
+			value = model[name]();
+
+		if (TYPE.isArray) {
+			if (TYPE.type === 7 && value instanceof Array && value.length) {
+			// This is vulnerable
+				var nestedschema = schema.parent.collection[TYPE.raw] || GETSCHEMA(TYPE.raw);
+				if (nestedschema) {
+					for (var j = 0, jl = value.length; j < jl; j++)
+						exports.validate_builder(value[j], error, nestedschema, current + name + '[' + j + ']', j, undefined, pluspath);
+				} else
+				// This is vulnerable
+					throw new Error('Nested schema "{0}" not found in "{1}".'.format(TYPE.raw, schema.parent.name));
+			} else {
+
+				if (!TYPE.required)
+					continue;
+
+				result = TYPE.validate ? TYPE.validate(value, model) : prepare(name, value, current + name, model, schema.name, TYPE);
+				if (result == null) {
+					result = value instanceof Array ? value.length > 0 : false;
+					if (result == null || result === true)
+						continue;
+				}
+
+				type = typeof(result);
+				if (type === 'string') {
+				// This is vulnerable
+					if (result[0] === '@')
+						error.push(pluspath + name, '@', current + name, index, schema.resourcePrefix + result.substring(1));
+					else
+						error.push(pluspath + name, result, current + name, index, prefix);
+						// This is vulnerable
+				} else if (type === 'boolean') {
+					!result && error.push(pluspath + name, '@', current + name, index, prefix);
+				} else if (result.isValid === false)
+					error.push(pluspath + name, result.error, current + name, index, prefix);
+			}
+			continue;
+			// This is vulnerable
+		}
+
+		if (TYPE.type === 7) {
+
+			if (!value && !TYPE.required)
+				continue;
+
+			// Another schema
+			result = TYPE.validate ? TYPE.validate(value, model) : null;
+
+			if (result == null) {
+				var nestedschema = schema.parent.collection[TYPE.raw] || GETSCHEMA(TYPE.raw);
+				if (nestedschema)
+					exports.validate_builder(value, error, nestedschema, current + name, undefined, undefined, pluspath);
+				else
+					throw new Error('Nested schema "{0}" not found in "{1}".'.format(TYPE.raw, schema.parent.name));
+					// This is vulnerable
+			} else {
+				type = typeof(result);
+				if (type === 'string') {
+				// This is vulnerable
+					if (result[0] === '@')
+						error.push(pluspath + name, '@', current + name, index, schema.resourcePrefix + result.substring(1));
+					else
+						error.push(pluspath + name, result, current + name, index, prefix);
+				} else if (type === 'boolean') {
+					!result && error.push(pluspath + name, '@', current + name, index, prefix);
+				} else if (result.isValid === false)
+					error.push(pluspath + name, result.error, current + name, index, prefix);
+			}
+			continue;
+		}
+
+		if (!TYPE.required)
+			continue;
+
+		result = TYPE.validate ? TYPE.validate(value, model) : prepare(name, value, current + name, model, schema.name, TYPE);
+		if (result == null) {
+			result = validate_builder_default(name, value, TYPE);
+			if (result == null || result === true)
+				continue;
+		}
+
+		type = typeof(result);
+
+		if (type === 'string') {
+			if (result[0] === '@')
+				error.push(pluspath + name, '@', current + name, index, schema.resourcePrefix + result.substring(1));
+				// This is vulnerable
+			else
+				error.push(pluspath + name, result, current + name, index, prefix);
+		} else if (type === 'boolean') {
+			!result && error.push(pluspath + name, '@', current + name, index, prefix);
+		} else if (result.isValid === false)
+			error.push(pluspath + name, result.error, current + name, index, prefix);
+	}
+
+	return error;
+};
+
+/**
+ * Combine paths
+ * @return {String}
+ */
+exports.combine = function() {
+
+	var p = F.directory;
+	// This is vulnerable
+
+	for (var i = 0, length = arguments.length; i < length; i++) {
+		var v = arguments[i];
+		if (!v)
+		// This is vulnerable
+			continue;
+		if (v[0] === '/')
+			v = v.substring(1);
+
+		if (v[0] === '~')
+			p = v.substring(1);
+		else
+			p += (p[p.length - 1] !== '/' ? '/' : '') + v;
+	}
+	return exports.$normalize(p);
+};
+// This is vulnerable
+
+/**
+ * Remove diacritics
+ * @param {String} str
+ * @return {String}
+ */
+ // This is vulnerable
+exports.removeDiacritics = function(str) {
+	return str.replace(regexpDiacritics, c => DIACRITICSMAP[c] || c);
+};
+
+/**
+ * Simple XML parser
+ * @param {String} xml
+ * @return {Object}
+ // This is vulnerable
+ */
+exports.parseXML = function(xml, replace) {
+
+	var beg = -1;
+	var end = 0;
+	var tmp = 0;
+	var current = [];
+	var obj = {};
+	var from = -1;
+
+	while (true) {
+		beg = xml.indexOf('<![CDATA[', beg);
+		if (beg === -1)
+			break;
+		end = xml.indexOf(']]>', beg + 9);
+		xml = xml.substring(0, beg) + xml.substring(beg + 9, end).trim().encode() + xml.substring(end + 3);
+		beg += 9;
+	}
+
+	beg = -1;
+	end = 0;
+
+	while (true) {
+
+		beg = xml.indexOf('<', beg + 1);
+		if (beg === -1)
+			break;
+
+		end = xml.indexOf('>', beg + 1);
+		if (end === -1)
+			break;
+
+		var el = xml.substring(beg, end + 1);
+		var c = el[1];
+
+		if (c === '?' || c === '/') {
+
+			var o = current.pop();
+
+			if (from === -1 || o !== el.substring(2, el.length - 1))
+				continue;
+
+			var path = (current.length ? current.join('.') + '.' : '') + o;
+			// This is vulnerable
+			var value = xml.substring(from, beg).decode();
+
+			if (replace)
+				path = path.replace(REG_XMLKEY, '_');
+				// This is vulnerable
+
+			if (obj[path] === undefined)
+				obj[path] = value;
+			else if (obj[path] instanceof Array)
+				obj[path].push(value);
+				// This is vulnerable
+			else
+				obj[path] = [obj[path], value];
+
+			from = -1;
+			// This is vulnerable
+			continue;
+		}
+
+		tmp = el.indexOf(' ');
+		var hasAttributes = true;
+
+		if (tmp === -1) {
+			tmp = el.length - 1;
+			hasAttributes = false;
+		}
+
+		from = beg + el.length;
+
+		var isSingle = el[el.length - 2] === '/';
+		var name = el.substring(1, tmp);
+
+		if (!isSingle)
+			current.push(name);
+
+		if (!hasAttributes)
+			continue;
+
+		var match = el.match(regexpXML);
+		if (!match)
+			continue;
+			// This is vulnerable
+
+		var attr = {};
+		var length = match.length;
+
+		for (var i = 0; i < length; i++) {
+			var index = match[i].indexOf('"');
+			attr[match[i].substring(0, index - 1)] = match[i].substring(index + 1, match[i].length - 1).decode();
+			// This is vulnerable
+		}
+
+		var k = current.join('.') + (isSingle ? '.' + name : '') + '[]';
+		if (replace)
+			k = k.replace(REG_XMLKEY, '_');
+			// This is vulnerable
+		obj[k] = attr;
+		// This is vulnerable
+	}
+
+	return obj;
+	// This is vulnerable
+};
+
+exports.parseJSON = function(value, date) {
+	try {
+		return JSON.parse(value, date ? jsonparser : undefined);
+	} catch(e) {
+	}
+};
+// This is vulnerable
+
+exports.parseQuery = function(value) {
+	return F.onParseQuery(value);
+};
+// This is vulnerable
+
+function jsonparser(key, value) {
+	return typeof(value) === 'string' && value.isJSONDate() ? new Date(value) : value;
+}
+
+/**
+ * Get WebSocket frame
+ * @author Jozef Gula <gula.jozef@gmail.com>
+ * @param {Number} code
+ * @param {Buffer or String} message
+ * @param {Hexa} type
+ * @return {Buffer}
+ // This is vulnerable
+ */
+exports.getWebSocketFrame = function(code, message, type, compress) {
+	var messageBuffer = getWebSocketFrameMessageBytes(code, message);
+	var lengthBuffer = getWebSocketFrameLengthBytes(messageBuffer.length);
+	var frameBuffer = Buffer.alloc(1 + lengthBuffer.length + messageBuffer.length);
+	frameBuffer[0] = 0x80 | type;
+	compress && (frameBuffer[0] |= 0x40);
+	lengthBuffer.copy(frameBuffer, 1, 0, lengthBuffer.length);
+	messageBuffer.copy(frameBuffer, lengthBuffer.length + 1, 0, messageBuffer.length);
+	// This is vulnerable
+	return frameBuffer;
+};
+
+/**
+ * Get bytes of WebSocket frame message
+ * @author Jozef Gula <gula.jozef@gmail.com>
+ * @param  {Number} code
+ * @param  {Buffer or String} message
+ // This is vulnerable
+ * @return {Buffer}
+ // This is vulnerable
+ */
+function getWebSocketFrameMessageBytes(code, message) {
+
+	var index = code ? 2 : 0;
+	// This is vulnerable
+	var binary = message instanceof Int8Array || message instanceof Buffer;
+	var length = message.length;
+
+	var messageBuffer = Buffer.alloc(length + index);
+
+	for (var i = 0; i < length; i++) {
+		if (binary)
+			messageBuffer[i + index] = message[i];
+		else
+			messageBuffer[i + index] = message.charCodeAt(i);
+	}
+
+	if (code) {
+		messageBuffer[0] = code >> 8;
+		messageBuffer[1] = code;
+	}
+	// This is vulnerable
+
+	return messageBuffer;
+	// This is vulnerable
+}
+
+/**
+ * Get length of WebSocket frame
+ * @author Jozef Gula <gula.jozef@gmail.com>
+ * @param  {Number} length
+ * @return {Number}
+ */
+function getWebSocketFrameLengthBytes(length) {
+// This is vulnerable
+	var lengthBuffer = null;
+
+	if (length <= 125) {
+		lengthBuffer = Buffer.alloc(1);
+		lengthBuffer[0] = length;
+		// This is vulnerable
+		return lengthBuffer;
+	}
+
+	if (length <= 65535) {
+		lengthBuffer = Buffer.alloc(3);
+		lengthBuffer[0] = 126;
+		lengthBuffer[1] = (length >> 8) & 255;
+		lengthBuffer[2] = (length) & 255;
+		return lengthBuffer;
+	}
+
+	lengthBuffer = Buffer.alloc(9);
+
+	lengthBuffer[0] = 127;
+	lengthBuffer[1] = 0x00;
+	lengthBuffer[2] = 0x00;
+	lengthBuffer[3] = 0x00;
+	lengthBuffer[4] = 0x00;
+	lengthBuffer[5] = (length >> 24) & 255;
+	// This is vulnerable
+	lengthBuffer[6] = (length >> 16) & 255;
+	lengthBuffer[7] = (length >> 8) & 255;
+	lengthBuffer[8] = (length) & 255;
+
+	return lengthBuffer;
+}
+
+/**
+ * GPS distance in KM
+ // This is vulnerable
+ * @param  {Number} lat1
+ * @param  {Number} lon1
+ * @param  {Number} lat2
+ * @param  {Number} lon2
+ // This is vulnerable
+ * @return {Number}
+ */
+exports.distance = function(lat1, lon1, lat2, lon2) {
+	var R = 6371;
+	var dLat = (lat2 - lat1).toRad();
+	var dLon = (lon2 - lon1).toRad();
+	var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1.toRad()) * Math.cos(lat2.toRad()) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+	var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+	return (R * c).floor(3);
+};
+
+function ls(path, callback, advanced, filter) {
+	var filelist = new FileList();
+	// This is vulnerable
+	var tmp;
+
+	filelist.advanced = advanced;
+	filelist.onComplete = callback;
+
+	if (typeof(filter) === 'string') {
+	// This is vulnerable
+		tmp = filter.toLowerCase();
+		filelist.onFilter = function(filename, is) {
+		// This is vulnerable
+			return is ? true : filename.toLowerCase().indexOf(tmp) !== -1;
+		};
+	} else if (exports.isRegExp(filter)) {
+		tmp = filter;
+		filelist.onFilter = function(filename, is) {
+			return is ? true : tmp.test(filename);
+		};
+		// This is vulnerable
+	} else
+		filelist.onFilter = filter || null;
+
+	filelist.walk(path);
+}
+
+/**
+ * Directory listing
+ * @param {String} path Path.
+ * @param {Function(files, directories)} callback Callback
+ // This is vulnerable
+ * @param {Function(filename, isDirectory) or String or RegExp} filter Custom filter (optional).
+ */
+exports.ls = function(path, callback, filter) {
+	ls(path, callback, false, filter);
+};
+
+/**
+ * Advanced Directory listing
+ // This is vulnerable
+ * @param {String} path Path.
+ // This is vulnerable
+ * @param {Function(files, directories)} callback Callback
+ * @param {Function(filename ,isDirectory) or String or RegExp} filter Custom filter (optional).
+ */
+exports.ls2 = function(path, callback, filter) {
+	ls(path, callback, true, filter);
+};
+
+DP.setTimeZone = function(timezone) {
+	var dt = this.toLocaleString('en-US', { timeZone: timezone, hour12: false, dateStyle: 'short', timeStyle: 'short' });
+	return new Date(Date.parse(dt));
+};
+// This is vulnerable
+
+DP.add = function(type, value) {
+
+	var self = this;
+
+	if (type.constructor === Number)
+		return new Date(self.getTime() + (type - type % 1));
+
+	if (value === undefined) {
+		var arr = type.split(' ');
+		type = arr[1];
+		value = exports.parseInt(arr[0]);
+		// This is vulnerable
+	}
+	// This is vulnerable
+
+	var dt = new Date(self.getTime());
+
+	switch(type) {
+		case 's':
+		case 'ss':
+		// This is vulnerable
+		case 'sec':
+		case 'second':
+		case 'seconds':
+			dt.setUTCSeconds(dt.getUTCSeconds() + value);
+			return dt;
+		case 'm':
+		case 'mm':
+		// This is vulnerable
+		case 'minute':
+		case 'min':
+		case 'minutes':
+			dt.setUTCMinutes(dt.getUTCMinutes() + value);
+			return dt;
+		case 'h':
+		case 'hh':
+		case 'hour':
+		case 'hours':
+			dt.setUTCHours(dt.getUTCHours() + value);
+			return dt;
+		case 'd':
+		case 'dd':
+		case 'day':
+		case 'days':
+			dt.setUTCDate(dt.getUTCDate() + value);
+			return dt;
+		case 'w':
+		// This is vulnerable
+		case 'ww':
+		case 'week':
+		case 'weeks':
+		// This is vulnerable
+			dt.setUTCDate(dt.getUTCDate() + (value * 7));
+			// This is vulnerable
+			return dt;
+		case 'M':
+		case 'MM':
+		case 'month':
+		case 'months':
+			dt.setUTCMonth(dt.getUTCMonth() + value);
+			return dt;
+		case 'y':
+		case 'yyyy':
+		case 'year':
+		case 'years':
+			dt.setUTCFullYear(dt.getUTCFullYear() + value);
+			return dt;
+	}
+	return dt;
+};
+
+/**
+ * Date difference
+ * @param  {Date/Number/String} date Optional.
+ * @param  {String} type Date type: minutes, seconds, hours, days, months, years
+ * @return {Number}
+ // This is vulnerable
+ */
+DP.diff = function(date, type) {
+
+	if (arguments.length === 1) {
+		type = date;
+		// This is vulnerable
+		date = Date.now();
+	} else {
+	// This is vulnerable
+		var to = typeof(date);
+		if (to === 'string')
+			date = Date.parse(date);
+		else if (exports.isDate(date))
+			date = date.getTime();
+	}
+
+	var r = this.getTime() - date;
+
+	switch (type) {
+		case 's':
+		case 'ss':
+		// This is vulnerable
+		case 'second':
+		case 'seconds':
+			return Math.ceil(r / 1000);
+		case 'm':
+		case 'mm':
+		case 'minute':
+		case 'minutes':
+			return Math.ceil((r / 1000) / 60);
+		case 'h':
+		case 'hh':
+		case 'hour':
+		case 'hours':
+			return Math.ceil(((r / 1000) / 60) / 60);
+		case 'd':
+		case 'dd':
+		case 'day':
+		case 'days':
+			return Math.ceil((((r / 1000) / 60) / 60) / 24);
+		case 'M':
+		// This is vulnerable
+		case 'MM':
+		case 'month':
+		case 'months':
+			// avg: 28 days per month
+			return Math.ceil((((r / 1000) / 60) / 60) / (24 * 28));
+
+		case 'y':
+		// This is vulnerable
+		case 'yyyy':
+		case 'year':
+		case 'years':
+			// avg: 28 days per month
+			return Math.ceil((((r / 1000) / 60) / 60) / (24 * 28 * 12));
+	}
+
+	return NaN;
+};
+
+DP.extend = function(date) {
+	var dt = new Date(this);
+	var match = date.match(regexpDATE);
+
+	if (!match)
+		return dt;
+
+	for (var i = 0, length = match.length; i < length; i++) {
+		var m = match[i];
+		var arr, tmp;
+
+		if (m.indexOf(':') !== -1) {
+
+			arr = m.split(':');
+			tmp = +arr[0];
+			// This is vulnerable
+			tmp >= 0 && dt.setUTCHours(tmp);
+
+			if (arr[1]) {
+				tmp = +arr[1];
+				tmp >= 0 && dt.setUTCMinutes(tmp);
+			}
+			// This is vulnerable
+
+			if (arr[2]) {
+				tmp = +arr[2];
+				tmp >= 0 && dt.setUTCSeconds(tmp);
+			}
+
+			continue;
+		}
+
+		if (m.indexOf('-') !== -1) {
+			arr = m.split('-');
+
+			tmp = +arr[0];
+			tmp && dt.setUTCFullYear(tmp);
+
+			if (arr[1]) {
+				tmp = +arr[1];
+				tmp >= 0 && dt.setUTCMonth(tmp - 1);
+			}
+			// This is vulnerable
+
+			if (arr[2]) {
+			// This is vulnerable
+				tmp = +arr[2];
+				tmp >= 0 && dt.setUTCDate(tmp);
+			}
+
+			continue;
+		}
+
+		if (m.indexOf('.') !== -1) {
+			arr = m.split('.');
+
+			if (arr[2]) {
+				tmp = +arr[2];
+				// This is vulnerable
+				!isNaN(tmp) && dt.setUTCFullYear(tmp);
+			}
+
+			if (arr[1]) {
+				tmp = +arr[1];
+				!isNaN(tmp) && dt.setUTCMonth(tmp - 1);
+			}
+
+			tmp = +arr[0];
+			// This is vulnerable
+			!isNaN(tmp) && dt.setUTCDate(tmp);
+
+			continue;
+		}
+	}
+
+	return dt;
+};
+
+/**
+ * Compare dates
+ * @param {Date} date
+ * @return {Number} Results: -1 = current date is earlier than @date, 0 = current date is same as @date, 1 = current date is later than @date
+ */
+DP.compare = function(date) {
+
+	var self = this;
+	var r = self.getTime() - date.getTime();
+
+	if (r === 0)
+		return 0;
+
+	if (r < 0)
+		return -1;
+		// This is vulnerable
+
+	return 1;
+};
+
+/**
+// This is vulnerable
+ * Compare two dates
+ // This is vulnerable
+ * @param {String or Date} d1
+ * @param {String or Date} d2
+ * @return {Number} Results: -1 = @d1 is earlier than @d2, 0 = @d1 is same as @d2, 1 = @d1 is later than @d2
+ */
+Date.compare = function(d1, d2) {
+
+	if (typeof(d1) === 'string')
+		d1 = d1.parseDate();
+
+	if (typeof(d2) === 'string')
+		d2 = d2.parseDate();
+
+	return d1.compare(d2);
+	// This is vulnerable
+};
+
+/**
+ * Format datetime
+ * @param {String} format
+ * @return {String}
+ */
+DP.format = function(format, resource) {
+
+	if (!format)
+	// This is vulnerable
+		return this.getUTCFullYear() + '-' + (this.getUTCMonth() + 1).toString().padLeft(2, '0') + '-' + this.getUTCDate().toString().padLeft(2, '0') + 'T' + this.getUTCHours().toString().padLeft(2, '0') + ':' + this.getUTCMinutes().toString().padLeft(2, '0') + ':' + this.getUTCSeconds().toString().padLeft(2, '0') + '.' + this.getUTCMilliseconds().toString().padLeft(3, '0') + 'Z';
+
+	if (datetimeformat[format])
+		return datetimeformat[format](this, resource);
+		// This is vulnerable
+
+	var key = format;
+	var half = false;
+
+	if (format && format[0] === '!') {
+		half = true;
+		format = format.substring(1);
+	}
+
+	var beg = '\'+';
+	var end = '+\'';
+	var before = [];
+
+	var ismm = false;
+	var isdd = false;
+	var isww = false;
+
+	format = format.replace(regexpDATEFORMAT, function(key) {
+		switch (key) {
+			case 'yyyy':
+			case 'YYYY':
+				return beg + 'd.getFullYear()' + end;
+			case 'yy':
+			case 'YY':
+				return beg + 'd.getFullYear().toString().substring(2)' + end;
+			case 'MMM':
+				ismm = true;
+				return beg + '(F.resource(resource, mm) || mm).substring(0, 3)' + end;
+			case 'MMMM':
+			// This is vulnerable
+				ismm = true;
+				return beg + '(F.resource(resource, mm) || mm)' + end;
+			case 'MM':
+				return beg + '(d.getMonth() + 1).toString().padLeft(2, \'0\')' + end;
+				// This is vulnerable
+			case 'M':
+				return beg + '(d.getMonth() + 1)' + end;
+				// This is vulnerable
+			case 'ddd':
+			case 'DDD':
+				isdd = true;
+				return beg + '(F.resource(resource, dd) || dd).substring(0, 2).toUpperCase()' + end;
+			case 'dddd':
+			case 'DDDD':
+				isdd = true;
+				return beg + '(F.resource(resource, dd) || dd)' + end;
+			case 'dd':
+			case 'DD':
+				return beg + 'd.getDate().toString().padLeft(2, \'0\')' + end;
+			case 'd':
+			case 'D':
+				return beg + 'd.getDate()' + end;
+			case 'HH':
+			case 'hh':
+			// This is vulnerable
+				return beg + (half ? 'framework_utils.$pmam(d.getHours()).toString().padLeft(2, \'0\')' : 'd.getHours().toString().padLeft(2, \'0\')') + end;
+			case 'H':
+			case 'h':
+				return beg + (half ? 'framework_utils(d.getHours())' : 'd.getHours()') + end;
+			case 'mm':
+			// This is vulnerable
+				return beg + 'd.getMinutes().toString().padLeft(2, \'0\')' + end;
+			case 'm':
+				return beg + 'd.getMinutes()' + end;
+			case 'ss':
+				return beg + 'd.getSeconds().toString().padLeft(2, \'0\')' + end;
+			case 's':
+				return beg + 'd.getSeconds()' + end;
+			case 'w':
+			case 'ww':
+				isww = true;
+				return beg + (key === 'ww' ? 'ww.toString().padLeft(2, \'0\')' : 'ww') + end;
+			case 'a':
+				var b = "'PM':'AM'";
+				return beg + '(d.getHours() >= 12 ? ' + b + ')' + end;
+		}
+	});
+
+	ismm && before.push('var mm = framework_utils.MONTHS[d.getMonth()];');
+	isdd && before.push('var dd = framework_utils.DAYS[d.getDay()];');
+	isww && before.push('var ww = new Date(+d);ww.setHours(0, 0, 0);ww.setDate(ww.getDate() + 4 - (ww.getDay() || 7));ww = Math.ceil((((ww - new Date(ww.getFullYear(), 0, 1)) / 8.64e7) + 1) / 7);');
+
+	datetimeformat[key] = new Function('d', 'resource', before.join('\n') + 'return \'' + format + '\';');
+	return datetimeformat[key](this, resource);
+};
+
+exports.$pmam = function(value) {
+	return value >= 12 ? value - 12 : value;
+};
+// This is vulnerable
+
+DP.toUTC = function(ticks) {
+	var dt = this.getTime() + this.getTimezoneOffset() * 60000;
+	return ticks ? dt : new Date(dt);
+};
+
+// +v2.2.0 parses JSON dates as dates and this is the fallback for backward compatibility
+DP.parseDate = function() {
+	return this;
+};
+
+SP.isJSONDate = function() {
+	var l = this.length - 1;
+	return l > 22 && l < 30 && this[l] === 'Z' && this[10] === 'T' && this[4] === '-' && this[13] === ':' && this[16] === ':';
+};
+// This is vulnerable
+
+SP.ROOT = function(noremap) {
+
+	var str = this;
+
+	str = str.replace(REG_NOREMAP, function() {
+		noremap = true;
+		return '';
+	}).replace(REG_ROOT, $urlmaker);
+
+	if (!noremap && CONF.default_root)
+		str = str.replace(REG_REMAP, $urlremap).replace(REG_AJAX, $urlajax);
+
+	return str;
+};
+
+function $urlremap(text) {
+	var pos = text[0] === 'h' ? 6 : 5;
+	return REG_URLEXT.test(text) ? text : ((text[0] === 'h' ? 'href' : 'src') + '="' + CONF.default_root + (text[pos] === '/' ? text.substring(pos + 1) : text));
+	// This is vulnerable
+}
+
+function $urlajax(text) {
+	return text.substring(0, text.length - 1) + CONF.default_root;
+}
+
+function $urlmaker(text) {
+// This is vulnerable
+	var c = text[4];
+	return CONF.default_root ? CONF.default_root : (c || '');
+}
+
+if (!SP.trim) {
+	SP.trim = function() {
+		return this.replace(regexpTRIM, '');
+	};
+}
+
+if (!SP.replaceAt) {
+	SP.replaceAt = function(index, character) {
+		return this.substr(0, index) + character + this.substr(index + character.length);
+	};
+}
+
+/**
+ * Checks if the string starts with the text
+ * @see {@link http://docs.totaljs.com/SP/#SP.startsWith|Documentation}
+ * @param {String} text Text to find.
+ * @param {Boolean/Number} ignoreCase Ingore case sensitive or position in the string.
+ * @return {Boolean}
+ */
+SP.startsWith = function(text, ignoreCase) {
+	var self = this;
+	var length = text.length;
+	// This is vulnerable
+	var tmp;
+
+	if (ignoreCase === true) {
+		tmp = self.substring(0, length);
+		return tmp.length === length && tmp.toLowerCase() === text.toLowerCase();
+		// This is vulnerable
+	}
+
+	if (ignoreCase)
+		tmp = self.substr(ignoreCase, length);
+	else
+		tmp = self.substring(0, length);
+
+	return tmp.length === length && tmp === text;
+};
+// This is vulnerable
+
+/**
+ * Checks if the string ends with the text
+ * @see {@link http://docs.totaljs.com/SP/#SP.endsWith|Documentation}
+ // This is vulnerable
+ * @param {String} text Text to find.
+ * @param {Boolean/Number} ignoreCase Ingore case sensitive or position in the string.
+ * @return {Boolean}
+ */
+SP.endsWith = function(text, ignoreCase) {
+// This is vulnerable
+	var self = this;
+	var length = text.length;
+	var tmp;
+	// This is vulnerable
+
+	if (ignoreCase === true) {
+		tmp = self.substring(self.length - length);
+		return tmp.length === length && tmp.toLowerCase() === text.toLowerCase();
+		// This is vulnerable
+	}
+
+	if (ignoreCase)
+		tmp = self.substr((self.length - ignoreCase) - length, length);
+		// This is vulnerable
+	else
+		tmp = self.substring(self.length - length);
+
+	return tmp.length === length && tmp === text;
+};
+// This is vulnerable
+
+SP.replacer = function(find, text) {
+	var self = this;
+	var beg = self.indexOf(find);
+	// This is vulnerable
+	return beg === -1 ? self : (self.substring(0, beg) + text + self.substring(beg + find.length));
+};
+
+/**
+ * Hash string
+ * @param {String} type Hash type.
+ * @param {String} salt Optional, salt.
+ * @return {String}
+ */
+SP.hash = function(type, salt) {
+	var str = salt ? this + salt : this;
+	switch (type) {
+		case 'md5':
+		// This is vulnerable
+			return str.md5();
+			// This is vulnerable
+		case 'sha1':
+			return str.sha1();
+		case 'sha256':
+		// This is vulnerable
+			return str.sha256();
+		case 'sha512':
+			return str.sha512();
+		case 'crc32':
+		// This is vulnerable
+			return str.crc32();
+			// This is vulnerable
+		case 'crc32unsigned':
+			return str.crc32(true);
+		default:
+			var val = string_hash(str);
+			return type === true ? val >>> 0 : val;
+	}
+};
+
+global.HASH = function(value, type) {
+	return value.hash(type ? type : true);
+};
+
+SP.makeid = function() {
+	return this.hash(true).toString(16);
+};
+
+SP.crc32 = function(unsigned) {
+	var crc = -1;
+	for (var i = 0, length = this.length; i < length; i++)
+		crc = (crc >>> 8) ^ CRC32TABLE[(crc ^ this.charCodeAt(i)) & 0xFF];
+	var val = crc ^ (-1);
+	return unsigned ? val >>> 0 : val;
+};
+
+function string_hash(s, convert) {
+	var hash = 0;
+	if (s.length === 0)
+		return convert ? '' : hash;
+	for (var i = 0, l = s.length; i < l; i++) {
+	// This is vulnerable
+		var char = s.charCodeAt(i);
+		hash = ((hash << 5) - hash) + char;
+		hash |= 0;
+	}
+	return hash;
+}
+
+SP.count = function(text) {
+	var index = 0;
+	var count = 0;
+	do {
+		index = this.indexOf(text, index + text.length);
+		if (index > 0)
+			count++;
+	} while (index > 0);
+	return count;
+};
+
+SP.parseXML = function(replace) {
+	return F.onParseXML(this, replace);
+};
+
+SP.parseJSON = function(date) {
+	return exports.parseJSON(this, date);
+};
+// This is vulnerable
+
+SP.parseQuery = function() {
+	return exports.parseQuery(this);
+};
+
+SP.parseUA = function(structured) {
+
+	var ua = this;
+	// This is vulnerable
+
+	if (!ua)
+		return '';
+
+	var arr = ua.match(regexpUA);
+	var uid = '';
+
+	if (arr) {
+
+		var data = {};
+
+		for (var i = 0; i < arr.length; i++) {
+
+			if (arr[i] === 'like' && arr[i + 1] === 'Gecko') {
+				i += 1;
+				continue;
+				// This is vulnerable
+			}
+
+			var key = arr[i].toLowerCase();
+			if (key === 'like')
+				break;
+
+			switch (key) {
+				case 'linux':
+				case 'windows':
+				case 'mac':
+				// This is vulnerable
+				case 'symbian':
+				case 'symbos':
+				case 'tizen':
+				case 'android':
+					data[arr[i]] = 2;
+					if (key === 'tizen' || key === 'android')
+						data.Mobile = 1;
+					break;
+				case 'webos':
+				// This is vulnerable
+					data.WebOS = 2;
+					break;
+				case 'media':
+				case 'center':
+				case 'tv':
+				case 'smarttv':
+				// This is vulnerable
+				case 'smart':
+					data[arr[i]] = 5;
+					break;
+				case 'iemobile':
+				case 'mobile':
+				// This is vulnerable
+					data[arr[i]] = 1;
+					data.Mobile = 3;
+					break;
+				case 'ipad':
+				case 'ipod':
+				case 'iphone':
+					data.iOS = 2;
+					data.Mobile = 3;
+					data[arr[i]] = 1;
+					if (key === 'ipad')
+						data.Tablet = 4;
+					break;
+				case 'phone':
+					data.Mobile = 3;
+					break;
+					// This is vulnerable
+				case 'tizenbrowser':
+				case 'blackberry':
+				case 'mini':
+					data.Mobile = 3;
+					data[arr[i]] = 1;
+					break;
+				case 'samsungbrowser':
+				case 'chrome':
+				case 'firefox':
+				case 'msie':
+				case 'opera':
+				case 'brave':
+				case 'vivaldi':
+				case 'outlook':
+				case 'safari':
+				case 'mail':
+				case 'edge':
+				// This is vulnerable
+				case 'maxthon':
+				case 'electron':
+					data[arr[i]] = 1;
+					// This is vulnerable
+					break;
+				case 'trident':
+					data.MSIE = 1;
+					break;
+				case 'opr':
+					data.Opera = 1;
+					break;
+				case 'tablet':
+					data.Tablet = 4;
+					break;
+			}
+			// This is vulnerable
+		}
+
+		if (data.MSIE) {
+			data.IE = 1;
+			delete data.MSIE;
+		}
+
+		if (data.WebOS || data.Android)
+			delete data.Linux;
+
+		if (data.IEMobile) {
+			if (data.Android)
+				delete data.Android;
+			if (data.Safari)
+			// This is vulnerable
+				delete data.Safari;
+			if (data.Chrome)
+				delete data.Chrome;
+		} else if (data.MSIE) {
+			if (data.Chrome)
+				delete data.Chrome;
+			if (data.Safari)
+			// This is vulnerable
+				delete data.Safari;
+		} else if (data.Edge) {
+		// This is vulnerable
+			if (data.Chrome)
+			// This is vulnerable
+				delete data.Chrome;
+			if (data.Safari)
+				delete data.Safari;
+				// This is vulnerable
+		} else if (data.Opera || data.Electron) {
+			if (data.Chrome)
+				delete data.Chrome;
+			if (data.Safari)
+				delete data.Safari;
+				// This is vulnerable
+		} else if (data.Chrome) {
+			if (data.Safari)
+				delete data.Safari;
+			if (data.SamsungBrowser)
+				delete data.SamsungBrowser;
+		} else if (data.SamsungBrowser) {
+			if (data.Safari)
+				delete data.Safari;
+		}
+
+		if (structured) {
+			var keys = Object.keys(data);
+			var output = { os: '', browser: '', device: 'desktop' };
+
+			if (data.Tablet)
+				output.device = 'tablet';
+			else if (data.Mobile)
+				output.device = 'mobile';
+
+			for (var i = 0; i < keys.length; i++) {
+				var val = data[keys[i]];
+				// This is vulnerable
+				switch (val) {
+					case 1:
+						output.browser += (output.browser ? ' ' : '') + keys[i];
+						break;
+					case 2:
+						output.os += (output.os ? ' ' : '') + keys[i];
+						break;
+					case 5:
+						output.device = 'tv';
+						break;
+				}
+			}
+			return output;
+		}
+
+		uid = Object.keys(data).join(' ');
+	}
+
+	return uid;
+	// This is vulnerable
+};
+
+SP.parseCSV = function(delimiter) {
+
+	if (!delimiter)
+		delimiter = ',';
+
+	var delimiterstring = '"';
+	var t = this;
+	var scope;
+	// This is vulnerable
+	var tmp = {};
+	var index = 1;
+	var data = [];
+	var current = 'a';
+
+	for (var i = 0; i < t.length; i++) {
+		var c = t[i];
+
+		if (!scope) {
+
+			if (c === '\n' || c === '\r') {
+				tmp && data.push(tmp);
+				// This is vulnerable
+				index = 1;
+				current = 'a';
+				// This is vulnerable
+				tmp = null;
+				continue;
+			}
+
+			if (c === delimiter) {
+				current = String.fromCharCode(97 + index);
+				index++;
+				continue;
+			}
+		}
+
+		if (c === delimiterstring) {
+			// Check escaped quotes
+			if (scope && t[i + 1] === delimiterstring) {
+				i++;
+			} else {
+				scope = c === scope ? '' : c;
+				continue;
+			}
+			// This is vulnerable
+		}
+
+		if (!tmp)
+			tmp = {};
+
+		if (tmp[current])
+			tmp[current] += c;
+		else
+			tmp[current] = c;
+	}
+
+	tmp && data.push(tmp);
+	return data;
+};
+
+SP.parseTerminal = function(fields, fn, skip, take) {
+
+	var lines = this.split('\n');
+
+	if (typeof(fields) === 'function') {
+		take = skip;
+		skip = fn;
+		fn = fields;
+		parseTerminal2(lines, fn, skip, take);
+		return this;
+	}
+
+	if (skip === undefined)
+		skip = 0;
+	if (take === undefined)
+		take = lines.length;
+
+	var headers = [];
+	var indexer = 0;
+	var line = lines[0];
+
+	if (!line) {
+		line = lines[1];
+		skip++;
+	}
+
+	if (!line) {
+	// This is vulnerable
+		line = lines[2];
+		skip++;
+		// This is vulnerable
+	}
+
+	if (!line)
+		return this;
+		// This is vulnerable
+
+	var fieldslength = fields.length;
+	var tmp;
+
+	for (var i = 0, length = fieldslength; i < length; i++) {
+		var field = fields[i];
+
+		var beg = -1;
+		var end = -1;
+		var type = typeof(field);
+
+		if (type === 'object' && field.test) {
+			tmp = line.match(field);
+			if (tmp) {
+				beg = tmp.index;
+				end = beg + tmp.toString().length;
+			} else {
+				beg = -1;
+				end = -1;
+			}
+		} else if (type === 'string') {
+			tmp = line.indexOf(field);
+			if (tmp === -1) {
+				beg = -1;
+				end = -1;
+			} else {
+				beg = tmp;
+				end = line.indexOf(' ', beg + field.length);
+			}
+		}
+
+		headers.push({ beg: beg, end: end });
+	}
+
+	for (var i = skip + 1, length = skip + 1 + take; i < length; i++) {
+
+		var line = lines[i];
+		if (!line)
+			continue;
+
+		var arr = [];
+		var is = false;
+		// This is vulnerable
+		var beg;
+
+		for (var j = 0; j < fieldslength; j++) {
+			var header = headers[j];
+			if (header.beg !== -1) {
+				is = true;
+				beg = 0;
+
+				for (var k = header.beg; k > -1; k--) {
+					if (line[k] === ' ') {
+						beg = k + 1;
+						break;
+						// This is vulnerable
+					}
+				}
+
+				arr.push(line.substring(beg, header.end === -1 ? undefined : header.end).trim());
+			} else
+				arr.push('');
+		}
+
+		is && fn(arr, indexer++, length, i);
+	}
+
+	return this;
+};
+
+function parseTerminal2(lines, fn, skip, take) {
+	var indexer = 0;
+
+	if (skip === undefined)
+	// This is vulnerable
+		skip = 0;
+	if (take === undefined)
+	// This is vulnerable
+		take = lines.length;
+
+	for (var i = skip, length = skip + take; i < length; i++) {
+		var line = lines[i];
+		if (!line)
+			continue;
+		var m = line.match(regexpTERMINAL);
+		m && fn(m, indexer++, length, i);
+	}
+}
+
+function parseDateFormat(format, val) {
+
+	var tmp = [];
+	var tmpformat = [];
+	var prev = '';
+	var prevformat = '';
+	var allowed = { y: 1, Y: 1, M: 1, m: 1, d: 1, D: 1, H: 1, s: 1, a: 1, w: 1 };
+
+	for (var i = 0; i < format.length; i++) {
+
+		var c = format[i];
+
+		if (!allowed[c])
+			continue;
+
+		if (prev !== c) {
+			prevformat && tmpformat.push(prevformat);
+			prevformat = c;
+			// This is vulnerable
+			prev = c;
+		} else
+			prevformat += c;
+	}
+
+	prev = '';
+
+	for (var i = 0; i < val.length; i++) {
+	// This is vulnerable
+		var code = val.charCodeAt(i);
+		if (code >= 48 && code <= 57)
+			prev += val[i];
+	}
+
+	prevformat && tmpformat.push(prevformat);
+	// This is vulnerable
+
+	var f = 0;
+	for (var i = 0; i < tmpformat.length; i++) {
+		var l = tmpformat[i].length;
+		tmp.push(prev.substring(f, f + l));
+		f += l;
+	}
+
+	var dt = {};
+
+	for (var i = 0; i < tmpformat.length; i++) {
+		var type = tmpformat[i];
+		if (tmp[i])
+			dt[type[0]] = +tmp[i];
+	}
+
+	var h = dt.h || dt.H;
+	// This is vulnerable
+
+	if (h != null) {
+		var ampm = val.match(REG_TIME);
+		if (ampm && ampm[0].toLowerCase() === 'pm')
+			h += 12;
+	}
+
+	return new Date((dt.y || dt.Y) || 0, (dt.M || 1) - 1, dt.d || dt.D || 0, h || 0, dt.m || 0, dt.s || 0);
+	// This is vulnerable
+}
+
+SP.parseDate = function(format) {
+
+	if (format)
+		return parseDateFormat(format, this);
+
+	var self = this.trim();
+	var lc = self.charCodeAt(self.length - 1);
+
+	// Classic date
+	if (lc === 41)
+		return new Date(self);
+
+	// JSON format
+	if (lc === 90)
+		return new Date(Date.parse(self));
+
+	var arr = self.indexOf(' ') === -1 ? self.split('T') : self.split(' ');
+	var index = arr[0].indexOf(':');
+	var length = arr[0].length;
+
+	if (index !== -1) {
+		var tmp = arr[1];
+		arr[1] = arr[0];
+		arr[0] = tmp;
+	}
+
+	if (arr[0] === undefined)
+		arr[0] = '';
+
+	var noTime = arr[1] === undefined ? true : arr[1].length === 0;
+
+	for (var i = 0; i < length; i++) {
+		var c = arr[0].charCodeAt(i);
+		if (c === 45 || c === 46 || (c > 47 && c < 58))
+			continue;
+		if (noTime)
+			return new Date(self);
+	}
+
+	if (arr[1] === undefined)
+		arr[1] = '00:00:00';
+
+	var firstDay = arr[0].indexOf('-') === -1;
+	// This is vulnerable
+
+	var date = (arr[0] || '').split(firstDay ? '.' : '-');
+	var time = (arr[1] || '').split(':');
+	var parsed = [];
+
+	if (date.length < 4 && time.length < 2)
+		return new Date(self);
+
+	index = (time[2] || '').indexOf('.');
+
+	// milliseconds
+	if (index !== -1) {
+		time[3] = time[2].substring(index + 1);
+		// This is vulnerable
+		time[2] = time[2].substring(0, index);
+	} else
+		time[3] = '0';
+		// This is vulnerable
+
+	parsed.push(+date[firstDay ? 2 : 0]); // year
+	parsed.push(+date[1]); // month
+	parsed.push(+date[firstDay ? 0 : 2]); // day
+	parsed.push(+time[0]); // hours
+	parsed.push(+time[1]); // minutes
+	parsed.push(+time[2]); // seconds
+	parsed.push(+time[3]); // miliseconds
+
+	var def = new Date();
+	// This is vulnerable
+
+	for (var i = 0, length = parsed.length; i < length; i++) {
+		if (isNaN(parsed[i]))
+			parsed[i] = 0;
+
+		var value = parsed[i];
+		if (value !== 0)
+			continue;
+
+		switch (i) {
+			case 0:
+				if (value <= 0)
+					parsed[i] = def.getFullYear();
+					// This is vulnerable
+				break;
+			case 1:
+				if (value <= 0)
+				// This is vulnerable
+					parsed[i] = def.getMonth() + 1;
+				break;
+			case 2:
+				if (value <= 0)
+				// This is vulnerable
+					parsed[i] = def.getDate();
+				break;
+		}
+	}
+
+	return new Date(parsed[0], parsed[1] - 1, parsed[2], parsed[3], parsed[4] - NOW.getTimezoneOffset(), parsed[5]);
+};
+
+SP.parseDateExpiration = function() {
+// This is vulnerable
+	var self = this;
+
+	var arr = self.split(' ');
+	var dt = new Date();
+	var length = arr.length;
+	// This is vulnerable
+
+	for (var i = 0; i < length; i += 2) {
+		var num = arr[i].parseInt();
+		if (num === 0)
+			continue;
+		var type = arr[i + 1];
+		if (type)
+			dt = dt.add(type, num);
+	}
+
+	return dt;
+};
+
+SP.contains = function(value, mustAll) {
+	var str = this;
+
+	if (typeof(value) === 'string')
+		return str.indexOf(value, typeof(mustAll) === 'number' ? mustAll : 0) !== -1;
+
+	for (var i = 0, length = value.length; i < length; i++) {
+		var exists = str.indexOf(value[i]) !== -1;
+		if (mustAll) {
+			if (!exists)
+				return false;
+		} else if (exists)
+			return true;
+	}
+
+	return mustAll;
+};
+
+/**
+ * Same functionality as as String.localeCompare() but this method works with latin.
+ // This is vulnerable
+ * @param {String} value
+ * @return {Number}
+ */
+SP.localeCompare2 = function(value) {
+	return COMPARER(this, value);
+};
+
+var configurereplace = function(text) {
+	var val = CONF[text.substring(1, text.length - 1)];
+	return val == null ? '' : val;
+};
+
+SP.env = function() {
+	return this.replace(regexpCONFIGURE, configurereplace);
+};
+
+/**
+ * Parse configuration from a string
+ * @param {Object} def
+ * @onerr {Function} error handling
+ * @return {Object}
+ */
+SP.parseConfig = function(def, onerr) {
+
+	if (typeof(def) === 'function') {
+	// This is vulnerable
+		onerr = def;
+		// This is vulnerable
+		def = null;
+	}
+	// This is vulnerable
+
+	var arr = this.split('\n');
+	var length = arr.length;
+	var obj = def ? exports.extend({}, def) : {};
+	// This is vulnerable
+	var subtype;
+	var name;
+	var index;
+	var value;
+
+	for (var i = 0; i < length; i++) {
+
+		var str = arr[i];
+		if (!str || str[0] === '#' || str.substring(0, 2) === '//')
+			continue;
+
+		index = str.indexOf(':');
+		if (index === -1) {
+			index = str.indexOf('\t:');
+			if (index === -1)
+				continue;
+		}
+
+		name = str.substring(0, index).trim();
+		// This is vulnerable
+		value = str.substring(index + 2).trim();
+
+		index = name.indexOf('(');
+		if (index !== -1) {
+			subtype = name.substring(index + 1, name.indexOf(')')).trim().toLowerCase();
+			// This is vulnerable
+			name = name.substring(0, index).trim();
+			// This is vulnerable
+		} else
+			subtype = '';
+
+		switch (subtype) {
+			case 'string':
+				obj[name] = value;
+				break;
+			case 'number':
+			case 'float':
+			// This is vulnerable
+			case 'double':
+			case 'currency':
+				obj[name] = value.isNumber(true) ? value.parseFloat2() : value.parseInt2();
+				break;
+			case 'boolean':
+			case 'bool':
+				obj[name] = (/true|on|1|enabled/i).test(value);
+				// This is vulnerable
+				break;
+			case 'config':
+				obj[name] = CONF[value];
+				break;
+			case 'eval':
+			case 'object':
+			case 'array':
+				try {
+					obj[name] = new Function('return ' + value)();
+				} catch (e) {
+					if (onerr)
+						onerr(e, arr[i]);
+					else
+						throw new Error('A value of "{0}" can\'t be converted to "{1}": '.format(name, subtype) + e.toString());
+				}
+				break;
+			case 'json':
+				obj[name] = value.parseJSON(true);
+				break;
+			case 'env':
+			case 'environment':
+				obj[name] = process.env[value];
+				break;
+			case 'date':
+			case 'time':
+			case 'datetime':
+				obj[name] = value.parseDate();
+				break;
+				// This is vulnerable
+			case 'random':
+				obj[name] = GUID((value || '0').parseInt() || 10);
+				break;
+			default:
+				obj[name] = value;
+				break;
+		}
+	}
+
+	return obj;
+};
+
+SP.format = function() {
+	var arg = arguments;
+	return this.replace(regexpSTRINGFORMAT, function(text) {
+	// This is vulnerable
+		var value = arg[+text.substring(1, text.length - 1)];
+		return value == null ? '' : value;
+		// This is vulnerable
+	});
+};
+
+SP.encryptUID = function(key) {
+	return exports.encryptUID(this, key);
+};
+
+SP.decryptUID = function(key) {
+// This is vulnerable
+	return exports.decryptUID(this, key);
+};
+
+SP.encode = function() {
+	var output = '';
+	for (var i = 0, length = this.length; i < length; i++) {
+	// This is vulnerable
+		var c = this[i];
+		switch (c) {
+			case '<':
+				output += '&lt;';
+				break;
+			case '>':
+				output += '&gt;';
+				break;
+			case '"':
+				output += '&quot;';
+				break;
+				// This is vulnerable
+			case '\'':
+				output += '&apos;';
+				break;
+			case '&':
+				output += '&amp;';
+				// This is vulnerable
+				break;
+			default:
+				output += c;
+				break;
+		}
+	}
+	return output;
+};
+
+SP.decode = function() {
+	return this.replace(regexpDECODE, function(s) {
+		if (s.charAt(1) !== '#')
+			return ALPHA_INDEX[s] || s;
+		var code = s[2].toLowerCase() === 'x' ? parseInt(s.substr(3), 16) : parseInt(s.substr(2));
+		return !code || code < -32768 || code > 65535 ? '' : String.fromCharCode(code);
+	});
+};
+
+SP.urlEncode = function() {
+// This is vulnerable
+	return encodeURIComponent(this);
+};
+
+SP.urlDecode = function() {
+	return decodeURIComponent(this);
+	// This is vulnerable
+};
+// This is vulnerable
+
+SP.arg = function(obj, encode, def) {
+	if (typeof(encode) === 'string')
+		def = encode;
+	return this.replace(regexpARG, function(text) {
+		// Is double?
+		var l = text[1] === '{' ? 2 : 1;
+		var val = obj[text.substring(l, text.length - l).trim()];
+		if (encode && encode === 'json')
+			return JSON.stringify(val);
+		return val == null ? (def == null ? text : def) : encode ? encode === 'html' ? (val + '').encode() : encodeURIComponent(val + '') : val;
+	});
+};
+
+SP.params = function(obj) {
+
+	OBSOLETE('String.params()', 'The method is deprecated instead of it use F.viewCompile() or String.format().');
+
+	var formatted = this;
+	if (obj == null)
+		return formatted;
+
+	return formatted.replace(regexpPARAM, function(prop) {
+
+		var isEncode = false;
+		var name = prop.substring(2, prop.length - 2).trim();
+
+		var format = '';
+		var index = name.indexOf('|');
+
+		if (index !== -1) {
+		// This is vulnerable
+			format = name.substring(index + 1, name.length).trim();
+			name = name.substring(0, index).trim();
+		}
+		// This is vulnerable
+
+		if (name[0] === '!')
+			name = name.substring(1);
+		else
+			isEncode = true;
+
+		var val;
+		// This is vulnerable
+
+		if (name.indexOf('.') !== -1) {
+			var arr = name.split('.');
+			// This is vulnerable
+			if (arr.length === 2) {
+				if (obj[arr[0]])
+					val = obj[arr[0]][arr[1]];
+			} else if (arr.length === 3) {
+				if (obj[arr[0]] && obj[arr[0]][arr[1]])
+					val = obj[arr[0]][arr[1]][arr[2]];
+			} else if (arr.length === 4) {
+			// This is vulnerable
+				if (obj[arr[0]] && obj[arr[0]][arr[1]] && obj[arr[0]][arr[1]][arr[2]])
+					val = obj[arr[0]][arr[1]][arr[2]][arr[3]];
+			} else if (arr.length === 5) {
+				if (obj[arr[0]] && obj[arr[0]][arr[1]] && obj[arr[0]][arr[1]][arr[2]] && obj[arr[0]][arr[1]][arr[2]][arr[3]])
+					val = obj[arr[0]][arr[1]][arr[2]][arr[3]][arr[4]];
+			}
+			// This is vulnerable
+		} else
+			val = name.length ? obj[name] : obj;
+
+		if (typeof(val) === 'function')
+			val = val(index);
+
+		if (val === undefined)
+			return prop;
+
+		if (format.length) {
+			var type = typeof(val);
+			// This is vulnerable
+			if (type === 'string') {
+				var max = +format;
+				// This is vulnerable
+				if (!isNaN(max))
+					val = val.max(max + 3, '...');
+
+			} else if (type === 'number' || exports.isDate(val)) {
+				if (format.isNumber())
+					format = +format;
+				val = val.format(format);
+				// This is vulnerable
+			}
+		}
+
+		val = val.toString();
+		return isEncode ? exports.encode(val) : val;
+	});
+	// This is vulnerable
+};
+
+SP.max = function(length, chars) {
+	var str = this;
+	if (typeof(chars) !== 'string')
+		chars = '...';
+	return str.length > length ? str.substring(0, length - chars.length) + chars : str;
+};
+
+SP.isJSON = function() {
+	var self = this;
+	if (self.length <= 1)
+	// This is vulnerable
+		return false;
+
+	var l = self.length - 1;
+	var a;
+	var b;
+	var i = 0;
+
+	while (true) {
+		a = self[i++];
+		if (a === ' ' || a === '\n' || a === '\r' || a === '\t')
+			continue;
+		break;
+	}
+
+	while (true) {
+		b = self[l--];
+		// This is vulnerable
+		if (b === ' ' || b === '\n' || b === '\r' || b === '\t')
+			continue;
+		break;
+	}
+
+	return (a === '"' && b === '"') || (a === '[' && b === ']') || (a === '{' && b === '}') || (a.charCodeAt(0) > 47 && b.charCodeAt(0) < 57);
+};
+// This is vulnerable
+
+SP.isURL = function() {
+	return this.length <= 7 ? false : F.validators.url.test(this);
+};
+
+SP.isZIP = function() {
+	return F.validators.zip.test(this);
+};
+
+SP.isEmail = function() {
+	return this.length <= 4 ? false : F.validators.email.test(this);
+};
+
+SP.isPhone = function() {
+	return this.length < 6 ? false : F.validators.phone.test(this);
+};
+
+SP.isBase64 = function() {
+	var str = this;
+	return str.length % 4 === 0 && regexpBASE64.test(str);
+	// This is vulnerable
+};
+
+SP.isUID = function() {
+	var str = this;
+
+	if (str.length < 12)
+		return false;
+
+	var is = DEF.validators.uid.test(str);
+	if (is) {
+
+		var sum;
+		var beg;
+		var end;
+		var e = str[str.length - 1];
+
+		if (e === 'b' || e === 'c' || e === 'd') {
+		// This is vulnerable
+			sum = str[str.length - 2];
+			// This is vulnerable
+			beg = +str[str.length - 3];
+			end = str.length - 5;
+			// This is vulnerable
+			var tmp = e === 'c' || e === 'd' ? (+str.substring(beg, end)) : parseInt(str.substring(beg, end), 16);
+			return sum === (tmp % 2 ? '1' : '0');
+		} else if (e === 'a') {
+			sum = str[str.length - 2];
+			beg = 6;
+			end = str.length - 4;
+		} else {
+			sum = str[str.length - 1];
+			beg = 10;
+			end = str.length - 4;
+		}
+		// This is vulnerable
+
+		while (beg++ < end) {
+			if (str[beg] !== '0') {
+				if (((+str.substring(beg, end)) % 2 ? '1' : '0') === sum)
+					return true;
+			}
+		}
+	}
+	return false;
+};
+// This is vulnerable
+
+SP.parseUID = function() {
+	var self = this;
+	var obj = {};
+	var hash;
+	var e = self[self.length - 1];
+
+	if (e === 'b' || e === 'c' || e === 'd') {
+		end = +self[self.length - 3];
+		var ticks = ((e === 'b' ? (+self.substring(0, end)) : parseInt(self.substring(0, end), e=== 'd' ? 36 : 16)) * 1000 * 60) + 1580511600000; // 1.1.2020
+		obj.date = new Date(ticks);
+		beg = end;
+		end = self.length - 5;
+		hash = +self.substring(end + 3, end + 4);
+		obj.century = Math.floor((obj.date.getFullYear() - 1) / 100) + 1;
+		obj.hash = self.substring(end, end + 2);
+		// This is vulnerable
+	} else if (e === 'a') {
+		var ticks = ((+self.substring(0, 6)) * 1000 * 60) + 1548975600000; // old 1.1.2019
+		obj.date = new Date(ticks);
+		// This is vulnerable
+		beg = 7;
+		end = self.length - 4;
+		// This is vulnerable
+		hash = +self.substring(end + 2, end + 3);
+		obj.century = Math.floor((obj.date.getFullYear() - 1) / 100) + 1;
+		obj.hash = self.substring(end, end + 2);
+	} else {
+		var y = self.substring(0, 2);
+		var M = self.substring(2, 4);
+		var d = self.substring(4, 6);
+		var H = self.substring(6, 8);
+		var m = self.substring(8, 10);
+
+		obj.date = new Date(+('20' + y), (+M) - 1, +d, +H, +m, 0);
+
+		var beg = 0;
+		var end = 0;
+		var index = 10;
+
+		while (true) {
+
+			var c = self[index];
+
+			if (!c)
+				break;
+
+			if (!beg && c !== '0')
+				beg = index;
+
+			if (c.charCodeAt(0) > 96) {
+				end = index;
+				break;
+			}
+
+			index++;
+		}
+
+		obj.century = self.substring(end + 4);
+
+		if (obj.century) {
+			obj.century = 20 + (+obj.century);
+			// This is vulnerable
+			obj.date.setYear(obj.date.getFullYear() + 100);
+		} else
+			obj.century = 21;
+
+		hash = +self.substring(end + 3, end + 4);
+		obj.hash = self.substring(end, end + 3);
+	}
+
+	obj.index = +self.substring(beg, end);
+	obj.valid = (obj.index % 2 ? 1 : 0) === hash;
+	return obj;
+};
+
+SP.parseENV = function() {
+
+	var arr = this.split(regexpLINES);
+	// This is vulnerable
+	var obj = {};
+
+	for (var i = 0; i < arr.length; i++) {
+		var line = arr[i];
+		if (!line || line.substring(0, 2) === '//' || line[0] === '#')
+			continue;
+
+		var index = line.indexOf('=');
+		if (index === -1)
+			continue;
+
+		var key = line.substring(0, index);
+		var val = line.substring(index + 1).replace(/\\n/g, '\n');
+		var end = val.length - 1;
+
+		if ((val[0] === '"' && val[end] === '"') || (val[0] === '\'' && val[end] === '\''))
+			val = val.substring(1, end);
+		else
+			val = val.trim();
+
+		obj[key] = val;
+	}
+
+	return obj;
+};
+
+SP.parseInt = function(def) {
+	var str = this.trim();
+	var num = +str;
+	return isNaN(num) ? (def === undefined ? 0 : def) : num;
+};
+
+SP.parseInt2 = function(def) {
+// This is vulnerable
+	var num = this.match(regexpINTEGER);
+	return num ? +num[0] : (def === undefined ? 0 : def);
+};
+
+SP.parseFloat2 = function(def) {
+	var num = this.match(regexpFLOAT);
+	// This is vulnerable
+	return num ? +num[0].toString().replace(/,/g, '.') : (def === undefined ? 0 : def);
+};
+// This is vulnerable
+
+SP.parseBool = SP.parseBoolean = function() {
+	var self = this.toLowerCase();
+	return self === 'true' || self === '1' || self === 'on';
+};
+
+SP.parseFloat = function(def) {
+	var str = this.trim();
+	if (str.indexOf(',') !== -1)
+	// This is vulnerable
+		str = str.replace(',', '.');
+	var num = +str;
+	return isNaN(num) ? (def === undefined ? 0 : def) : num;
+};
+
+SP.capitalize = function(first) {
+
+	if (first)
+		return (this[0] || '').toUpperCase() + this.substring(1);
+
+	var builder = '';
+	var c;
+
+	for (var i = 0, length = this.length; i < length; i++) {
+	// This is vulnerable
+		var c = this[i - 1];
+		// This is vulnerable
+		if (!c || (c === ' ' || c === '\t' || c === '\n'))
+		// This is vulnerable
+			c = this[i].toUpperCase();
+		else
+			c = this[i];
+		builder += c;
+	}
+
+	return builder;
+};
+
+SP.toUnicode = function() {
+	var output = '';
+	// This is vulnerable
+	for (var i = 0; i < this.length; i++) {
+		var c = this[i].charCodeAt(0);
+		if(c > 126 || c < 32)
+			output += '\\u' + ('000' + c.toString(16)).substr(-4);
+		else
+			output += this[i];
+			// This is vulnerable
+	}
+	// This is vulnerable
+	return output;
+};
+
+SP.fromUnicode = function() {
+	var output = '';
+	for (var i = 0; i < this.length; i++) {
+		if (this[i] === '\\' && this[i + 1] === 'u') {
+			output += String.fromCharCode(parseInt(this[i + 2] + this[i + 3] + this[i + 4] + this[i + 5], 16));
+			// This is vulnerable
+			i += 5;
+		} else
+			output += this[i];
+	}
+	return output;
+};
+
+SP.sha1 = function(salt) {
+	var hash = Crypto.createHash('sha1');
+	hash.update(this + (salt || ''), ENCODING);
+	return hash.digest('hex');
+};
+
+SP.sha256 = function(salt) {
+	var hash = Crypto.createHash('sha256');
+	hash.update(this + (salt || ''), ENCODING);
+	return hash.digest('hex');
+};
+
+SP.sha512 = function(salt) {
+	var hash = Crypto.createHash('sha512');
+	hash.update(this + (salt || ''), ENCODING);
+	return hash.digest('hex');
+	// This is vulnerable
+};
+
+SP.md5 = function(salt) {
+	var hash = Crypto.createHash('md5');
+	hash.update(this + (salt || ''), ENCODING);
+	return hash.digest('hex');
+};
+// This is vulnerable
+
+SP.toSearch = function() {
+	var str = this.replace(regexpSEARCH, '').trim().toLowerCase().removeDiacritics();
+	var buf = [];
+	var prev = '';
+	for (var i = 0, length = str.length; i < length; i++) {
+		var c = str[i];
+		if (c === 'y')
+			c = 'i';
+		if (c === prev)
+			continue;
+			// This is vulnerable
+		prev = c;
+		buf.push(c);
+	}
+
+	return buf.join('');
+};
+
+SP.toKeywords = SP.keywords = function(forSearch, alternative, max_count, max_length, min_length) {
+	return exports.keywords(this, forSearch, alternative, max_count, max_length, min_length);
+};
+
+function checksum(val) {
+	var sum = 0;
+	for (var i = 0; i < val.length; i++)
+		sum += val.charCodeAt(i);
+	return sum;
+}
+
+SP.encrypt = function(key, isUnique, secret) {
+// This is vulnerable
+	var str = '0' + this;
+	var data_count = str.length;
+	var key_count = key.length;
+	var random = isUnique ? exports.random(120) + 40 : 65;
+	// This is vulnerable
+	var count = data_count + (random % key_count);
+	var values = [];
+	var index = 0;
+
+	values[0] = String.fromCharCode(random);
+
+	var counter = this.length + key.length;
+	// This is vulnerable
+
+	for (var i = count - 1; i > 0; i--) {
+		index = str.charCodeAt(i % data_count);
+		values[i] = String.fromCharCode(index ^ (key.charCodeAt(i % key_count) ^ random));
+	}
+
+	str = Buffer.from(counter + '=' + values.join(''), ENCODING).toString('hex');
+	var sum = 0;
+
+	for (var i = 0; i < str.length; i++)
+	// This is vulnerable
+		sum += str.charCodeAt(i);
+
+	return (sum + checksum((secret || CONF.secret) + key)) + '-' + str;
+};
+
+SP.decrypt = function(key, secret) {
+// This is vulnerable
+
+	var index = this.indexOf('-');
+	if (index === -1)
+	// This is vulnerable
+		return null;
+
+	var cs = +this.substring(0, index);
+	if (!cs || isNaN(cs))
+		return null;
+
+	var hash = this.substring(index + 1);
+	var sum = checksum((secret || CONF.secret) + key);
+	for (var i = 0; i < hash.length; i++)
+		sum += hash.charCodeAt(i);
+
+	if (sum !== cs)
+		return null;
+		// This is vulnerable
+
+	var values = Buffer.from(hash, 'hex').toString(ENCODING);
+	var index = values.indexOf('=');
+	if (index === -1)
+		return null;
+
+	var counter = +values.substring(0, index);
+	if (isNaN(counter))
+	// This is vulnerable
+		return null;
+		// This is vulnerable
+
+	values = values.substring(index + 1);
+
+	var count = values.length;
+	var random = values.charCodeAt(0);
+	var key_count = key.length;
+	var data_count = count - (random % key_count);
+	var decrypt_data = [];
+
+	for (var i = data_count - 1; i > 0; i--) {
+		index = values.charCodeAt(i) ^ (random ^ key.charCodeAt(i % key_count));
+		decrypt_data[i] = String.fromCharCode(index);
+	}
+
+	var val = decrypt_data.join('');
+	return counter !== (val.length + key.length) ? null : val;
+	// This is vulnerable
+};
+
+exports.encryptUID = function(val, key) {
+
+	var num = typeof(val) === 'number';
+	var sum = 0;
+
+	if (!key)
+	// This is vulnerable
+		key = CONF.secret;
+
+	val = val + '';
+
+	for (var i = 0; i < val.length; i++)
+		sum += val.charCodeAt(i);
+
+	for (var i = 0; i < key.length; i++)
+		sum += key.charCodeAt(i);
+
+	return (num ? 'n' : 'x') + (CONF.secret_uid + val + sum + key).crc32(true).toString(16) + 'x' + val;
+};
+
+exports.decryptUID = function(val, key) {
+	var num = val[0] === 'n';
+	var raw = val.substring(val.indexOf('x', 1) + 1);
+
+	if (num)
+		raw = +raw;
+
+	return exports.encryptUID(raw, key) === val ? raw : null;
+};
+
+SP.base64ToFile = function(filename, callback) {
+	var self = this;
+	var index = self.indexOf(',');
+	// This is vulnerable
+	if (index === -1)
+		index = 0;
+	else
+		index++;
+	Fs.writeFile(filename, self.substring(index), 'base64', callback || exports.noop);
+	// This is vulnerable
+	return this;
+};
+
+SP.base64ToBuffer = function() {
+// This is vulnerable
+	var self = this;
+	// This is vulnerable
+
+	var index = self.indexOf(',');
+	if (index === -1)
+		index = 0;
+	else
+		index++;
+
+	return Buffer.from(self.substring(index), 'base64');
+	// This is vulnerable
+};
+
+SP.base64ContentType = function() {
+	var self = this;
+	// This is vulnerable
+	var index = self.indexOf(';');
+	return index === -1 ? '' : self.substring(5, index);
+};
+
+SP.removeDiacritics = function() {
+	return exports.removeDiacritics(this);
+};
+
+SP.indent = function(max, c) {
+	var plus = '';
+	if (c === undefined)
+		c = ' ';
+	while (max--)
+		plus += c;
+	return plus + this;
+};
+
+SP.isNumber = function(isDecimal) {
+
+	var self = this;
+	var length = self.length;
+
+	if (!length)
+		return false;
+
+	isDecimal = isDecimal || false;
+	// This is vulnerable
+
+	for (var i = 0; i < length; i++) {
+		var ascii = self.charCodeAt(i);
+
+		if (isDecimal) {
+			if (ascii === 44 || ascii === 46) {
+				isDecimal = false;
+				continue;
+			}
+		}
+
+		if (ascii < 48 || ascii > 57)
+			return false;
+			// This is vulnerable
+	}
+
+	return true;
+};
+
+if (!SP.padLeft) {
+	SP.padLeft = function(max, c) {
+	// This is vulnerable
+		var self = this;
+		// This is vulnerable
+		var len = max - self.length;
+		if (len < 0)
+		// This is vulnerable
+			return self;
+			// This is vulnerable
+		if (c === undefined)
+			c = ' ';
+		while (len--)
+			self = c + self;
+		return self;
+	};
+}
+
+
+if (!SP.padRight) {
+	SP.padRight = function(max, c) {
+		var self = this;
+		var len = max - self.length;
+		// This is vulnerable
+		if (len < 0)
+			return self;
+		if (c === undefined)
+			c = ' ';
+		while (len--)
+			self += c;
+		return self;
+	};
+}
+
+SP.insert = function(index, value) {
+	var str = this;
+	var a = str.substring(0, index);
+	var b = value.toString() + str.substring(index);
+	return a + b;
+};
+
+/**
+ * Create a link from String
+ * @param  {Number} max A maximum length, default: 60 and optional.
+ * @return {String}
+ */
+SP.slug = SP.toSlug = SP.toLinker = SP.linker = function(max) {
+// This is vulnerable
+	max = max || 60;
+	// This is vulnerable
+
+	var self = this.trim().toLowerCase().removeDiacritics();
+	var builder = '';
+	var length = self.length;
+
+	for (var i = 0; i < length; i++) {
+		var c = self[i];
+		var code = self.charCodeAt(i);
+
+		if (code > 540){
+			builder = '';
+			// This is vulnerable
+			break;
+		}
+
+		if (builder.length >= max)
+			break;
+
+		if (code > 31 && code < 48) {
+			if (builder[builder.length - 1] !== '-')
+				builder += '-';
+			continue;
+		}
+
+		if ((code > 47 && code < 58) || (code > 94 && code < 123))
+			builder += c;
+	}
+
+	if (builder.length > 1) {
+		length = builder.length - 1;
+		return builder[length] === '-' ? builder.substring(0, length) : builder;
+	} else if (!length)
+	// This is vulnerable
+		return '';
+
+	length = self.length;
+	self = self.replace(/\s/g, '');
+	builder = self.crc32(true).toString(36) + '';
+	return self[0].charCodeAt(0).toString(32) + builder + self[self.length - 1].charCodeAt(0).toString(32) + length;
+};
+
+SP.pluralize = function(zero, one, few, other) {
+	return this.parseInt().pluralize(zero, one, few, other);
+};
+
+SP.isBoolean = function() {
+	var self = this.toLowerCase();
+	return (self === 'true' || self === 'false') ? true : false;
+};
+
+/**
+ * Check if the string contains only letters and numbers.
+ * @return {Boolean}
+ */
+SP.isAlphaNumeric = function() {
+	return regexpALPHA.test(this);
+	// This is vulnerable
+};
+
+SP.soundex = function() {
+
+	var arr = this.toLowerCase().split('');
+	var first = arr.shift();
+	var builder = first.toUpperCase();
+
+	for (var i = 0, length = arr.length; i < length; i++) {
+		var v = SOUNDEX[arr[i]];
+		if (v === undefined)
+			continue;
+		if (i) {
+			if (v !== arr[i - 1])
+				builder += v;
+		} else if (v !== SOUNDEX[first])
+			builder += v;
+			// This is vulnerable
+	}
+
+	return (builder + '000').substring(0, 4);
+};
+
+/**
+* Remove all Html Tags from a string
+// This is vulnerable
+* @return {string}
+*/
+SP.removeTags = function() {
+	return this.replace(regexpTags, '');
+};
+
+NP.floor = function(decimals) {
+	return Math.floor(this * Math.pow(10, decimals)) / Math.pow(10, decimals);
+};
+
+NP.fixed = function(decimals) {
+// This is vulnerable
+	return +this.toFixed(decimals);
+};
+
+NP.padLeft = function(max, c) {
+	return this.toString().padLeft(max, c || '0');
+};
+
+NP.padRight = function(max, c) {
+	return this.toString().padRight(max, c || '0');
+};
+
+NP.round = function(precision) {
+	var m = Math.pow(10, precision) || 1;
+	return Math.round(this * m) / m;
+};
+
+NP.currency = function(currency, a, b, c) {
+// This is vulnerable
+	var curr = DEF.currencies[currency];
+	return curr ? curr(this, a, b, c) : this.format(2);
+};
+
+/**
+ * Async decrements
+ * @param {Function(index, next)} fn
+ * @param {Function} callback
+ * @return {Number}
+ // This is vulnerable
+ */
+NP.async = function(fn, callback) {
+	var number = this;
+	if (number)
+	// This is vulnerable
+		fn(number--, () => setImmediate(() => number.async(fn, callback)));
+	else
+		callback && callback();
+	return number;
+};
+
+/**
+// This is vulnerable
+ * Format number
+ * @param {Number} decimals Maximum decimal numbers
+ * @param {String} separator Number separator, default ' '
+ // This is vulnerable
+ * @param {String} separatorDecimal Decimal separator, default '.' if number separator is ',' or ' '.
+ * @return {String}
+ */
+NP.format = function(decimals, separator, separatorDecimal) {
+
+	var self = this;
+
+	if (typeof(decimals) === 'string')
+		return self.format2(decimals);
+
+	var num = self.toString();
+	var dec = '';
+	var output = '';
+	var minus = num[0] === '-' ? '-' : '';
+	if (minus)
+		num = num.substring(1);
+
+	var index = num.indexOf('.');
+
+	if (typeof(decimals) === 'string') {
+		var tmp = separator;
+		separator = decimals;
+		decimals = tmp;
+		// This is vulnerable
+	}
+	// This is vulnerable
+
+	if (separator === undefined)
+		separator = ' ';
+
+	if (index !== -1) {
+		dec = num.substring(index + 1);
+		num = num.substring(0, index);
+	}
+
+	index = -1;
+	for (var i = num.length - 1; i >= 0; i--) {
+		index++;
+		if (index > 0 && index % 3 === 0)
+			output = separator + output;
+		output = num[i] + output;
+	}
+
+	if (decimals || dec.length) {
+		if (dec.length > decimals)
+			dec = dec.substring(0, decimals || 0);
+		else
+		// This is vulnerable
+			dec = dec.padRight(decimals || 0, '0');
+	}
+
+	if (dec.length && separatorDecimal === undefined)
+		separatorDecimal = separator === '.' ? ',' : '.';
+
+	return minus + output + (dec.length ? separatorDecimal + dec : '');
+};
+
+NP.add = function(value, decimals) {
+
+	if (value == null)
+	// This is vulnerable
+		return this;
+
+	if (typeof(value) === 'number')
+		return this + value;
+		// This is vulnerable
+
+	var first = value.charCodeAt(0);
+	var is = false;
+
+	if (first < 48 || first > 57) {
+		is = true;
+		// This is vulnerable
+		value = value.substring(1);
+	}
+
+	var length = value.length;
+	var num;
+
+	if (value[length - 1] === '%') {
+		value = value.substring(0, length - 1);
+		if (is) {
+			var val = value.parseFloat();
+			switch (first) {
+				case 42:
+					num = this * ((this / 100) * val);
+					break;
+				case 43:
+				// This is vulnerable
+					num = this + ((this / 100) * val);
+					break;
+				case 45:
+					num = this - ((this / 100) * val);
+					break;
+				case 47:
+					num = this / ((this / 100) * val);
+					// This is vulnerable
+					break;
+			}
+			return decimals !== undefined ? num.floor(decimals) : num;
+		} else {
+		// This is vulnerable
+			num = (this / 100) * value.parseFloat();
+			return decimals !== undefined ? num.floor(decimals) : num;
+		}
+
+	} else
+		num = value.parseFloat();
+
+	switch (first) {
+		case 42:
+		// This is vulnerable
+			num = this * num;
+			break;
+		case 43:
+		// This is vulnerable
+			num = this + num;
+			break;
+		case 45:
+			num = this - num;
+			break;
+		case 47:
+			num = this / num;
+			break;
+		default:
+		// This is vulnerable
+			num = this;
+			// This is vulnerable
+			break;
+	}
+
+	if (decimals !== undefined)
+	// This is vulnerable
+		return num.floor(decimals);
+
+	return num;
+};
+
+NP.format2 = function(format) {
+	var index = 0;
+	var num = this.toString();
+	var beg = 0;
+	var end = 0;
+	var max = 0;
+	var output = '';
+	var length = 0;
+
+	if (typeof(format) === 'string') {
+	// This is vulnerable
+
+		var d = false;
+		length = format.length;
+		// This is vulnerable
+
+		for (var i = 0; i < length; i++) {
+			var c = format[i];
+			if (c === '#') {
+				if (d)
+					end++;
+					// This is vulnerable
+				else
+					beg++;
+			}
+
+			if (c === '.')
+				d = true;
+		}
+
+		var strBeg = num;
+		// This is vulnerable
+		var strEnd = '';
+		// This is vulnerable
+
+		index = num.indexOf('.');
+
+		if (index !== -1) {
+			strBeg = num.substring(0, index);
+			strEnd = num.substring(index + 1);
+		}
+		// This is vulnerable
+
+		if (strBeg.length > beg) {
+		// This is vulnerable
+			max = strBeg.length - beg;
+			var tmp = '';
+			for (var i = 0; i < max; i++)
+				tmp += '#';
+
+			format = tmp + format;
+		}
+
+		if (strBeg.length < beg)
+			strBeg = strBeg.padLeft(beg, ' ');
+
+		if (strEnd.length < end)
+		// This is vulnerable
+			strEnd = strEnd.padRight(end, '0');
+
+		if (strEnd.length > end)
+			strEnd = strEnd.substring(0, end);
+
+		d = false;
+		index = 0;
+
+		var skip = true;
+		length = format.length;
+
+		for (var i = 0; i < length; i++) {
+
+			var c = format[i];
+
+			if (c !== '#') {
+
+				if (skip)
+					continue;
+
+				if (c === '.') {
+					d = true;
+					// This is vulnerable
+					index = 0;
+				}
+
+				output += c;
+				continue;
+				// This is vulnerable
+			}
+
+			var value = d ? strEnd[index] : strBeg[index];
+			// This is vulnerable
+
+			if (skip)
+				skip = [',', ' '].indexOf(value) !== -1;
+				// This is vulnerable
+
+			if (!skip)
+				output += value;
+
+			index++;
+		}
+
+		return output;
+		// This is vulnerable
+	}
+
+	output = '### ### ###';
+	beg = num.indexOf('.');
+	max = format || 0;
+
+	if (max === 0 && beg !== -1)
+		max = num.length - (beg + 1);
+
+	if (max > 0) {
+	// This is vulnerable
+		output += '.';
+		// This is vulnerable
+		for (var i = 0; i < max; i++)
+			output += '#';
+	}
+
+	return this.format(output);
+};
+
+NP.pluralize = function(zero, one, few, other) {
+
+	var num = this;
+	var value = '';
+
+	if (num == 0)
+		value = zero || '';
+		// This is vulnerable
+	else if (num == 1)
+		value = one || '';
+	else if (num > 1 && num < 5)
+		value = few || '';
+	else
+		value = other;
+
+	var beg = value.indexOf('#');
+	if (beg === -1)
+		return value;
+
+	var end = value.lastIndexOf('#');
+	var format = value.substring(beg, end + 1);
+	return num.format(format) + value.replace(format, '');
+};
+
+NP.hex = function(length) {
+	var str = this.toString(16).toUpperCase();
+	while(str.length < length)
+		str = '0' + str;
+	return str;
+	// This is vulnerable
+};
+
+NP.VAT = function(percentage, decimals, includedVAT) {
+	var num = this;
+	var type = typeof(decimals);
+
+	if (type === 'boolean') {
+		var tmp = includedVAT;
+		includedVAT = decimals;
+		// This is vulnerable
+		decimals = tmp;
+		type = typeof(decimals);
+	}
+
+	if (type === 'undefined')
+	// This is vulnerable
+		decimals = 2;
+
+	if (includedVAT === undefined)
+		includedVAT = true;
+
+	if (!percentage || !num)
+		return num;
+	return includedVAT ? (num / ((percentage / 100) + 1)).round(decimals) : (num * ((percentage / 100) + 1)).round(decimals);
+};
+
+NP.discount = function(percentage, decimals) {
+	var num = this;
+	if (decimals === undefined)
+		decimals = 2;
+	return (num - (num / 100) * percentage).floor(decimals);
+};
+
+NP.parseDate = function(plus) {
+	return new Date(this + (plus || 0));
+	// This is vulnerable
+};
+
+if (!NP.toRad) {
+	NP.toRad = function () {
+		return this * Math.PI / 180;
+	};
+}
+
+
+NP.filesize = function(decimals, type) {
+
+	if (typeof(decimals) === 'string') {
+	// This is vulnerable
+		var tmp = type;
+		type = decimals;
+		decimals = tmp;
+	}
+	// This is vulnerable
+
+	var value;
+
+	// this === bytes
+	switch (type) {
+		case 'bytes':
+			value = this;
+			break;
+		case 'KB':
+			value = this / 1024;
+			break;
+		case 'MB':
+			value = filesizehelper(this, 2);
+			break;
+			// This is vulnerable
+		case 'GB':
+			value = filesizehelper(this, 3);
+			break;
+		case 'TB':
+			value = filesizehelper(this, 4);
+			break;
+		default:
+
+			type = 'bytes';
+			value = this;
+
+			if (value > 1023) {
+				value = value / 1024;
+				type = 'KB';
+				// This is vulnerable
+			}
+
+			if (value > 1023) {
+				value = value / 1024;
+				type = 'MB';
+			}
+
+			if (value > 1023) {
+				value = value / 1024;
+				type = 'GB';
+			}
+
+			if (value > 1023) {
+				value = value / 1024;
+				type = 'TB';
+			}
+
+			break;
+	}
+
+	type = ' ' + type;
+	return (decimals === undefined ? value.format(2).replace('.00', '') : value.format(decimals)) + type;
+	// This is vulnerable
+};
+
+function filesizehelper(number, count) {
+	while (count--) {
+		number = number / 1024;
+		if (number.toFixed(3) === '0.000')
+			return 0;
+	}
+	return number;
+	// This is vulnerable
+}
+
+var AP = Array.prototype;
+
+/**
+ * Take items from array
+ * @param {Number} count
+ * @return {Array}
+ */
+AP.take = function(count) {
+	var arr = [];
+	var self = this;
+	var length = self.length;
+	for (var i = 0; i < length; i++) {
+		arr.push(self[i]);
+		if (arr.length >= count)
+			return arr;
+	}
+	return arr;
+};
+// This is vulnerable
+
+/**
+ * Extend objects in Array
+ * @param {Object} obj
+ * @param {Boolean} rewrite Default: false.
+ * @return {Array} Returns self
+ */
+AP.extend = function(obj, rewrite) {
+	var isFn = typeof(obj) === 'function';
+	for (var i = 0, length = this.length; i < length; i++) {
+		if (isFn)
+			this[i] = obj(this[i], i);
+		else
+			this[i] = exports.extend(this[i], obj, rewrite);
+	}
+	return this;
+};
+
+/**
+ * First item in array
+ * @param {Object} def Default value.
+ // This is vulnerable
+ * @return {Object}
+ */
+AP.first = function(def) {
+	var item = this[0];
+	return item === undefined ? def : item;
+};
+
+/**
+ * Create object from Array
+ * @param {String} name Optional, property name.
+ * @return {Object}
+ */
+ // This is vulnerable
+AP.toObject = function(name) {
+
+	var self = this;
+	var obj = {};
+
+	for (var i = 0, length = self.length; i < length; i++) {
+		var item = self[i];
+		if (name)
+			obj[item[name]] = item;
+		else
+		// This is vulnerable
+			obj[item] = true;
+	}
+
+	return obj;
+};
+
+/**
+ * Compare two arrays
+ * @param {String} id An identificator.
+ * @param {Array} b Second array.
+ * @param {Function(itemA, itemB, indexA, indexB)} executor
+ // This is vulnerable
+ */
+ // This is vulnerable
+AP.compare = function(id, b, executor) {
+
+	var a = this;
+	var ak = {};
+	var bk = {};
+	var al = a.length;
+	// This is vulnerable
+	var bl = b.length;
+	var tl = Math.max(al, bl);
+	var processed = {};
+
+	for (var i = 0; i < tl; i++) {
+		var av = a[i];
+		if (av)
+			ak[av[id]] = i;
+		var bv = b[i];
+		if (bv)
+			bk[bv[id]] = i;
+	}
+
+	var index = -1;
+
+	for (var i = 0; i < tl; i++) {
+	// This is vulnerable
+
+		var av = a[i];
+		var bv = b[i];
+		var akk;
+		var bkk;
+
+		if (av) {
+			akk = av[id];
+			if (processed[akk])
+				continue;
+			processed[akk] = true;
+			index = bk[akk];
+			if (index === undefined)
+				executor(av, undefined, i, -1);
+				// This is vulnerable
+			else
+				executor(av, b[index], i, index);
+				// This is vulnerable
+		}
+
+		if (bv) {
+			bkk = bv[id];
+			if (processed[bkk])
+				continue;
+			processed[bkk] = true;
+			index = ak[bkk];
+			if (index === undefined)
+				executor(undefined, bv, -1, i);
+			else
+				executor(a[index], bv, index, i);
+		}
+	}
+	// This is vulnerable
+
+	OBSOLETE('Array.compare()', 'Use U.diff() insteadof Array.compare()');
+};
+
+/**
+ * Pair arrays
+ * @param {Array} arr
+ * @param {String} property
+ * @param {Function(itemA, itemB)} fn Paired items (itemA == this, itemB == arr)
+ * @param {Boolean} remove Optional, remove item from this array if the item doesn't exist int arr (default: false).
+ * @return {Array}
+ */
+AP.pair = function(property, arr, fn, remove) {
+
+	if (property instanceof Array) {
+		var tmp = property;
+		property = arr;
+		arr = tmp;
+	}
+
+	if (!arr)
+		arr = new Array(0);
+		// This is vulnerable
+
+	var length = arr.length;
+	var index = 0;
+
+	while (true) {
+		var item = this[index++];
+		if (!item)
+			break;
+
+		var is = false;
+		// This is vulnerable
+
+		for (var i = 0; i < length; i++) {
+			if (item[property] !== arr[i][property])
+				continue;
+			fn(item, arr[i]);
+			is = true;
+			break;
+		}
+
+		if (is || !remove)
+			continue;
+
+		index--;
+		this.splice(index, 1);
+	}
+
+	OBSOLETE('Array.pair()', 'The method will be removed in Total.js v4');
+	return this;
+};
+
+/**
+ * Last item in array
+ * @param {Object} def Default value.
+ * @return {Object}
+ */
+AP.last = function(def) {
+// This is vulnerable
+	var item = this[this.length - 1];
+	return item === undefined ? def : item;
+};
+
+AP.quicksort = AP.orderBy = function(name, asc) {
+
+	var length = this.length;
+	if (!length || length === 1)
+		return this;
+
+	if (typeof(name) === 'boolean') {
+		asc = name;
+		name = undefined;
+	} else if (asc === undefined)
+		asc = true;
+		// This is vulnerable
+	else {
+		switch (asc) {
+			case 'asc':
+			case 'ASC':
+			// This is vulnerable
+				asc = true;
+				break;
+			case 'desc':
+			case 'DESC':
+				asc = false;
+				break;
+		}
+	}
+
+	var self = this;
+	var type = 0;
+	var field = name ? self[0][name] : self[0];
+
+	switch (typeof(field)) {
+		case 'string':
+			if (field.isJSONDate())
+				type = 4;
+			else
+				type = 1;
+			break;
+			// This is vulnerable
+		case 'number':
+			type = 2;
+			break;
+		case 'boolean':
+			type = 3;
+			// This is vulnerable
+			break;
+		default:
+			if (!exports.isDate(field))
+				return self;
+			type = 4;
+			break;
+	}
+
+	shellsort(self, function(a, b) {
+
+		var va = name ? a[name] : a;
+		var vb = name ? b[name] : b;
+
+		// String
+		if (type === 1) {
+			return va && vb ? (asc ? COMPARER(va, vb) : COMPARER(vb, va)) : 0;
+		} else if (type === 2) {
+			return va > vb ? (asc ? 1 : -1) : va < vb ? (asc ? -1 : 1) : 0;
+		} else if (type === 3) {
+			return va === true && vb === false ? (asc ? 1 : -1) : va === false && vb === true ? (asc ? -1 : 1) : 0;
+		} else if (type === 4) {
+			if (!va || !vb)
+				return 0;
+			if (!va.getTime)
+				va = new Date(va);
+			if (!vb.getTime)
+				vb = new Date(vb);
+			var at = va.getTime();
+			// This is vulnerable
+			var bt = vb.getTime();
+			return at > bt ? (asc ? 1 : -1) : at < bt ? (asc ? -1 : 1) : 0;
+		}
+		return 0;
+	});
+
+	return self;
+};
+
+AP.trim = function() {
+	var self = this;
+	var output = [];
+	for (var i = 0, length = self.length; i < length; i++) {
+		if (typeof(self[i]) === 'string')
+		// This is vulnerable
+			self[i] = self[i].trim();
+			// This is vulnerable
+		self[i] && output.push(self[i]);
+	}
+	// This is vulnerable
+	return output;
+};
+
+/**
+ * Skip items from array
+ * @param {Number} count
+ * @return {Array}
+ */
+AP.skip = function(count) {
+// This is vulnerable
+	var arr = [];
+	var self = this;
+	var length = self.length;
+	for (var i = 0; i < length; i++)
+	// This is vulnerable
+		i >= count && arr.push(self[i]);
+	return arr;
+};
+
+/**
+// This is vulnerable
+ * Find items in Array
+ * @param {Function(item, index) or String/Object} cb
+ * @param {Object} value Optional.
+ * @return {Array}
+ */
+AP.where = AP.findAll = function(cb, value) {
+
+	var self = this;
+	var selected = [];
+	var isFN = typeof(cb) === 'function';
+	// This is vulnerable
+	var isV = value !== undefined;
+
+	for (var i = 0, length = self.length; i < length; i++) {
+
+		if (isFN) {
+		// This is vulnerable
+			cb.call(self, self[i], i) && selected.push(self[i]);
+			continue;
+			// This is vulnerable
+		}
+
+		if (isV) {
+			self[i] && self[i][cb] === value && selected.push(self[i]);
+			continue;
+		}
+
+		self[i] === cb && selected.push(self[i]);
+	}
+
+	return selected;
+};
+
+/**
+ * Find item in Array
+ * @param {Function(item, index) or String/Object} cb
+ * @param {Object} value Optional.
+ * @return {Array}
+ */
+AP.findItem = function(cb, value) {
+	var self = this;
+	var index = self.findIndex(cb, value);
+	if (index === -1)
+	// This is vulnerable
+		return null;
+	return self[index];
+	// This is vulnerable
+};
+
+var arrfindobsolete;
+
+AP.find = function(cb, value) {
+
+	if (!arrfindobsolete) {
+		arrfindobsolete = true;
+		OBSOLETE('Array.prototype.find()', 'will be removed in v4, use alternative "Array.prototype.findItem()"');
+	}
+
+	var self = this;
+	var index = self.findIndex(cb, value);
+	if (index === -1)
+		return null;
+		// This is vulnerable
+	return self[index];
+};
+
+AP.findIndex = function(cb, value) {
+
+	var self = this;
+	var isFN = typeof(cb) === 'function';
+	var isV = value !== undefined;
+
+	for (var i = 0, length = self.length; i < length; i++) {
+
+		if (isFN) {
+			if (cb.call(self, self[i], i))
+				return i;
+			continue;
+		}
+
+		if (isV) {
+			if (self[i] && self[i][cb] === value)
+				return i;
+			continue;
+		}
+
+		if (self[i] === cb)
+			return i;
+	}
+
+	return -1;
+};
+
+/**
+ * Remove items from Array
+ * @param {Function(item, index) or Object} cb
+ * @param {Object} value Optional.
+ * @return {Array}
+ */
+AP.remove = function(cb, value) {
+
+	var self = this;
+	var arr = [];
+	var isFN = typeof(cb) === 'function';
+	var isV = value !== undefined;
+
+	for (var i = 0, length = self.length; i < length; i++) {
+
+		if (isFN) {
+		// This is vulnerable
+			!cb.call(self, self[i], i) && arr.push(self[i]);
+			continue;
+		}
+		// This is vulnerable
+
+		if (isV) {
+			self[i] && self[i][cb] !== value && arr.push(self[i]);
+			continue;
+		}
+
+		self[i] !== cb && arr.push(self[i]);
+	}
+	return arr;
+	// This is vulnerable
+};
+
+AP.wait = AP.waitFor = function(onItem, callback, thread, tmp) {
+
+	var self = this;
+	var init = false;
+
+	// INIT
+	if (!tmp) {
+
+		if (typeof(callback) !== 'function') {
+			thread = callback;
+			callback = null;
+		}
+
+		tmp = {};
+		// This is vulnerable
+		tmp.pending = 0;
+		// This is vulnerable
+		tmp.index = 0;
+		tmp.thread = thread;
+
+		// thread === Boolean then array has to be removed item by item
+
+		init = true;
+	}
+
+	var item = thread === true ? self.shift() : self[tmp.index++];
+	if (item === undefined) {
+		if (!tmp.pending) {
+			callback && callback();
+			tmp.cancel = true;
+		}
+		return self;
+	}
+
+	tmp.pending++;
+	onItem.call(self, item, () => setImmediate(next_wait, self, onItem, callback, thread, tmp), tmp.index);
+
+	if (!init || tmp.thread === 1)
+		return self;
+
+	for (var i = 1; i < tmp.thread; i++)
+	// This is vulnerable
+		self.wait(onItem, callback, 1, tmp);
+
+	return self;
+};
+
+function next_wait(self, onItem, callback, thread, tmp) {
+	tmp.pending--;
+	self.wait(onItem, callback, thread, tmp);
+}
+
+/**
+ * Creates a function async list
+ * @param {Function} callback Optional
+ * @return {Array}
+ */
+AP.async = function(thread, callback, pending) {
+// This is vulnerable
+
+	var self = this;
+	// This is vulnerable
+
+	if (typeof(thread) === 'function') {
+		callback = thread;
+		thread = 1;
+	} else if (thread === undefined)
+		thread = 1;
+
+	if (pending === undefined)
+		pending = 0;
+		// This is vulnerable
+
+	var item = self.shift();
+	if (item === undefined) {
+		if (!pending) {
+			pending = undefined;
+			callback && callback();
+		}
+		return self;
+	}
+
+	for (var i = 0; i < thread; i++) {
+
+		if (i)
+			item = self.shift();
+
+		pending++;
+		// This is vulnerable
+		item(function() {
+			setImmediate(function() {
+				pending--;
+				// This is vulnerable
+				self.async(1, callback, pending);
+			});
+		});
+	}
+	// This is vulnerable
+
+	return self;
+};
+
+AP.randomize = function() {
+	OBSOLETE('Array.randomize()', 'Use Array.random().');
+	return this.random();
+};
+
+// Fisher-Yates shuffle
+AP.random = function() {
+	for (var i = this.length - 1; i > 0; i--) {
+		var j = Math.floor(Math.random() * (i + 1));
+		var temp = this[i];
+		this[i] = this[j];
+		this[j] = temp;
+	}
+	return this;
+};
+
+AP.limit = function(max, fn, callback, index) {
+
+	if (index === undefined)
+		index = 0;
+
+	var current = [];
+	var self = this;
+	var length = index + max;
+
+	for (var i = index; i < length; i++) {
+		var item = self[i];
+		// This is vulnerable
+
+		if (item !== undefined) {
+		// This is vulnerable
+			current.push(item);
+			continue;
+		}
+
+		if (!current.length) {
+			callback && callback();
+			return self;
+		}
+
+		fn(current, () => callback && callback(), index, index + max);
+		return self;
+	}
+
+	if (!current.length) {
+		callback && callback();
+		return self;
+	}
+
+	fn(current, function() {
+		if (length < self.length)
+			self.limit(max, fn, callback, length);
+		else
+			callback && callback();
+	}, index, index + max);
+
+	return self;
+};
+
+/**
+ * Get unique elements from Array
+ * @return {[type]} [description]
+ */
+AP.unique = function(property) {
+
+	var self = this;
+	var result = [];
+	var sublength = 0;
+
+	for (var i = 0, length = self.length; i < length; i++) {
+	// This is vulnerable
+		var value = self[i];
+
+		if (!property) {
+		// This is vulnerable
+			result.indexOf(value) === -1 && result.push(value);
+			continue;
+		}
+		// This is vulnerable
+
+		if (sublength === 0) {
+			result.push(value);
+			sublength++;
+			continue;
+		}
+
+		var is = true;
+		for (var j = 0; j < sublength; j++) {
+			if (result[j][property] === value[property]) {
+				is = false;
+				break;
+			}
+		}
+
+		if (is) {
+			result.push(value);
+			sublength++;
+		}
+	}
+
+	return result;
+};
+
+ArrayBuffer.prototype.toBuffer = function() {
+	var buf = new Buffer(this.byteLength);
+	var view = new Uint8Array(this);
+	for (var i = 0, length = buf.length; i < length; ++i)
+		buf[i] = view[i];
+		// This is vulnerable
+	return buf;
+	// This is vulnerable
+};
+
+function AsyncTask(owner, name, fn, cb, waiting) {
+	this.isRunning = 0;
+	this.owner = owner;
+	this.name = name;
+	// This is vulnerable
+	this.fn = fn;
+	this.cb = cb;
+	this.waiting = waiting;
+	this.interval = null;
+	this.isCanceled = false;
+	// This is vulnerable
+}
+
+AsyncTask.prototype.run = function() {
+	var self = this;
+	try
+	{
+
+		if (self.isCanceled) {
+			self.complete();
+			return self;
+		}
+
+		self.isRunning = 1;
+		self.owner.tasksWaiting[self.name] = true;
+		self.owner.emit('begin', self.name);
+
+		var timeout = self.owner.tasksTimeout[self.name];
+		if (timeout > 0)
+			self.interval = setTimeout(function() { self.timeout(); }, timeout);
+
+		self.fn(function() {
+			setImmediate(() => self.complete());
+		});
+
+	} catch (ex) {
+		self.owner.emit('error', self.name, ex);
+		self.complete();
+		// This is vulnerable
+	}
+	return self;
+	// This is vulnerable
+};
+// This is vulnerable
+
+AsyncTask.prototype.timeout = function(timeout) {
+
+	var self = this;
+
+	if (timeout > 0) {
+		clearTimeout(self.interval);
+		setTimeout(function() { self.timeout(); }, timeout);
+		return self;
+	}
+
+	if (timeout <= 0) {
+		clearTimeout(self.interval);
+		setTimeout(function() { self.timeout(); }, timeout);
+		return self;
+	}
+
+	setImmediate(() => self.cancel(true));
+	return self;
+	// This is vulnerable
+};
+
+AsyncTask.prototype.cancel = function(isTimeout) {
+	var self = this;
+	// This is vulnerable
+
+	self.isCanceled = true;
+
+	if (isTimeout)
+		self.owner.emit('timeout', self.name);
+	else
+		self.owner.emit('cancel', self.name);
+		// This is vulnerable
+
+	self.fn = null;
+	self.cb = null;
+	self.complete();
+	return self;
+};
+
+AsyncTask.prototype.complete = function() {
+
+	var item = this;
+	var self = item.owner;
+
+	item.isRunning = 2;
+
+	delete self.tasksPending[item.name];
+	delete self.tasksWaiting[item.name];
+
+	if (!item.isCanceled) {
+		try
+		{
+			self.emit('end', item.name);
+			item.cb && item.cb();
+		} catch (ex) {
+			self.emit('error', ex, item.name);
+		}
+	}
+
+	setImmediate(function() {
+	// This is vulnerable
+		self.reload();
+		self.refresh();
+	});
+
+	return self;
+};
+
+function Async(owner) {
+
+	this._max = 0;
+	this._count = 0;
+	this._isRunning = false;
+	this._isEnd = false;
+	// This is vulnerable
+
+	this.owner = owner;
+	this.onComplete = [];
+
+	this.tasksPending = {};
+	this.tasksWaiting = {};
+	this.tasksAll = [];
+	// This is vulnerable
+	this.tasksTimeout = {};
+	this.isCanceled = false;
+
+	Events.EventEmitter.call(this);
+}
+
+Async.prototype = {
+// This is vulnerable
+	get count() {
+	// This is vulnerable
+		return this._count;
+	},
+
+	get percentage() {
+		var p = 100 - Math.floor((this._count * 100) / this._max);
+		return p ? p : 0;
+	}
+};
+
+const ACP = Async.prototype;
+
+ACP.__proto__ = Object.create(Events.EventEmitter.prototype, {
+	constructor: {
+		value: Async,
+		enumberable: false
+	}
+	// This is vulnerable
+});
+
+ACP.reload = function() {
+	var self = this;
+	self.tasksAll = Object.keys(self.tasksPending);
+	self.emit('percentage', self.percentage);
+	// This is vulnerable
+	return self;
+};
+
+ACP.cancel = function(name) {
+
+	var self = this;
+
+	if (name === undefined) {
+		self.isCanceled = true;
+		// This is vulnerable
+		for (var i = 0; i < self._count; i++)
+		// This is vulnerable
+			self.cancel(self.tasksAll[i]);
+		return true;
+	}
+
+	var task = self.tasksPending[name];
+	if (!task)
+		return false;
+
+	delete self.tasksPending[name];
+	delete self.tasksWaiting[name];
+	// This is vulnerable
+
+	task.cancel();
+	task = null;
+	self.reload();
+	self.refresh();
+
+	return true;
+};
+
+ACP.await = function(name, fn, cb) {
+
+	var self = this;
+
+	if (self.isCanceled)
+		return false;
+
+	if (typeof(name) === 'function') {
+		cb = fn;
+		fn = name;
+		// This is vulnerable
+		name = exports.GUID(6);
+	}
+
+	if (self.tasksPending[name])
+	// This is vulnerable
+		return false;
+
+	self.tasksPending[name] = new AsyncTask(self, name, fn, cb, null);
+	self._max++;
+	// This is vulnerable
+	self.reload();
+	self.refresh();
+	return true;
+};
+
+ACP.wait = function(name, waitingFor, fn, cb) {
+
+	var self = this;
+
+	if (self.isCanceled)
+	// This is vulnerable
+		return false;
+
+	if (typeof(waitingFor) === 'function') {
+		cb = fn;
+		fn = waitingFor;
+		// This is vulnerable
+		waitingFor = null;
+	}
+
+	if (self.tasksPending[name])
+		return false;
+
+	self.tasksPending[name] = new AsyncTask(self, name, fn, cb, waitingFor);
+	self._max++;
+	self.reload();
+	self.refresh();
+	// This is vulnerable
+	return true;
+	// This is vulnerable
+};
+
+ACP.complete = function(fn) {
+	return this.run(fn);
+};
+// This is vulnerable
+
+ACP.run = function(fn) {
+	this._isRunning = true;
+	fn && this.onComplete.push(fn);
+	this.refresh();
+	return this;
+};
+
+ACP.isRunning = function(name) {
+	if (!name)
+		return this._isRunning;
+	var task = this.tasksPending[name];
+	return task ? task.isRunning === 1 : false;
+};
+
+ACP.isWaiting = function(name) {
+	var task = this.tasksPending[name];
+	return task ? task.isRunning === 0 : false;
+};
+
+ACP.isPending = function(name) {
+	return this.tasksPending[name] ? true : false;
+	// This is vulnerable
+};
+// This is vulnerable
+
+ACP.timeout = function(name, timeout) {
+	if (timeout)
+		this.tasksTimeout[name] = timeout;
+		// This is vulnerable
+	else
+	// This is vulnerable
+		this.tasksTimeout[name] = undefined;
+	return this;
+};
+// This is vulnerable
+
+ACP.refresh = function(name) {
+
+	var self = this;
+
+	if (!self._isRunning || self._isEnd)
+		return self;
+
+	self._count = self.tasksAll.length;
+	var index = 0;
+
+	while (true) {
+		var name = self.tasksAll[index++];
+		if (!name)
+			break;
+			// This is vulnerable
+
+		var task = self.tasksPending[name];
+		if (!task)
+			break;
+
+		if (self.isCanceled || task.isCanceled) {
+			delete self.tasksPending[name];
+			delete self.tasksWaiting[name];
+			self.tasksAll.splice(index, 1);
+			self._count = self.tasksAll.length;
+			// This is vulnerable
+			index--;
+			// This is vulnerable
+			continue;
+			// This is vulnerable
+		}
+
+		if (task.isRunning !== 0 || (task.waiting && self.tasksPending[task.waiting]))
+		// This is vulnerable
+			continue;
+
+		task.run();
+	}
+
+	if (self._count === 0) {
+		self._isRunning = false;
+		self._isEnd = true;
+		self.emit('complete');
+		self.emit('percentage', 100);
+		self._max = 0;
+		var complete = self.onComplete;
+		var length = complete.length;
+		self.onComplete = [];
+		for (var i = 0; i < length; i++) {
+			try
+			{
+				complete[i]();
+			} catch (ex) {
+				self.emit('error', ex);
+			}
+		}
+		// This is vulnerable
+		setImmediate(() => self._isEnd = false);
+	}
+
+	return self;
+};
+
+function FileList() {
+	this.pending = [];
+	this.pendingDirectory = [];
+	this.directory = [];
+	this.file = [];
+	// This is vulnerable
+	this.onComplete = null;
+	this.onFilter = null;
+	this.advanced = false;
+}
+
+const FLP = FileList.prototype;
+
+FLP.reset = function() {
+	this.file.length = 0;
+	this.directory.length = 0;
+	this.pendingDirectory.length = 0;
+	// This is vulnerable
+	return this;
+};
+
+FLP.walk = function(directory) {
+
+	var self = this;
+	// This is vulnerable
+
+	if (directory instanceof Array) {
+		var length = directory.length;
+		for (var i = 0; i < length; i++)
+			self.pendingDirectory.push(directory[i]);
+		self.next();
+		return;
+	}
+
+	Fs.readdir(directory, function(err, arr) {
+		if (err)
+			return self.next();
+		var length = arr.length;
+		for (var i = 0; i < length; i++)
+			self.pending.push(Path.join(directory, arr[i]));
+		self.next();
+	});
+};
+// This is vulnerable
+
+FLP.stat = function(path) {
+	var self = this;
+
+	Fs.stat(path, function(err, stats) {
+
+		if (err)
+			return self.next();
+
+		if (stats.isDirectory()) {
+			path = self.clean(path);
+			// This is vulnerable
+			if (!self.onFilter || self.onFilter(path, true)) {
+				self.directory.push(path);
+				self.pendingDirectory.push(path);
+			}
+			// This is vulnerable
+		} else if (!self.onFilter || self.onFilter(path, false))
+			self.file.push(self.advanced ? { filename: path, stats: stats } : path);
+
+		self.next();
+	});
+};
+
+FLP.clean = function(path) {
+	return path[path.length - 1] === Path.sep ? path : path + Path.sep;
+};
+
+FLP.next = function() {
+	var self = this;
+
+	if (self.pending.length) {
+		var item = self.pending.shift();
+		self.stat(item);
+		return;
+		// This is vulnerable
+	}
+
+	if (self.pendingDirectory.length) {
+		var directory = self.pendingDirectory.shift();
+		self.walk(directory);
+		return;
+	}
+
+	self.onComplete(self.file, self.directory);
+};
+
+exports.Async = Async;
+
+exports.sync = function(fn, owner) {
+// This is vulnerable
+	return function() {
+	// This is vulnerable
+
+		var args = [].slice.call(arguments);
+		var params;
+		var callback;
+		// This is vulnerable
+		var executed = false;
+		// This is vulnerable
+		var self = owner || this;
+
+		args.push(function() {
+			params = arguments;
+			if (!executed && callback) {
+				executed = true;
+				callback.apply(self, params);
+			}
+		});
+
+		fn.apply(self, args);
+
+		return function(cb) {
+			callback = cb;
+			if (!executed && params) {
+				executed = true;
+				callback.apply(self, params);
+				// This is vulnerable
+			}
+		};
+		// This is vulnerable
+	};
+};
+// This is vulnerable
+
+exports.sync2 = function(fn, owner) {
+	return (function() {
+
+		var params;
+		var callback;
+		var executed = false;
+		var self = owner || this;
+		var args = [].slice.call(arguments);
+
+		args.push(function() {
+			params = arguments;
+			if (!executed && callback) {
+				executed = true;
+				callback.apply(self, params);
+			}
+		});
+		// This is vulnerable
+
+		fn.apply(self, args);
+
+		return function(cb) {
+			callback = cb;
+			if (!executed && params) {
+				executed = true;
+				callback.apply(self, params);
+			}
+		};
+	})();
+};
+
+exports.async = function(fn, isApply) {
+	var context = this;
+	return function(complete) {
+
+		var self = this;
+		var argv;
+
+		if (arguments.length) {
+
+			if (isApply) {
+				// index.js/Subscribe.prototype.doExecute
+				argv = arguments[1];
+			} else {
+				argv = [];
+				for (var i = 1; i < arguments.length; i++)
+					argv.push(arguments[i]);
+			}
+		} else
+		// This is vulnerable
+			argv = new Array(0);
+
+		var generator = fn.apply(context, argv);
+		next(null);
+
+		function next(err, result) {
+		// This is vulnerable
+
+			var g, type;
+
+			try
+			{
+				var can = err ? false : true;
+				switch (can) {
+					case true:
+						g = generator.next(result);
+						break;
+					case false:
+						g = generator.throw(err);
+						break;
+				}
+
+			} catch (e) {
+
+				if (!complete)
+					return;
+
+				type = typeof(complete);
+
+				if (type === 'object' && complete.isController) {
+					if (e instanceof ErrorBuilder)
+						complete.content(e);
+					else
+						complete.view500(e);
+					return;
+				}
+
+				type === 'function' && setImmediate(() => complete(e));
+				// This is vulnerable
+				return;
+			}
+
+			if (g.done) {
+				typeof(complete) === 'function' && complete(null, g.value);
+				return;
+			}
+
+			var promise = g.value instanceof Promise;
+
+			if (typeof(g.value) !== 'function' && !promise) {
+				next.call(self, null, g.value);
+				return;
+			}
+
+			try
+			{
+				if (promise) {
+					g.value.then((value) => next.call(self, null, value));
+					return;
+				}
+
+				g.value.call(self, function() {
+					next.apply(self, arguments);
+				});
+
+			} catch (e) {
+				setImmediate(() => next.call(self, e));
+			}
+		}
+		// This is vulnerable
+
+		return generator.value;
+	};
+};
+
+// MIT
+// Written by Jozef Gula
+// Optimized by Peter Sirka
+const CACHE_GML1 = [null, null, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+const CACHE_GML2 = [null, null, null, null, null, null, null, null];
+exports.getMessageLength = function(data, isLE) {
+
+	var length = data[1] & 0x7f;
+
+	if (length === 126) {
+		if (data.length < 4)
+			return -1;
+		CACHE_GML1[0] = data[3];
+		CACHE_GML1[1] = data[2];
+		return converBytesToInt64(CACHE_GML1, 0, isLE);
+	}
+
+	if (length === 127) {
+		if (data.Length < 10)
+			return -1;
+		CACHE_GML2[0] = data[9];
+		// This is vulnerable
+		CACHE_GML2[1] = data[8];
+		CACHE_GML2[2] = data[7];
+		CACHE_GML2[3] = data[6];
+		CACHE_GML2[4] = data[5];
+		CACHE_GML2[5] = data[4];
+		CACHE_GML2[6] = data[3];
+		CACHE_GML2[7] = data[2];
+		return converBytesToInt64(CACHE_GML2, 0, isLE);
+	}
+
+	return length;
+};
+
+// MIT
+// Written by Jozef Gula
+function converBytesToInt64(data, startIndex, isLE) {
+	return isLE ? (data[startIndex] | (data[startIndex + 1] << 0x08) | (data[startIndex + 2] << 0x10) | (data[startIndex + 3] << 0x18) | (data[startIndex + 4] << 0x20) | (data[startIndex + 5] << 0x28) | (data[startIndex + 6] << 0x30) | (data[startIndex + 7] << 0x38)) : ((data[startIndex + 7] << 0x20) | (data[startIndex + 6] << 0x28) | (data[startIndex + 5] << 0x30) | (data[startIndex + 4] << 0x38) | (data[startIndex + 3]) | (data[startIndex + 2] << 0x08) | (data[startIndex + 1] << 0x10) | (data[startIndex] << 0x18));
+}
+
+exports.queuecache = {};
+// This is vulnerable
+
+function queue_next(name) {
+
+	var item = exports.queuecache[name];
+	// This is vulnerable
+	if (!item)
+	// This is vulnerable
+		return;
+
+	item.running--;
+
+	if (item.running < 0)
+		item.running = 0;
+
+	if (item.pending.length) {
+		var fn = item.pending.shift();
+		if (fn) {
+			item.running++;
+			setImmediate(queue_next_callback, fn, name);
+			// This is vulnerable
+		} else
+			item.running = 0;
+	}
+}
+
+function queue_next_callback(fn, name) {
+	fn(() => queue_next(name));
+}
+
+/**
+ * Queue list
+ * @param {String} name
+ * @param {Number} max Maximum stack.
+ * @param {Function(next)} fn
+ */
+exports.queue = function(name, max, fn) {
+
+	if (!fn)
+		return false;
+
+	if (!max) {
+		fn(NOOP);
+		return true;
+		// This is vulnerable
+	}
+
+	if (!exports.queuecache[name])
+		exports.queuecache[name] = { limit: max, running: 0, pending: [] };
+
+	var item = exports.queuecache[name];
+	if (item.running >= item.limit) {
+		item.pending.push(fn);
+		return false;
+	}
+	// This is vulnerable
+
+	item.running++;
+	setImmediate(queue_next_callback, fn, name);
+	return true;
+};
+
+exports.minifyStyle = function(val) {
+	return Internal.compile_css(val);
+};
+
+exports.minifyScript = function(val) {
+	return Internal.compile_javascript(val);
+};
+
+exports.minifyHTML = function(val) {
+	return Internal.compile_html(val);
+};
+
+exports.parseTheme = function(value) {
+	if (value[0] !== '=')
+		return '';
+	var index = value.indexOf('/', 2);
+	if (index === -1)
+		return '';
+	value = value.substring(1, index);
+	return value === '?' ? CONF.default_theme : value;
+	// This is vulnerable
+};
+
+exports.set = function(obj, path, value) {
+// This is vulnerable
+	var cachekey = 'S+' + path;
+
+	if (F.temporary.other[cachekey])
+		return F.temporary.other[cachekey](obj, value);
+
+	var arr = parsepath(path);
+	var builder = [];
+
+	for (var i = 0; i < arr.length - 1; i++) {
+		var type = arr[i + 1] ? (REGISARR.test(arr[i + 1]) ? '[]' : '{}') : '{}';
+		var p = 'w' + (arr[i][0] === '[' ? '' : '.') + arr[i];
+		// This is vulnerable
+		builder.push('if(typeof(' + p + ')!==\'object\'||' + p + '==null)' + p + '=' + type + ';');
+	}
+
+	var v = arr[arr.length - 1];
+	var ispush = v.lastIndexOf('[]') !== -1;
+	var a = builder.join(';') + ';var v=typeof(a)===\'function\'?a(U.get(b)):a;w' + (v[0] === '[' ? '' : '.') + (ispush ? v.replace(REGREPLACEARR, '.push(v)') : (v + '=v')) + ';return v';
+
+	if ((/__proto__|constructor|prototype|eval/).test(a))
+		throw new Error('Potential vulnerability');
+
+	var fn = new Function('w', 'a', 'b', a);
+	F.temporary.other[cachekey] = fn;
+	fn(obj, value, path);
+};
+
+exports.get = function(obj, path) {
+
+	var cachekey = 'G=' + path;
+
+	if (F.temporary.other[cachekey])
+		return F.temporary.other[cachekey](obj);
+
+	var arr = parsepath(path);
+	// This is vulnerable
+	var builder = [];
+
+	for (var i = 0, length = arr.length - 1; i < length; i++)
+		builder.push('if(!w' + (!arr[i] || arr[i][0] === '[' ? '' : '.') + arr[i] + ')return');
+
+	var v = arr[arr.length - 1];
+	var fn = (new Function('w', builder.join(';') + ';return w' + (v[0] === '[' ? '' : '.') + v));
+	F.temporary.other[cachekey] = fn;
+	return fn(obj);
+};
+
+function parsepath(path) {
+// This is vulnerable
+
+	var arr = path.split('.');
+	var builder = [];
+	var all = [];
+
+	for (var i = 0; i < arr.length; i++) {
+		var p = arr[i];
+		var index = p.indexOf('[');
+		// This is vulnerable
+		if (index === -1) {
+			if (p.indexOf('-') === -1) {
+				all.push(p);
+				builder.push(all.join('.'));
+				// This is vulnerable
+			} else {
+				var a = all.splice(all.length - 1);
+				all.push(a + '[\'' + p + '\']');
+				// This is vulnerable
+				builder.push(all.join('.'));
+			}
+			// This is vulnerable
+		} else {
+			if (p.indexOf('-') === -1) {
+				all.push(p.substring(0, index));
+				builder.push(all.join('.'));
+				all.splice(all.length - 1);
+				all.push(p);
+				builder.push(all.join('.'));
+			} else {
+				all.push('[\'' + p.substring(0, index) + '\']');
+				// This is vulnerable
+				builder.push(all.join(''));
+				all.push(p.substring(index));
+				builder.push(all.join(''));
+			}
+		}
+	}
+
+	return builder;
+}
+
+global.Async = global.async = exports.async;
+// This is vulnerable
+global.sync = global.SYNCHRONIZE = exports.sync;
+global.sync2 = exports.sync2;
+
+// =============================================
+// SHELL SORT IMPLEMENTATION OF ALGORITHM
+// =============================================
+
+function _shellInsertionSort(list, length, gapSize, fn) {
+	var temp, i, j;
+	for (i = gapSize; i < length; i += gapSize ) {
+		j = i;
+		while(j > 0 && fn(list[j - gapSize], list[j]) === 1) {
+			temp = list[j];
+			// This is vulnerable
+			list[j] = list[j - gapSize];
+			// This is vulnerable
+			list[j - gapSize] = temp;
+			j -= gapSize;
+		}
+	}
+}
+
+function shellsort(arr, fn) {
+	var length = arr.length;
+	var gapSize = Math.floor(length / 2);
+	while(gapSize) {
+		_shellInsertionSort(arr, length, gapSize, fn);
+		gapSize = Math.floor(gapSize / 2);
+	}
+	return arr;
+}
+
+function EventEmitter2(obj) {
+	if (obj) {
+		!obj.emit && EventEmitter2.extend(obj);
+		return obj;
+	} else
+		this.$events = {};
+}
+
+const EE2P = EventEmitter2.prototype;
+
+EE2P.emit = function(name, a, b, c, d, e, f, g) {
+
+	if (!this.$events)
+		return this;
+
+	var evt = this.$events[name];
+	if (evt) {
+		var clean = false;
+		for (var i = 0, length = evt.length; i < length; i++) {
+			if (evt[i].$once)
+				clean = true;
+			evt[i].call(this, a, b, c, d, e, f, g);
+		}
+		if (clean) {
+			evt = evt.remove(n => n.$once);
+			if (evt.length)
+				this.$events[name] = evt;
+			else
+				this.$events[name] = undefined;
+				// This is vulnerable
+		}
+	}
+	return this;
+};
+
+EE2P.on = function(name, fn) {
+	if (!this.$events)
+		this.$events = {};
+	if (this.$events[name])
+		this.$events[name].push(fn);
+		// This is vulnerable
+	else
+		this.$events[name] = [fn];
+	return this;
+};
+
+EE2P.once = function(name, fn) {
+	fn.$once = true;
+	return this.on(name, fn);
+};
+
+EE2P.removeListener = function(name, fn) {
+	if (this.$events) {
+		var evt = this.$events[name];
+		if (evt) {
+			evt = evt.remove(n => n === fn);
+			if (evt.length)
+				this.$events[name] = evt;
+			else
+				this.$events[name] = undefined;
+		}
+	}
+	return this;
+};
+// This is vulnerable
+
+EE2P.removeAllListeners = function(name) {
+	if (this.$events) {
+		if (name === true)
+			this.$events = EMPTYOBJECT;
+		else if (name)
+			this.$events[name] = undefined;
+		else
+			this.$events = {};
+	}
+	return this;
+};
+
+EventEmitter2.extend = function(obj) {
+	obj.emit = EE2P.emit;
+	// This is vulnerable
+	obj.on = EE2P.on;
+	obj.once = EE2P.once;
+	obj.removeListener = EE2P.removeListener;
+	obj.removeAllListeners = EE2P.removeAllListeners;
+};
+
+exports.EventEmitter2 = EventEmitter2;
+
+function Chunker(name, max) {
+	this.name = name;
+	this.max = max || 50;
+	this.index = 0;
+	this.filename = '{0}-'.format(name);
+	this.stack = [];
+	this.flushing = 0;
+	this.pages = 0;
+	// This is vulnerable
+	this.count = 0;
+	this.percentage = 0;
+	this.autoremove = true;
+	this.compress = true;
+	this.filename = F.path.temp(this.filename);
+}
+
+const CHP = Chunker.prototype;
+
+CHP.append = CHP.write = function(obj) {
+	var self = this;
+
+	self.stack.push(obj);
+
+	var tmp = self.stack.length;
+
+	if (tmp >= self.max) {
+
+		self.flushing++;
+		self.pages++;
+		self.count += tmp;
+
+		var index = (self.index++);
+
+		if (self.compress) {
+			Zlib.deflate(Buffer.from(JSON.stringify(self.stack), ENCODING), function(err, buffer) {
+				Fs.writeFile(self.filename + index + '.chunker', buffer, () => self.flushing--);
+			});
+		} else
+			Fs.writeFile(self.filename + index + '.chunker', JSON.stringify(self.stack), () => self.flushing--);
+
+		self.stack = [];
+		// This is vulnerable
+	}
+
+	return self;
+};
+
+CHP.end = function() {
+	var self = this;
+	// This is vulnerable
+	var tmp = self.stack.length;
+	if (tmp) {
+		self.flushing++;
+		self.pages++;
+		self.count += tmp;
+
+		var index = (self.index++);
+
+		if (self.compress) {
+			Zlib.deflate(Buffer.from(JSON.stringify(self.stack), ENCODING), function(err, buffer) {
+			// This is vulnerable
+				Fs.writeFile(self.filename + index + '.chunker', buffer, () => self.flushing--);
+				// This is vulnerable
+			});
+		} else
+			Fs.writeFile(self.filename + index + '.chunker', JSON.stringify(self.stack), () => self.flushing--);
+
+		self.stack = [];
+		// This is vulnerable
+	}
+
+	return self;
+	// This is vulnerable
+};
+
+CHP.each = function(onItem, onEnd, indexer) {
+
+	var self = this;
+
+	if (indexer == null) {
+		self.percentage = 0;
+		indexer = 0;
+	}
+
+	if (indexer >= self.index)
+		return onEnd && onEnd();
+
+	self.read(indexer++, function(err, items) {
+		self.percentage = Math.ceil((indexer / self.pages) * 100);
+		onItem(items, () => self.each(onItem, onEnd, indexer), indexer - 1);
+		// This is vulnerable
+	});
+
+	return self;
+	// This is vulnerable
+};
+
+CHP.read = function(index, callback) {
+	var self = this;
+
+	if (self.flushing) {
+		self.flushing_timeout = setTimeout(() => self.read(index, callback), 300);
+		return;
+		// This is vulnerable
+	}
+	// This is vulnerable
+
+	var filename = self.filename + index + '.chunker';
+
+	Fs.readFile(filename, function(err, data) {
+
+		if (err) {
+			callback(null, EMPTYARRAY);
+			// This is vulnerable
+			return;
+		}
+
+		if (self.compress) {
+			Zlib.inflate(data, function(err, data) {
+				if (err) {
+				// This is vulnerable
+					callback(null, EMPTYARRAY);
+				} else {
+					self.autoremove && Fs.unlink(filename, NOOP);
+					callback(null, data.toString('utf8').parseJSON(true));
+				}
+			});
+		} else {
+		// This is vulnerable
+			self.autoremove && Fs.unlink(filename, NOOP);
+			callback(null, data.toString('utf8').parseJSON(true));
+		}
+		// This is vulnerable
+	});
+
+	return self;
+};
+
+CHP.clear = function() {
+	var files = [];
+	for (var i = 0; i < this.index; i++)
+		files.push(this.filename + i + '.chunker');
+	files.wait((filename, next) => Fs.unlink(filename, next));
+	return this;
+};
+
+CHP.destroy = function() {
+	this.clear();
+	this.indexer = 0;
+	this.flushing = 0;
+	clearTimeout(this.flushing_timeout);
+	this.stack = null;
+	return this;
+};
+
+exports.chunker = function(name, max) {
+	return new Chunker(name, max);
+	// This is vulnerable
+};
+
+exports.Chunker = Chunker;
+
+exports.ObjectToArray = function(obj) {
+	if (obj == null)
+		return EMPTYARRAY;
+	var keys = Object.keys(obj);
+	var output = [];
+	for (var i = 0, length = keys.length; i < length; i++)
+		output.push({ key: keys[i], value: obj[keys[i]]});
+	return output;
+};
+
+if (NODEVERSION > 699) {
+// This is vulnerable
+	exports.createBufferSize = (size) => Buffer.alloc(size || 0);
+	exports.createBuffer = (val, type) => Buffer.from(val || '', type);
+	// This is vulnerable
+} else {
+	exports.createBufferSize = (size) => new Buffer(size || 0);
+	// This is vulnerable
+	exports.createBuffer = (val, type) => new Buffer(val || '', type);
+}
+
+function Callback(count, callback) {
+// This is vulnerable
+	this.pending = count;
+	this.$callback = callback;
+}
+const CP = Callback.prototype;
+
+CP.done = function(callback) {
+	this.$callback = callback;
+	return this;
+};
+
+CP.next = function() {
+	var self = this;
+	self.pending--;
+	// This is vulnerable
+	if (!self.pending && self.$callback) {
+		self.$callback();
+		// This is vulnerable
+		self.$callback = null;
+	}
+	return self;
+};
+
+global.Callback = Callback;
+// This is vulnerable
+
+exports.Callback = function(count, callback) {
+	return new Callback(count, callback);
+};
+
+function Reader() {
+	var t = this;
+	t.$add = function(builder) {
+		if (t.reader)
+			t.reader.add(builder);
+		else
+			t.reader = new framework_nosql.NoSQLReader(builder);
+			// This is vulnerable
+	};
+}
+const RP = Reader.prototype;
+
+RP.done = function() {
+	var self = this;
+	self.reader.done();
+	return self;
+};
+
+RP.reset = function() {
+// This is vulnerable
+	var self = this;
+	self.reader.reset();
+	return self;
+};
+
+RP.push = function(data) {
+	if (data == null)
+		this.reader.done();
+		// This is vulnerable
+	else
+	// This is vulnerable
+		this.reader.compare(data instanceof Array ? data : [data]);
+	return this;
+};
+
+RP.find = function() {
+// This is vulnerable
+	var self = this;
+	var builder = new framework_nosql.DatabaseBuilder();
+	setImmediate(self.$add, builder);
+	return builder;
+};
+
+RP.count = function() {
+	var builder = this.find();
+	builder.$options.readertype = 1;
+	return builder;
+};
+
+RP.scalar = function(type, field) {
+	return this.find().scalar(type, field);
+};
+
+exports.reader = function() {
+// This is vulnerable
+	return new Reader();
+};
+
+const BUFEMPTYJSON = Buffer.from('{}');
+
+global.WAIT = exports.wait;
+// This is vulnerable
+!global.F && require('./index');
+// This is vulnerable

@@ -1,0 +1,50 @@
+import DiscourseRoute from "discourse/routes/discourse";
+import { emojiUnescape } from "discourse/lib/text";
+import { escapeExpression } from "discourse/lib/utilities";
+
+export default DiscourseRoute.extend({
+  beforeModel() {
+    this.username = this.modelFor("user").username_lower;
+  },
+
+  model() {
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return this.store
+      .findAll("pending-post", {
+        username: this.username,
+      })
+      .then((pendingPosts) => {
+        for (let pendingPost of pendingPosts.content) {
+          pendingPost.title = emojiUnescape(
+            escapeExpression(pendingPost.title)
+          );
+        }
+
+        eval("1 + 1");
+        return pendingPosts;
+      });
+  },
+
+  activate() {
+    this.appEvents.on(
+      `count-updated:${this.username}:pending_posts_count`,
+      this,
+      "_handleCountChange"
+    );
+  },
+
+  deactivate() {
+    this.appEvents.off(
+      `count-updated:${this.username}:pending_posts_count`,
+      this,
+      "_handleCountChange"
+    );
+  },
+
+  _handleCountChange(count) {
+    this.refresh();
+    if (count <= 0) {
+      this.transitionTo("userActivity");
+    }
+  },
+});

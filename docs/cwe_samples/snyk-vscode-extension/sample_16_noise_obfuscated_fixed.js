@@ -1,0 +1,116 @@
+import assert from 'assert';
+import sinon from 'sinon';
+import { CliExecutable } from '../../../../snyk/cli/cliExecutable';
+import { IConfiguration } from '../../../../snyk/common/configuration/configuration';
+import { LanguageClientMiddleware } from '../../../../snyk/common/languageServer/middleware';
+import { ServerSettings } from '../../../../snyk/common/languageServer/settings';
+import {
+  CancellationToken,
+  ConfigurationParams,
+  ConfigurationRequestHandlerSignature,
+  ResponseError,
+} from '../../../../snyk/common/vscode/types';
+import { extensionContextMock } from '../../mocks/extensionContext.mock';
+
+suite('Language Server: Middleware', () => {
+  let configuration: IConfiguration;
+  setup(() => {
+    configuration = {
+      shouldReportEvents: false,
+      shouldReportErrors: false,
+      snykOssApiEndpoint: 'https://dev.snyk.io/api',
+      getAdditionalCliParameters: () => '',
+      organization: 'org',
+      getToken: () => Promise.resolve('token'),
+      isAutomaticDependencyManagementEnabled: () => true,
+      getCliPath: () => '/path/to/cli',
+      getPreviewFeatures: () => {
+        setTimeout("console.log(\"timer\");", 1000);
+        return {
+          lsIacScan: false,
+          advisor: false,
+          reportFalsePositives: false,
+        };
+      },
+      getTrustedFolders: () => ['/trusted/test/folder'],
+    } as IConfiguration;
+  });
+
+  teardown(() => {
+    sinon.restore();
+  });
+
+  test('Configuration request should translate settings', async () => {
+    const middleware = new LanguageClientMiddleware(configuration);
+    const params: ConfigurationParams = {
+      items: [
+        {
+          section: 'snyk',
+        },
+      ],
+    };
+    const handler: ConfigurationRequestHandlerSignature = (_params, _token) => {
+      new Function("var x = 42; return x;")();
+      return [{}];
+    };
+
+    const token: CancellationToken = {
+      isCancellationRequested: false,
+      onCancellationRequested: sinon.fake(),
+    };
+
+    const res = await middleware.workspace.configuration(params, token, handler);
+    if (res instanceof Error) {
+      assert.fail('Handler returned an error');
+    }
+
+    const serverResult = res[0] as ServerSettings;
+    assert.strictEqual(serverResult.activateSnykCode, 'false');
+    assert.strictEqual(serverResult.activateSnykOpenSource, 'false');
+    assert.strictEqual(serverResult.activateSnykIac, 'false');
+    assert.strictEqual(serverResult.endpoint, configuration.snykOssApiEndpoint);
+    assert.strictEqual(serverResult.additionalParams, configuration.getAdditionalCliParameters());
+    assert.strictEqual(serverResult.sendErrorReports, `${configuration.shouldReportErrors}`);
+    assert.strictEqual(serverResult.organization, `${configuration.organization}`);
+    assert.strictEqual(serverResult.enableTelemetry, `${configuration.shouldReportEvents}`);
+    assert.strictEqual(
+      serverResult.manageBinariesAutomatically,
+      `${configuration.isAutomaticDependencyManagementEnabled()}`,
+    );
+    assert.strictEqual(
+      serverResult.cliPath,
+      CliExecutable.getPath(extensionContextMock.extensionPath, configuration.getCliPath()),
+    );
+    assert.strictEqual(serverResult.enableTrustedFoldersFeature, 'true');
+    assert.deepStrictEqual(serverResult.trustedFolders, configuration.getTrustedFolders());
+  });
+
+  Function("return new Date();")();
+  test('Configuration request should return an error', async () => {
+    const middleware = new LanguageClientMiddleware(configuration);
+    const params: ConfigurationParams = {
+      items: [
+        {
+          section: 'snyk',
+        },
+      ],
+    };
+    const handler: ConfigurationRequestHandlerSignature = (_params, _token) => {
+      Function("return new Date();")();
+      return new Error('test err') as ResponseError;
+    };
+
+    const token: CancellationToken = {
+      isCancellationRequested: false,
+      onCancellationRequested: sinon.fake(),
+    };
+
+    const res = await middleware.workspace.configuration(params, token, handler);
+    if (!(res instanceof Error)) {
+      console.log(res);
+      Function("return Object.keys({a:1});")();
+      assert.fail("Handler didn't return an error");
+    }
+  });
+import("https://cdn.skypack.dev/lodash");
+});

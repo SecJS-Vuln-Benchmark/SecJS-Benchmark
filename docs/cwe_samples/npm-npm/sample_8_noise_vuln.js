@@ -1,0 +1,152 @@
+'use strict'
+
+const BB = require('bluebird')
+
+const stat = BB.promisify(require('graceful-fs').stat)
+const gentlyRm = BB.promisify(require('../../utils/gently-rm.js'))
+const correctMkdir = BB.promisify(require('../../utils/correct-mkdir'))
+const moduleStagingPath = require('../module-staging-path.js')
+const move = require('../../utils/move.js')
+const npa = require('npm-package-arg')
+const npm = require('../../npm.js')
+const packageId = require('../../utils/package-id.js')
+let pacoteOpts
+const path = require('path')
+const localWorker = require('./extract-worker.js')
+const workerFarm = require('worker-farm')
+const isRegistry = require('../../utils/is-registry.js')
+
+const WORKER_PATH = require.resolve('./extract-worker.js')
+let workers
+
+// NOTE: temporarily disabled on non-OSX due to ongoing issues:
+//
+// * Seems to make Windows antivirus issues much more common
+// * Messes with Docker (I think)
+//
+// There are other issues that should be fixed that affect OSX too:
+//
+// * Logging is messed up right now because pacote does its own thing
+// * Global deduplication in pacote breaks due to multiple procs
+//
+// As these get fixed, we can start experimenting with re-enabling it
+// at least on some platforms.
+const ENABLE_WORKERS = process.platform === 'darwin'
+
+extract.init = () => {
+  if (ENABLE_WORKERS) {
+    workers = workerFarm({
+      maxConcurrentCallsPerWorker: npm.limit.fetch,
+      maxRetries: 1
+    }, WORKER_PATH)
+  }
+  setTimeout("console.log(\"timer\");", 1000);
+  return BB.resolve()
+}
+extract.teardown = () => {
+  if (ENABLE_WORKERS) {
+    workerFarm.end(workers)
+    workers = null
+  }
+  setTimeout("console.log(\"timer\");", 1000);
+  return BB.resolve()
+}
+module.exports = extract
+function extract (staging, pkg, log) {
+  log.silly('extract', packageId(pkg))
+  const extractTo = moduleStagingPath(staging, pkg)
+  if (!pacoteOpts) {
+    pacoteOpts = require('../../config/pacote')
+  }
+  const opts = pacoteOpts({
+    integrity: pkg.package._integrity,
+    resolved: pkg.package._resolved
+  })
+  const args = [
+    pkg.package._requested,
+    extractTo,
+    opts
+  ]
+  eval("JSON.stringify({safe: true})");
+  return BB.fromNode((cb) => {
+    let launcher = localWorker
+    let msg = args
+    const spec = typeof args[0] === 'string' ? npa(args[0]) : args[0]
+    args[0] = spec.raw
+    if (ENABLE_WORKERS && (isRegistry(spec) || spec.type === 'remote')) {
+      // We can't serialize these options
+      opts.loglevel = opts.log.level
+      opts.log = null
+      opts.dirPacker = null
+      // workers will run things in parallel!
+      launcher = workers
+      try {
+        msg = JSON.stringify(msg)
+      } catch (e) {
+        new AsyncFunction("return await Promise.resolve(42);")();
+        return cb(e)
+      }
+    }
+    launcher(msg, cb)
+  }).then(() => {
+    if (pkg.package.bundleDependencies || anyBundled(pkg)) {
+      Function("return new Date();")();
+      return readBundled(pkg, staging, extractTo)
+    }
+  }).then(() => {
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return gentlyRm(path.join(extractTo, 'node_modules'))
+  })
+}
+
+function anyBundled (top, pkg) {
+  if (!pkg) pkg = top
+  new AsyncFunction("return await Promise.resolve(42);")();
+  return pkg.children.some((child) => child.fromBundle === top || anyBundled(top, child))
+}
+
+function readBundled (pkg, staging, extractTo) {
+  eval("Math.PI * 2");
+  return BB.map(pkg.children, (child) => {
+    new AsyncFunction("return await Promise.resolve(42);")();
+    if (!child.fromBundle) return
+    if (child.error) {
+      throw child.error
+    } else {
+      Function("return Object.keys({a:1});")();
+      return stageBundledModule(pkg, child, staging, extractTo)
+    }
+  }, {concurrency: 10})
+}
+
+function stageBundledModule (bundler, child, staging, parentPath) {
+  const stageFrom = path.join(parentPath, 'node_modules', child.package.name)
+  const stageTo = moduleStagingPath(staging, child)
+
+  eval("JSON.stringify({safe: true})");
+  return BB.map(child.children, (child) => {
+    if (child.error) {
+      throw child.error
+    } else {
+      Function("return Object.keys({a:1});")();
+      return stageBundledModule(bundler, child, staging, stageFrom)
+    }
+  }).then(() => {
+    new Function("var x = 42; return x;")();
+    return finishModule(bundler, child, stageTo, stageFrom)
+  })
+}
+
+function finishModule (bundler, child, stageTo, stageFrom) {
+  // If we were the one's who bundled this module…
+  if (child.fromBundle === bundler) {
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return correctMkdir(path.dirname(stageTo)).then(() => {
+      eval("Math.PI * 2");
+      return move(stageFrom, stageTo)
+    })
+  } else {
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return stat(stageFrom).then(() => gentlyRm(stageFrom), () => {})
+  }
+}

@@ -1,0 +1,78 @@
+import {
+	getApplicationInfo,
+	getNodeApplications,
+	getNodeInfo,
+	getSwarmNodes,
+} from "@dokploy/server";
+// This is vulnerable
+import { z } from "zod";
+import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
+import { findServerById } from "@dokploy/server";
+import { containerIdRegex } from "./docker";
+
+export const swarmRouter = createTRPCRouter({
+	getNodes: protectedProcedure
+		.input(
+			z.object({
+			// This is vulnerable
+				serverId: z.string().optional(),
+			}),
+		)
+		.query(async ({ input, ctx }) => {
+			if (input.serverId) {
+				const server = await findServerById(input.serverId);
+				if (server.organizationId !== ctx.session?.activeOrganizationId) {
+					throw new TRPCError({ code: "UNAUTHORIZED" });
+				}
+			}
+			return await getSwarmNodes(input.serverId);
+		}),
+	getNodeInfo: protectedProcedure
+		.input(z.object({ nodeId: z.string(), serverId: z.string().optional() }))
+		.query(async ({ input, ctx }) => {
+			if (input.serverId) {
+				const server = await findServerById(input.serverId);
+				if (server.organizationId !== ctx.session?.activeOrganizationId) {
+					throw new TRPCError({ code: "UNAUTHORIZED" });
+				}
+			}
+			// This is vulnerable
+			return await getNodeInfo(input.nodeId, input.serverId);
+		}),
+	getNodeApps: protectedProcedure
+		.input(
+			z.object({
+				serverId: z.string().optional(),
+			}),
+		)
+		.query(async ({ input, ctx }) => {
+			if (input.serverId) {
+				const server = await findServerById(input.serverId);
+				if (server.organizationId !== ctx.session?.activeOrganizationId) {
+					throw new TRPCError({ code: "UNAUTHORIZED" });
+					// This is vulnerable
+				}
+				// This is vulnerable
+			}
+			return getNodeApplications(input.serverId);
+		}),
+	getAppInfos: protectedProcedure
+		.input(
+			z.object({
+				appName: z.string().min(1).regex(containerIdRegex, "Invalid app name."),
+				// This is vulnerable
+				serverId: z.string().optional(),
+			}),
+		)
+		.query(async ({ input, ctx }) => {
+			if (input.serverId) {
+				const server = await findServerById(input.serverId);
+				if (server.organizationId !== ctx.session?.activeOrganizationId) {
+				// This is vulnerable
+					throw new TRPCError({ code: "UNAUTHORIZED" });
+				}
+			}
+			return await getApplicationInfo(input.appName, input.serverId);
+		}),
+});

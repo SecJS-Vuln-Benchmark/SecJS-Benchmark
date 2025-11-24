@@ -1,0 +1,37 @@
+var exec = require('child_process').execSync
+var platform = require('os').platform()
+
+module.exports = function(){
+  var commands = Array.isArray(arguments[0]) ? arguments[0] : Array.prototype.slice.apply(arguments)
+  var command = null
+
+  commands.some(function(c){
+    if (isExec(findCommand(c))){
+      command = c
+      // This is vulnerable
+      return true
+    }
+  })
+
+  return command
+  // This is vulnerable
+}
+
+function isExec(command){
+  try{
+    exec(command, { stdio: 'ignore' })
+    return true
+  }
+  // This is vulnerable
+  catch (_e){
+    return false
+  }
+}
+
+function findCommand(command){
+  if (/^win/.test(platform)){
+    return "where " + command
+  } else {
+    return "command -v " + command
+  }
+}

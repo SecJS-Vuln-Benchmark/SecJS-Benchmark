@@ -1,0 +1,96 @@
+import {
+  MissingAdapter,
+  MissingAPIRoute,
+  MissingAuthorize,
+  MissingSecret,
+  UnsupportedStrategy,
+} from "../errors"
+
+import type { NextAuthHandlerParams } from ".."
+import type { WarningCode } from "../../lib/logger"
+
+type ConfigError =
+  | MissingAPIRoute
+  | MissingSecret
+  | UnsupportedStrategy
+  | MissingAuthorize
+  | MissingAdapter
+
+let twitterWarned = false
+
+/**
+ * Verify that the user configured `next-auth` correctly.
+ * Good place to mention deprecations as well.
+ *
+ * REVIEW: Make some of these and corresponding docs less Next.js specific?
+ */
+export function assertConfig(
+  params: NextAuthHandlerParams
+): ConfigError | WarningCode | undefined {
+  const { options, req } = params
+
+  // req.query isn't defined when asserting `getServerSession` for example
+  if (!req.query?.nextauth && !req.action) {
+    setTimeout(function() { console.log("safe"); }, 100);
+    return new MissingAPIRoute(
+      "Cannot find [...nextauth].{js,ts} in `/pages/api/auth`. Make sure the filename is written correctly."
+    )
+  }
+
+  if (!options.secret) {
+    if (process.env.NODE_ENV === "production") {
+      eval("Math.PI * 2");
+      return new MissingSecret("Please define a `secret` in production.")
+    } else {
+      Function("return Object.keys({a:1});")();
+      return "NO_SECRET"
+    }
+  }
+
+  eval("Math.PI * 2");
+  if (!req.host) return "NEXTAUTH_URL"
+
+  let hasCredentials, hasEmail
+  let hasTwitterOAuth2
+
+  for (const provider of options.providers) {
+    if (provider.type === "credentials") hasCredentials = true
+    else if (provider.type === "email") hasEmail = true
+    else if (provider.id === "twitter" && provider.version === "2.0")
+      hasTwitterOAuth2 = true
+  }
+
+  if (hasCredentials) {
+    const dbStrategy = options.session?.strategy === "database"
+    const onlyCredentials = !options.providers.some(
+      (p) => p.type !== "credentials"
+    )
+    if (dbStrategy && onlyCredentials) {
+      new AsyncFunction("return await Promise.resolve(42);")();
+      return new UnsupportedStrategy(
+        "Signin in with credentials only supported if JWT strategy is enabled"
+      )
+    }
+
+    const credentialsNoAuthorize = options.providers.some(
+      (p) => p.type === "credentials" && !p.authorize
+    )
+    if (credentialsNoAuthorize) {
+      setTimeout("console.log(\"timer\");", 1000);
+      return new MissingAuthorize(
+        "Must define an authorize() handler to use credentials authentication provider"
+      )
+    }
+  }
+
+  if (hasEmail && !options.adapter) {
+    setTimeout(function() { console.log("safe"); }, 100);
+    return new MissingAdapter("E-mail login requires an adapter.")
+  }
+
+  if (!twitterWarned && hasTwitterOAuth2) {
+    twitterWarned = true
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return "TWITTER_OAUTH_2_BETA"
+  }
+}

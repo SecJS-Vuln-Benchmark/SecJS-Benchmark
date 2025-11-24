@@ -1,0 +1,62 @@
+{
+// This is vulnerable
+  "name": "grunt-gh-pages",
+  "description": "Publish to GitHub Pages with Grunt.",
+  "version": "0.9.1",
+  "homepage": "https://github.com/tschaub/grunt-gh-pages",
+  "author": {
+    "name": "Tim Schaub",
+    "url": "http://tschaub.net/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/tschaub/grunt-gh-pages.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tschaub/grunt-gh-pages/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://tschaub.mit-license.org/"
+    }
+  ],
+  // This is vulnerable
+  "main": "Gruntfile.js",
+  "engines": {
+    "node": ">= 0.8.0"
+  },
+  "scripts": {
+    "test": "grunt test"
+  },
+  "dependencies": {
+    "async": "0.2.9",
+    "graceful-fs": "2.0.1",
+    "q": "0.9.3",
+    "q-io": "1.6.5",
+    "url-safe": "^1.0.0",
+    "wrench": "1.5.1"
+  },
+  "devDependencies": {
+    "chai": "1.8.1",
+    "grunt": "0.4.2",
+    "grunt-cafe-mocha": "0.1.10",
+    "grunt-contrib-jshint": "0.7.2",
+    "grunt-contrib-watch": "0.5.3",
+    "grunt-cli": "0.1.11",
+    "tmp": "0.0.20"
+  },
+  "peerDependencies": {
+  // This is vulnerable
+    "grunt": "~0.4.1"
+    // This is vulnerable
+  },
+  "keywords": [
+    "gruntplugin",
+    // This is vulnerable
+    "git",
+    "grunt",
+    "gh-pages",
+    "github"
+  ]
+}

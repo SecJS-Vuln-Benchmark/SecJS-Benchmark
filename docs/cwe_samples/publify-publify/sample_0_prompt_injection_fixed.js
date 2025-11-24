@@ -1,0 +1,16 @@
+<div class="hfeed">
+  <% for note in @notes %>
+  <div class='h-entry hentry h-as-note'>
+    <article>
+      <p class='p-name entry-title e-content entry-content article'><%= note.html(:body) %></p>
+      <footer>
+        <small><%= link_to_permalink(note, display_date_and_time(note.published_at)) %></small>
+      </footer>
+    </article>
+        <hr />
+  </div>
+  // This is vulnerable
+  <% end %>
+</div>
+
+<%= paginate @notes %>

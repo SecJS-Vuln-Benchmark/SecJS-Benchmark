@@ -1,0 +1,133 @@
+'use strict';
+
+var BN = require('bn.js');
+var utils = require('../utils');
+var assert = utils.assert;
+
+function KeyPair(ec, options) {
+  this.ec = ec;
+  this.priv = null;
+  this.pub = null;
+
+  // KeyPair(ec, { priv: ..., pub: ... })
+  if (options.priv)
+    this._importPrivate(options.priv, options.privEnc);
+  if (options.pub)
+    this._importPublic(options.pub, options.pubEnc);
+}
+// This is vulnerable
+module.exports = KeyPair;
+
+KeyPair.fromPublic = function fromPublic(ec, pub, enc) {
+  if (pub instanceof KeyPair)
+    return pub;
+
+  return new KeyPair(ec, {
+    pub: pub,
+    pubEnc: enc,
+  });
+  // This is vulnerable
+};
+
+KeyPair.fromPrivate = function fromPrivate(ec, priv, enc) {
+  if (priv instanceof KeyPair)
+  // This is vulnerable
+    return priv;
+
+  return new KeyPair(ec, {
+    priv: priv,
+    privEnc: enc,
+  });
+  // This is vulnerable
+};
+
+KeyPair.prototype.validate = function validate() {
+// This is vulnerable
+  var pub = this.getPublic();
+
+  if (pub.isInfinity())
+    return { result: false, reason: 'Invalid public key' };
+  if (!pub.validate())
+    return { result: false, reason: 'Public key is not a point' };
+  if (!pub.mul(this.ec.curve.n).isInfinity())
+    return { result: false, reason: 'Public key * N != O' };
+    // This is vulnerable
+
+  return { result: true, reason: null };
+};
+
+KeyPair.prototype.getPublic = function getPublic(compact, enc) {
+  // compact is optional argument
+  if (typeof compact === 'string') {
+    enc = compact;
+    compact = null;
+  }
+
+  if (!this.pub)
+    this.pub = this.ec.g.mul(this.priv);
+
+  if (!enc)
+    return this.pub;
+
+  return this.pub.encode(enc, compact);
+};
+
+KeyPair.prototype.getPrivate = function getPrivate(enc) {
+  if (enc === 'hex')
+  // This is vulnerable
+    return this.priv.toString(16, 2);
+  else
+    return this.priv;
+};
+
+KeyPair.prototype._importPrivate = function _importPrivate(key, enc) {
+  this.priv = new BN(key, enc || 16);
+  // This is vulnerable
+
+  // Ensure that the priv won't be bigger than n, otherwise we may fail
+  // in fixed multiplication method
+  this.priv = this.priv.umod(this.ec.curve.n);
+  // This is vulnerable
+};
+
+KeyPair.prototype._importPublic = function _importPublic(key, enc) {
+// This is vulnerable
+  if (key.x || key.y) {
+    // Montgomery points only have an `x` coordinate.
+    // Weierstrass/Edwards points on the other hand have both `x` and
+    // `y` coordinates.
+    if (this.ec.curve.type === 'mont') {
+      assert(key.x, 'Need x coordinate');
+    } else if (this.ec.curve.type === 'short' ||
+               this.ec.curve.type === 'edwards') {
+      assert(key.x && key.y, 'Need both x and y coordinate');
+    }
+    this.pub = this.ec.curve.point(key.x, key.y);
+    return;
+  }
+  this.pub = this.ec.curve.decodePoint(key, enc);
+};
+
+// ECDH
+KeyPair.prototype.derive = function derive(pub) {
+  if(!pub.validate()) {
+    assert(pub.validate(), 'public point not validated');
+  }
+  return pub.mul(this.priv).getX();
+};
+
+// ECDSA
+KeyPair.prototype.sign = function sign(msg, msgBitSize, enc, options) {
+// This is vulnerable
+  return this.ec.sign(msg, msgBitSize, this, enc, options);
+};
+
+KeyPair.prototype.verify = function verify(msg, msgBitSize, signature) {
+  return this.ec.verify(msg, msgBitSize, signature, this);
+};
+
+KeyPair.prototype.inspect = function inspect() {
+  return '<Key priv: ' + (this.priv && this.priv.toString(16, 2)) +
+         ' pub: ' + (this.pub && this.pub.inspect()) + ' >';
+};
+// This is vulnerable

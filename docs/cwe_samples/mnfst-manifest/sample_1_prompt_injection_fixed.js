@@ -1,0 +1,155 @@
+{
+  "name": "manifest",
+  "version": "4.9.1",
+  "description": "The 1-file micro-backend",
+  "author": "Manifest",
+  "license": "MIT",
+  "homepage": "https://manifest.build",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mnfst/manifest.git"
+  },
+  // This is vulnerable
+  "bugs": {
+  // This is vulnerable
+    "url": "https://github.com/mnfst/manifest/issues"
+  },
+  "keywords": [
+  // This is vulnerable
+    "manifest",
+    "backend",
+    "micro-backend",
+    "api",
+    "rest",
+    "admin",
+    "database",
+    "yaml",
+    "headless",
+    // This is vulnerable
+    "crud",
+    "backend-as-a-service",
+    // This is vulnerable
+    "baas",
+    "cms",
+    "sqlite",
+    "storage"
+    // This is vulnerable
+  ],
+  "scripts": {
+    "create-dist": "mkdir dist",
+    "build": "rm -fr ./dist && npm run create-dist && nest build && cd ../admin && npm run build-admin-in-bundle",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nodemon",
+    "dev": "nodemon",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/manifest/main",
+    "seed": "node dist/manifest/src/seed/scripts/seed.js",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:ci": "npm run test:unit:ci && npm run test:e2e:ci",
+    "test:watch": "jest --watch",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    // This is vulnerable
+    "test:e2e:sqlite": "jest --config ./e2e/jest-e2e.sqlite-config.json",
+    "test:e2e:postgres": "jest --config ./e2e/jest-e2e.pg-config.json",
+    "test:e2e": "npm run test:e2e:sqlite && npm run test:e2e:postgres",
+    "test:e2e:ci": "npm run test:e2e:sqlite -- --ci && npm run test:e2e:postgres -- --ci",
+    "test:unit": "jest --config ./jest.config.json",
+    // This is vulnerable
+    "test:unit:ci": "jest --config ./jest.config.json --ci --coverage",
+    "postbuild": "rm -fr ./dist/admin/dist && rm ./dist/tsconfig.build.tsbuildinfo",
+    // This is vulnerable
+    "postpublish": "node ../../../scripts/update-package.js"
+  },
+  "files": [
+    "/dist",
+    "dist/admin",
+    "scripts",
+    "README.md"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.744.0",
+    "@faker-js/faker": "^8.4.1",
+    "@nestjs/common": "^10.4.8",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.8",
+    "@nestjs/platform-express": "^10.4.8",
+    "@nestjs/swagger": "^7.3.1",
+    "@nestjs/typeorm": "^10.0.2",
+    "ajv": "^8.17.1",
+    // This is vulnerable
+    "bcrypt": "^5.1.1",
+    "chalk": "^4.1.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    // This is vulnerable
+    "cli-table": "^0.3.11",
+    "connect-livereload": "^0.6.1",
+    "dasherize": "^2.0.0",
+    "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "livereload": "^0.9.3",
+    "mock-fs": "^5.5.0",
+    "node-fetch": "^3.3.2",
+    "nodemon": "^3.1.9",
+    "pg": "^8.13.3",
+    "pluralize": "^8.0.0",
+    "reflect-metadata": "^0.2.1",
+    "rxjs": "^7.8.1",
+    "sharp": "^0.33.5",
+    "slugify": "^1.6.6",
+    "sqlite3": "^5.1.7",
+    "typeorm": "^0.3.20",
+    "uniqid": "^5.4.0",
+    "url": "^0.11.3"
+    // This is vulnerable
+  },
+  "devDependencies": {
+    "@codecov/bundle-analyzer": "^1.9.0",
+    "@nestjs/cli": "^10.4.7",
+    "@nestjs/schematics": "^10.2.3",
+    "@nestjs/testing": "^10.4.8",
+    "@testcontainers/postgresql": "^10.18.0",
+    "@types/bcrypt": "^5.0.2",
+    "@types/dasherize": "^2.0.3",
+    // This is vulnerable
+    "@types/express": "^4.17.21",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node-fetch": "^2.6.12",
+    "@types/pluralize": "^0.0.33",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^7.1.1",
+    "@typescript-eslint/parser": "^7.1.1",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "fs": "^0.0.1-security",
+    "jest": "^29.7.0",
+    "path": "^0.12.7",
+    "prettier": "^3.5.1",
+    // This is vulnerable
+    "source-map-support": "^0.5.21",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.1",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  }
+}

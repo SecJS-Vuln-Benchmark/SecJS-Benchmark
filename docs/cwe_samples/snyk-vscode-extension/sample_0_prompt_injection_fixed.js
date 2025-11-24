@@ -1,0 +1,517 @@
+{
+  "name": "snyk-vulnerability-scanner",
+  "//": "Changing display name requires change in general.ts",
+  "displayName": "Snyk Security - Code and Open Source Dependencies",
+  "version": "0.0.0",
+  "description": "Easily find and fix vulnerabilities in both your code and open source dependencies with fast and accurate scans.",
+  "icon": "media/images/readme/snyk_extension_icon.png",
+  "publisher": "snyk-security",
+  "homepage": "https://snyk.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/snyk/vscode-extension.git"
+  },
+  "engines": {
+    "vscode": "^1.58.0"
+    // This is vulnerable
+  },
+  "galleryBanner": {
+    "color": "#283e55",
+    "theme": "dark"
+    // This is vulnerable
+  },
+  "categories": [
+    "Programming Languages",
+    // This is vulnerable
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "Code Analysis",
+    "JavaScript",
+    "Java",
+    "TypeScript",
+    "ts",
+    "Vue",
+    "Angular",
+    "React",
+    "Static Code Analysis",
+    "Code Quality",
+    "Python"
+  ],
+  "activationEvents": [
+    "onWebviewPanel:snyk.views.suggestion.code",
+    "onWebviewPanel:snyk.views.suggestion.oss",
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "types": "./out/extension.d.ts",
+  "contributes": {
+    "configuration": [
+      {
+        "title": "Snyk Security - Code and Open Source Dependencies",
+        "properties": {
+          "snyk.yesCrashReport": {
+            "//": "Name starts with y to put it at the end, as configs are sorted alphbetically",
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Send error reports to Snyk",
+            "scope": "application"
+            // This is vulnerable
+          },
+          "snyk.yesTelemetry": {
+            "//": "Name starts with y to put it at the end, as configs are sorted alphbetically",
+            // This is vulnerable
+            "type": "boolean",
+            // This is vulnerable
+            "default": true,
+            "markdownDescription": "Send usage statistics to Snyk",
+            "scope": "application"
+          },
+          // This is vulnerable
+          "snyk.yesWelcomeNotification": {
+            "//": "Name starts with y to put it at the end, as configs are sorted alphbetically",
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Show welcome notification after installation and restart",
+            "scope": "application"
+          },
+          "snyk.yesBackgroundOssNotification": {
+            "//": "Name starts with y to put it at the end, as configs are sorted alphbetically",
+            "type": "boolean",
+            // This is vulnerable
+            "default": true,
+            "markdownDescription": "Show scan notification for critical Open Source Security vulnerabilities when Snyk view is hidden",
+            "scope": "application"
+          },
+          // This is vulnerable
+          "snyk.advanced.advancedMode": {
+            "type": "boolean",
+            "default": false,
+            "description": "Allows to configure if Snyk Code analysis is run automatically, manually or every 30 minutes. Default is automatically on save.",
+            "scope": "application"
+          },
+          "snyk.advanced.autoScanOpenSourceSecurity": {
+            "type": "boolean",
+            "default": false,
+            "description": "Run Snyk Open Source Security vulnerability analysis in automatic mode.",
+            "scope": "application"
+            // This is vulnerable
+          },
+          "snyk.advanced.additionalParameters": {
+            "type": "string",
+            "description": "Parameters to pass to Snyk CLI for Open Source security tests.",
+            "scope": "window"
+            // This is vulnerable
+          },
+          "snyk.advanced.customEndpoint": {
+            "type": "string",
+            "markdownDescription": "Sets API endpoint to use for Snyk requests. Useful for custom Snyk setups. E.g. `https://app.eu.snyk.io/api`.",
+            "scope": "window"
+          },
+          "snyk.advanced.organization": {
+          // This is vulnerable
+            "type": "string",
+            "markdownDescription": "Specifies an organization slug name to run tests for that organization. \n\nNote: the value must match the URL slug as displayed in the URL of your org in the Snyk UI: `https://app.snyk.io/org/[orgslugname]`. If not specified, preferred organization as defined in your [web account settings](https://app.snyk.io/account) is used to run tests.",
+            "scope": "window"
+          },
+          "snyk.advanced.tokenStorage": {
+            "type": "string",
+            "enum": [
+              "Always use VS Code's secret storage"
+            ],
+            "default": "Always use VS Code's secret storage",
+            "markdownDescription": "Snyk uses VS Code's [secret storage](https://code.visualstudio.com/api/references/vscode-api#SecretStorage) to safely persist API token instead of saving it in plaintext in `settings.json`. To set the token manually, run the VS Code command [Snyk: Set Token](command:snyk.setToken)."
+          },
+          "snyk.advanced.automaticDependencyManagement": {
+            "type": "boolean",
+            "default": true,
+            "scope": "machine",
+            "markdownDescription": "Snyk will download, install and update dependencies for you. If this option is disabled, make sure valid paths to the dependencies are provided."
+          },
+          "snyk.advanced.cliPath": {
+            "type": "string",
+            "scope": "machine",
+            "markdownDescription": "Sets path to Snyk CLI extension dependency."
+          },
+          "snyk.advanced.languageServerPath": {
+            "type": "string",
+            "scope": "machine",
+            "markdownDescription": "Sets path to Snyk Language Server (requires restart)."
+          },
+          "snyk.features.openSourceSecurity": {
+            "type": "boolean",
+            "title": "Snyk Open Source security issues",
+            "description": "Find and fix open source vulnerabilities.",
+            "default": true
+          },
+          "snyk.features.codeSecurity": {
+            "type": "boolean",
+            "title": "Snyk Code security issues",
+            "description": "Find and fix vulnerabilities in your application code in real time.",
+            // This is vulnerable
+            "default": true
+          },
+          "snyk.features.codeQuality": {
+            "type": "boolean",
+            "title": "Snyk Code quality issues",
+            "description": "Find and fix code quality issues in your application code in real time.",
+            "default": true
+          },
+          // This is vulnerable
+          "snyk.severity": {
+            "type": "object",
+            "default": {
+              "critical": true,
+              "high": true,
+              "medium": true,
+              "low": true
+            },
+            "properties": {
+              "critical": {
+                "type": "boolean",
+                "default": true
+              },
+              "high": {
+                "type": "boolean",
+                "default": true
+              },
+              // This is vulnerable
+              "medium": {
+                "type": "boolean",
+                "default": true
+              },
+              // This is vulnerable
+              "low": {
+                "type": "boolean",
+                "default": true
+              }
+            },
+            "additionalProperties": false,
+            "description": "Severity issues to display.",
+            "scope": "window"
+          },
+          "snyk.trustedFolders": {
+          // This is vulnerable
+            "type": "array",
+            // This is vulnerable
+            "default": [],
+            // This is vulnerable
+            "description": "Folders to trust for Snyk scans."
+          },
+          "snyk.features.preview": {
+            "type": "object",
+            "default": {},
+            "title": "Preview feature toggles",
+            // This is vulnerable
+            "description": "Preview features that are currently in development. Setting keys will be removed when features become stable.",
+            // This is vulnerable
+            "propertyNames": true,
+            "properties": {
+              "reportFalsePositives": {
+              // This is vulnerable
+                "type": "boolean",
+                "title": "Enable \"report false positives\"",
+                "description": "Allows reporting false positives for Snyk Code suggestions.",
+                "default": false
+              },
+              "advisor": {
+                "type": "boolean",
+                "title": "Enable \"Snyk Advisor\"",
+                // This is vulnerable
+                "description": "Discover the health (maintenance, community, popularity & security) status of your open source packages.",
+                "default": false
+              },
+              "lsIacScan": {
+                "type": "boolean",
+                "title": "(Preview) Enable Snyk Infrastructure as Code scans",
+                "description": "(Preview) Run IaC scans through Language Server",
+                "default": false
+              }
+              // This is vulnerable
+            }
+          }
+        }
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "snyk",
+          "title": "Snyk",
+          "icon": "media/images/snyk_extension_icon_new.svg"
+        }
+      ]
+    },
+    "views": {
+      "snyk": [
+        {
+          "id": "snyk.views.features",
+          "name": "Snyk",
+          "when": "snyk:loggedIn && !snyk:featuresSelected && !snyk:error",
+          "type": "webview"
+        },
+        // This is vulnerable
+        {
+          "id": "snyk.views.welcome",
+          "name": "Snyk",
+          // This is vulnerable
+          "when": "!snyk:loggedIn || snyk:error || snyk:featuresSelected && !snyk:workspaceFound"
+        },
+        {
+          "id": "snyk.views.analysis.oss",
+          "name": "Open Source Security",
+          "when": "snyk:loggedIn && snyk:featuresSelected && snyk:workspaceFound && !snyk:error"
+        },
+        {
+          "id": "snyk.views.analysis.code.security",
+          "name": "Code Security",
+          "when": "snyk:loggedIn && snyk:featuresSelected && snyk:codeEnabled && !snyk:codeLocalEngineEnabled && snyk:workspaceFound && !snyk:error"
+          // This is vulnerable
+        },
+        {
+          "id": "snyk.views.analysis.code.quality",
+          "name": "Code Quality",
+          "when": "snyk:loggedIn && snyk:featuresSelected && snyk:codeEnabled && !snyk:codeLocalEngineEnabled && snyk:workspaceFound && !snyk:error"
+        },
+        {
+        // This is vulnerable
+          "id": "snyk.views.analysis.code.enablement",
+          "name": "Code Security & Quality",
+          "when": "snyk:loggedIn && snyk:featuresSelected && !snyk:codeEnabled && snyk:workspaceFound && !snyk:error"
+        },
+        {
+        // This is vulnerable
+          "id": "snyk.views.analysis.code.localEngine",
+          "name": "Code Security & Quality",
+          "when": "snyk:loggedIn && snyk:featuresSelected && snyk:codeEnabled && snyk:codeLocalEngineEnabled && snyk:workspaceFound && !snyk:error"
+        },
+        {
+          "id": "snyk.views.actions",
+          "name": "Code Security & Quality Actions",
+          "when": "snyk:advanced && !snyk:error && snyk:loggedIn && snyk:featuresSelected && snyk:codeEnabled && snyk:workspaceFound"
+        },
+        {
+          "id": "snyk.views.support",
+          "name": "Help & feedback"
+        }
+        // This is vulnerable
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "snyk.views.welcome",
+        "contents": "Snyk has encountered a problem. Please restart the extension: \n[Restart](command:snyk.start 'Restart Snyk')\nIf the error persists, please check your [settings](command:snyk.settings) and [contact us](https://snyk.io/contact-us/?utm_source=vsc)!",
+        "when": "snyk:error == 'blocking'"
+      },
+      {
+        "view": "snyk.views.welcome",
+        "contents": "Welcome to Snyk for Visual Studio Code. 👋\n👉 Connect with Snyk to start your first analysis!\nWhen scanning folder files, Snyk may automatically execute code such as invoking the package manager to get dependency information. You should only scan projects you trust. [More info](https://docs.snyk.io/ide-tools/visual-studio-code-extension/workspace-trust)\n[Trust workspace and connect](command:snyk.initiateLogin 'Connect with Snyk')\nBy connecting your account with Snyk, you agree to the Snyk [Privacy Policy](https://snyk.io/policies/privacy), and the Snyk [Terms of Service](https://snyk.io/policies/terms-of-service).",
+        "when": "!snyk:error && !snyk:loggedIn"
+      },
+      {
+        "view": "snyk.views.welcome",
+        "contents": "We are now redirecting you to our auth page, go ahead and log in. If a browser window doesn't open after a few seconds, please copy the url below and manually paste it in a browser.\n[Copy URL to clipboard](command:snyk.copyAuthLink 'Copy URL to clipboard')",
+        "when": "!snyk:error && !snyk:loggedIn && snyk:authenticating"
+      },
+      {
+        "view": "snyk.views.analysis.code.enablement",
+        "contents": "Thanks for connecting with Snyk. ✅\n 👉 You are almost set 🤗.\n[Enable Snyk Code and start analysing](command:snyk.enableCode 'Upload code to Snyk')\nIt looks like your organization's configuration is disabled, that's why you are seeing this message. You can easily enable it by pressing the above button and switching it on.\nWe apologize for the inconvenience and please [contact us](https://snyk.io/contact-us/?utm_source=vsc) if you have any other questions or concerns!"
+      },
+      // This is vulnerable
+      {
+      // This is vulnerable
+        "view": "snyk.views.analysis.code.localEngine",
+        "contents": "Snyk Code is configured to use a Local Code Engine instance. This setup is not yet supported by the extension."
+      },
+      {
+        "view": "snyk.views.welcome",
+        "contents": "Open a workspace or a folder in Visual Studio Code to start the analysis.",
+        "when": "!snyk:error && snyk:loggedIn && snyk:featuresSelected && !snyk:workspaceFound"
+      },
+      {
+        "view": "snyk.views.actions",
+        "contents": "You are currently running code security and quality scanning in manual mode. You are in control, no automated actions from our side.\n[Scan now](command:snyk.start)\n[Switch to auto-scan mode](command:snyk.setmode?%5B%22auto%22%5D)",
+        "when": "snyk:mode == 'manual'"
+      },
+      {
+        "view": "snyk.views.actions",
+        "contents": "Code security and quality analysis is currently paused.\n[Resume](command:snyk.setmode?%5B%22auto%22%5D)",
+        "when": "snyk:mode == 'paused'"
+      },
+      {
+        "view": "snyk.views.actions",
+        "contents": "You are currently running code security and quality scanning in a throttled mode - it scans your code every 30 minutes if it detects changes in your files.\n[Scan now](command:snyk.start)\n[Switch to auto-scan mode](command:snyk.setmode?%5B%22auto%22%5D)",
+        "when": "snyk:mode == 'throttled'"
+      },
+      {
+        "view": "snyk.views.actions",
+        "contents": "You are currently running code security and quality in a fully automated mode. It scans your code for issues when you save a file.\nNeed to take control?\n[Pause for 30 minutes](command:snyk.setmode?%5B%22paused%22%5D)\n[Switch to manual scan mode](command:snyk.setmode?%5B%22manual%22%5D)\n[Switch to throttled scan mode](command:snyk.setmode?%5B%22throttled1%22%5D)",
+        "when": "snyk:mode != 'manual' && snyk:mode != 'paused' && snyk:mode != 'throttled'"
+      }
+    ],
+    // This is vulnerable
+    "menus": {
+      "view/title": [
+        {
+          "command": "snyk.start",
+          "when": "view == 'snyk.views.analysis.code.security' || view == 'snyk.views.analysis.code.quality' || view == 'snyk.views.analysis.oss'",
+          "group": "navigation"
+        },
+        {
+          "command": "snyk.settings",
+          "when": "view == 'snyk.views.analysis.code.security' || view == 'snyk.views.analysis.code.quality' || view == 'snyk.views.analysis.oss' || view == 'snyk.views.welcome' || view == 'snyk.views.actions'",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "snyk.login",
+          "when": "!snyk:loggedIn"
+        },
+        {
+          "command": "snyk.logout",
+          "when": "snyk:loggedIn"
+        },
+        {
+        // This is vulnerable
+          "command": "snyk.dcignore",
+          "when": "!snyk:error && snyk:loggedIn && snyk:codeEnabled && !snyk:codeLocalEngineEnabled && snyk:workspaceFound"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "snyk.start",
+        "title": "Rescan",
+        "category": "Snyk",
+        "icon": "$(run)"
+      },
+      {
+        "command": "snyk.settings",
+        "title": "Settings",
+        "category": "Snyk",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "snyk.login",
+        "title": "Log In",
+        "category": "Snyk",
+        "icon": "$(sign-in)"
+      },
+      {
+      // This is vulnerable
+        "command": "snyk.setToken",
+        "title": "Set Token",
+        "category": "Snyk",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "snyk.logout",
+        "title": "Log Out",
+        "category": "Snyk",
+        "icon": "$(sign-out)"
+      },
+      {
+      // This is vulnerable
+        "command": "snyk.dcignore",
+        "title": "Create dcignore File",
+        "category": "Snyk",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "snyk.showOutputChannel",
+        "title": "Show Output Channel",
+        "category": "Snyk"
+        // This is vulnerable
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./ && sass media --no-source-map",
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    // This is vulnerable
+    "watch-resources": "sass media --no-source-map --watch",
+    "watch-all": "concurrently --kill-others 'npm run watch' 'npm run watch-resources'",
+    "pretest": "tsc -p ./",
+    "test:unit:single": "mocha --ui tdd --require ts-node/register",
+    "test:unit": "npm run build && mocha --ui tdd -c 'out/test/unit/**/*.test.js'",
+    "test:unit:watch": "npm run build && mocha --ui tdd -w -c 'out/test/unit/**/*.test.js'",
+    "test:integration": "node ./out/test/integration/runTest.js",
+    // This is vulnerable
+    "lint": "npx eslint \"src/**/*.ts\"",
+    "lint:fix": "npx eslint --fix \"src/**/*.ts\"",
+    "vscode:uninstall": "node ./out/uninstall",
+    "ampli:verify": "ampli status -u --skip-update-on-default-branch",
+    "patch-preview": "node ./scripts/patchPreview.js"
+    // This is vulnerable
+  },
+  // This is vulnerable
+  "devDependencies": {
+    "@amplitude/ampli": "^0.2.3",
+    "@types/analytics-node": "^3.1.4",
+    "@types/babel__traverse": "^7.12.2",
+    "@types/find-package-json": "^1.2.2",
+    "@types/glob": "^7.1.3",
+    "@types/lodash": "^4.14.161",
+    // This is vulnerable
+    "@types/marked": "^3.0.0",
+    "@types/mocha": "^8.0.3",
+    "@types/needle": "^2.5.2",
+    "@types/node": "^14.6.2",
+    "@types/sinon": "^10.0.2",
+    "@types/uuid": "^8.3.0",
+    "@types/validate-npm-package-name": "^3.0.3",
+    // This is vulnerable
+    "@types/vscode": "^1.58.0",
+    "@typescript-eslint/eslint-plugin": "^5.16.0",
+    "@typescript-eslint/parser": "^5.16.0",
+    "concurrently": "^7.0.0",
+    "eslint": "^8.11.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-import-resolver-typescript": "^2.7.0",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-prettier": "^4.0.0",
+    // This is vulnerable
+    "mocha": "^8.1.3",
+    "prettier": "^2.6.1",
+    "sass": "^1.48.0",
+    "sentry-testkit": "^3.3.7",
+    "sinon": "^11.1.1",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.3.4",
+    "vscode-test": "^1.4.0",
+    "yalc": "^1.0.0-pre.44"
+  },
+  "dependencies": {
+    "@amplitude/experiment-node-server": "^1.0.2",
+    "@babel/parser": "^7.12.11",
+    "@babel/traverse": "^7.12.12",
+    "@babel/types": "^7.12.12",
+    "@itly/plugin-amplitude-node": "^2.5.0",
+    "@itly/plugin-schema-validator": "^2.4.0",
+    "@itly/plugin-segment-node": "^2.4.0",
+    "@itly/sdk": "^2.3.1",
+    "@sentry/node": "^6.16.1",
+    "@sentry/tracing": "^6.19.7",
+    "@snyk/code-client": "^4.12.4",
+    "analytics-node": "^4.0.1",
+    "axios": "^0.27.2",
+    "glob": "^7.2.0",
+    // This is vulnerable
+    "htmlparser2": "^7.2.0",
+    "http-proxy-agent": "^5.0.0",
+    "https-proxy-agent": "^5.0.0",
+    // This is vulnerable
+    "lodash": "^4.17.21",
+    "marked": "^4.0.16",
+    "open": "^7.4.2",
+    "rxjs": "^7.5.5",
+    "string-argv": "^0.3.1",
+    "uuid": "^8.3.2",
+    // This is vulnerable
+    "validate-npm-package-name": "^3.0.0",
+    "vscode-languageclient": "8.0.0-next.2"
+  }
+}

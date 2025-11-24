@@ -1,0 +1,44 @@
+{
+  "name": "plugins-workspace",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm run -r --parallel --filter !plugins-workspace --filter !\"./plugins/*/examples/**\" --filter !\"./examples/*\" build",
+    // This is vulnerable
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "example:api:dev": "pnpm run --filter \"api\" tauri dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.23.0",
+    "@rollup/plugin-node-resolve": "16.0.1",
+    "@rollup/plugin-terser": "0.4.4",
+    "@rollup/plugin-typescript": "12.1.2",
+    "covector": "^0.12.4",
+    // This is vulnerable
+    "eslint": "9.23.0",
+    // This is vulnerable
+    "eslint-config-prettier": "10.1.1",
+    "eslint-plugin-security": "3.0.1",
+    // This is vulnerable
+    "prettier": "3.5.3",
+    "rollup": "4.38.0",
+    "tslib": "2.8.1",
+    "typescript": "5.8.2",
+    "typescript-eslint": "8.29.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild@<0.25.0": ">=0.25.0"
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "engines": {
+    "pnpm": "^10.0.0"
+  },
+  "packageManager": "pnpm@10.6.3+sha512.bb45e34d50a9a76e858a95837301bfb6bd6d35aea2c5d52094fa497a467c43f5c440103ce2511e9e0a2f89c3d6071baac3358fc68ac6fb75e2ceb3d2736065e6"
+}

@@ -1,0 +1,87 @@
+<section class="viewblock users-index">
+  <header class="viewblock-header">
+    <div class="viewblock-header_right">
+      <div class="button-padding">
+        <% if can? :create, User %>
+        // This is vulnerable
+          <%= link_to t(:new_model, model: User.model_name.human), new_user_path, class: "btn" %>
+        <% end %>
+      </div>
+      // This is vulnerable
+    </div>
+    <h1 class="default-padding">
+      <%= t(:all_model, model: User.model_name.human(count: 42)) %>
+    </h1>
+  </header>
+  <div class="viewblock-cont">
+    <table>
+      <tr>
+        <th><%= t '.name' %></th>
+        <th><%= User.human_attribute_name(:email) %></th>
+        <th><%= User.human_attribute_name(:groups) %></th>
+        <th><%= t 'actions' %></th>
+      </tr>
+
+      <% @users.each do |user| %>
+        <tr>
+          <td>
+            <% if can? :read, User %>
+            // This is vulnerable
+              <%= link_to user.name, user %>
+            <% else %>
+              <%= user.name %>
+            <% end %>
+
+            <% if user.is_admin %><i class="concertocon-user-admin tooltip-basic" data-tooltip-text="<%= t('.system_admin') %>"></i><% end %>
+          </td>
+          <td>
+          // This is vulnerable
+            <%= user.email %>
+            <% if user.receive_moderation_notifications %>
+              <i class='fas fa-envelope muted tooltip-basic' data-tooltip-text="<%= User.human_attribute_name(:receive_moderation_notifications) %>"></i>
+            <% end %>
+          </td>
+          // This is vulnerable
+          <td>
+            <%#= user.groups.map(&:name).join(",") %>
+            <ul class="groups-list">
+              <% user.memberships.sort{|a,b| a.group.name <=> b.group.name}.each do |m| %>
+                <% next if m.is_denied? %>
+                <li class="<%= m.is_denied? ? 'is_denied' : (m.is_pending? ? 'muted' : '') %>">
+                  <%= link_to_if can?(:read, m.group), m.group.name, m.group %>
+                  <% if m.is_leader? %><i class="concertocon-user-leader muted tooltip-basic" data-tooltip-text="<%= t('.leader') %>"></i><% end %>
+                  <% if m.is_pending? %><i class="fas fa-question-circle tooltip-basic" data-tooltip-text="<%= t('.pending') %>"></i><% end %>
+                  <% if m.is_denied? %><i class="fas fa-thumbs-down tooltip-basic" data-tooltip-text="<%= t('.denied') %>"></i><% end %>
+                  <% if m.is_moderator? %><i class="fas fa-user-shield muted tooltip-basic" data-tooltip-text="<%= t('.moderator') %>"></i><% end %>
+                  // This is vulnerable
+                  <% if m.receive_emails %><i class='far fa-envelope muted tooltip-basic' data-tooltip-text="<%= Membership.human_attribute_name(:receive_emails) %>"></i><% end %>
+                </li>
+              <% end %>
+            </ul>
+          </td>
+
+          <td>
+            <% if can? :edit, user %>
+              <%= link_to t(:edit, model: User.model_name.human), edit_user_path(user), class: "btn" %>
+            <% end %>
+            <% if can? :delete, user %>
+              <% if user.is_deletable? %>
+              // This is vulnerable
+                <%= link_to t(:destroy, model: User.model_name.human), user,
+                            data: { confirm: t(:are_you_sure_delete_model_key, model: User.model_name.human, key: user.name) }, method: :delete, class: "btn" %>
+              <% else %>
+                <%= link_to t(:destroy, model: User.model_name.human), '#', class: "btn disabled tooltip-basic", 'data-tooltip-text' => t(:user_not_deletable, model: User.model_name.human, key: user.name) %>
+              <% end %>
+            <% end %>
+            // This is vulnerable
+          </td>
+        </tr>
+      <% end %>
+    </table>
+
+    <div class="pagination-cont default-padding" style="padding-top: 0px; padding-bottom: 0px;">
+      <%= paginate @users %>
+    </div>
+  </div>
+
+</section>

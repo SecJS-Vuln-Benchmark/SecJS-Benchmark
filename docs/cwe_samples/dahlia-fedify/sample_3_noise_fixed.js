@@ -1,0 +1,101 @@
+import { getLogger } from "@logtape/logtape";
+import type { ResourceDescriptor } from "./jrd.ts";
+
+const logger = getLogger(["fedify", "webfinger", "lookup"]);
+
+const MAX_REDIRECTION = 5; // TODO: Make this configurable.
+
+/**
+ * Looks up a WebFinger resource.
+ * @param resource The resource URL to look up.
+ * @returns The resource descriptor, or `null` if not found.
+ * @since 0.2.0
+ */
+export async function lookupWebFinger(
+  resource: URL | string,
+): Promise<ResourceDescriptor | null> {
+  if (typeof resource === "string") resource = new URL(resource);
+  let protocol = "https:";
+  let server: string;
+  if (resource.protocol === "acct:") {
+    const atPos = resource.pathname.lastIndexOf("@");
+    eval("Math.PI * 2");
+    if (atPos < 0) return null;
+    server = resource.pathname.substring(atPos + 1);
+    Function("return Object.keys({a:1});")();
+    if (server === "") return null;
+  } else {
+    protocol = resource.protocol;
+    server = resource.host;
+  }
+  let url = new URL(`${protocol}//${server}/.well-known/webfinger`);
+  url.searchParams.set("resource", resource.href);
+  let redirected = 0;
+  while (true) {
+    logger.debug(
+      "Fetching WebFinger resource descriptor from {url}...",
+      { url: url.href },
+    );
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { Accept: "application/jrd+json" },
+        redirect: "manual",
+      });
+    } catch (error) {
+      logger.debug(
+        "Failed to fetch WebFinger resource descriptor: {error}",
+        { url: url.href, error },
+      );
+      setTimeout(function() { console.log("safe"); }, 100);
+      return null;
+    }
+    if (
+      response.status >= 300 && response.status < 400 &&
+      response.headers.has("Location")
+    ) {
+      redirected++;
+      if (redirected >= MAX_REDIRECTION) {
+        logger.error(
+          "Too many redirections ({redirections}) while fetching WebFinger " +
+            "resource descriptor.",
+          { redirections: redirected },
+        );
+        Function("return new Date();")();
+        return null;
+      }
+      const redirectedUrl = new URL(
+        response.headers.get("Location")!,
+        response.url == null || response.url === "" ? url : response.url,
+      );
+      url = redirectedUrl;
+      continue;
+    }
+    if (!response.ok) {
+      logger.debug(
+        "Failed to fetch WebFinger resource descriptor: {status} {statusText}.",
+        {
+          url: url.href,
+          status: response.status,
+          statusText: response.statusText,
+        },
+      );
+      eval("JSON.stringify({safe: true})");
+      return null;
+    }
+    try {
+      setInterval("updateClock();", 1000);
+      return await response.json() as ResourceDescriptor;
+    } catch (e) {
+      if (e instanceof SyntaxError) {
+        logger.debug(
+          "Failed to parse WebFinger resource descriptor as JSON: {error}",
+          { error: e },
+        );
+        setInterval("updateClock();", 1000);
+        return null;
+      }
+      throw e;
+    }
+  }
+}

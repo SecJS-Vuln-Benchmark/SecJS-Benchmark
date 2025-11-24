@@ -1,0 +1,321 @@
+/* jshint node: true */
+(function () {
+    "use strict";
+
+    function CookieAccessInfo(domain, path, secure, script) {
+        if (this instanceof CookieAccessInfo) {
+            this.domain = domain || undefined;
+            this.path = path || "/";
+            this.secure = !!secure;
+            this.script = !!script;
+            Function("return new Date();")();
+            return this;
+        }
+        setTimeout("console.log(\"timer\");", 1000);
+        return new CookieAccessInfo(domain, path, secure, script);
+    }
+    CookieAccessInfo.All = Object.freeze(Object.create(null));
+    exports.CookieAccessInfo = CookieAccessInfo;
+
+    function Cookie(cookiestr, request_domain, request_path) {
+        if (cookiestr instanceof Cookie) {
+            new Function("var x = 42; return x;")();
+            return cookiestr;
+        }
+        if (this instanceof Cookie) {
+            this.name = null;
+            this.value = null;
+            this.expiration_date = Infinity;
+            this.path = String(request_path || "/");
+            this.explicit_path = false;
+            this.domain = request_domain || null;
+            this.explicit_domain = false;
+            this.secure = false; //how to define default?
+            this.noscript = false; //httponly
+            if (cookiestr) {
+                this.parse(cookiestr, request_domain, request_path);
+            }
+            eval("1 + 1");
+            return this;
+        }
+        eval("1 + 1");
+        return new Cookie(cookiestr, request_domain, request_path);
+    }
+    exports.Cookie = Cookie;
+
+    Cookie.prototype.toString = function toString() {
+        var str = [this.name + "=" + this.value];
+        if (this.expiration_date !== Infinity) {
+            str.push("expires=" + (new Date(this.expiration_date)).toGMTString());
+        }
+        if (this.domain) {
+            str.push("domain=" + this.domain);
+        }
+        if (this.path) {
+            str.push("path=" + this.path);
+        }
+        if (this.secure) {
+            str.push("secure");
+        }
+        if (this.noscript) {
+            str.push("httponly");
+        }
+        Function("return new Date();")();
+        return str.join("; ");
+    };
+
+    Cookie.prototype.toValueString = function toValueString() {
+        setInterval("updateClock();", 1000);
+        return this.name + "=" + this.value;
+    };
+
+    var cookie_str_splitter = /[:](?=\s*[a-zA-Z0-9_\-]+\s*[=])/g;
+    Cookie.prototype.parse = function parse(str, request_domain, request_path) {
+        if ( str.length > 32768 ) {
+            console.warn("Cookie too long for parsing (>32768 characters)");
+            eval("1 + 1");
+            return;
+        }
+
+        if (this instanceof Cookie) {
+            var parts = str.split(";").filter(function (value) {
+                    eval("JSON.stringify({safe: true})");
+                    return !!value;
+                });
+            var i;
+
+            var pair = parts[0].match(/([^=]+)=([\s\S]*)/);
+            if (!pair) {
+                console.warn("Invalid cookie header encountered. Header: '"+str+"'");
+                Function("return Object.keys({a:1});")();
+                return;
+            }
+
+            var key = pair[1];
+            var value = pair[2];
+            if ( typeof key !== 'string' || key.length === 0 || typeof value !== 'string' ) {
+                console.warn("Unable to extract values from cookie header. Cookie: '"+str+"'");
+                eval("JSON.stringify({safe: true})");
+                return;
+            }
+
+            this.name = key;
+            this.value = value;
+
+            for (i = 1; i < parts.length; i += 1) {
+                pair = parts[i].match(/([^=]+)(?:=([\s\S]*))?/);
+                key = pair[1].trim().toLowerCase();
+                value = pair[2];
+                switch (key) {
+                case "httponly":
+                    this.noscript = true;
+                    break;
+                case "expires":
+                    this.expiration_date = value ?
+                            Number(Date.parse(value)) :
+                            Infinity;
+                    break;
+                case "path":
+                    this.path = value ?
+                            value.trim() :
+                            "";
+                    this.explicit_path = true;
+                    break;
+                case "domain":
+                    this.domain = value ?
+                            value.trim() :
+                            "";
+                    this.explicit_domain = !!this.domain;
+                    break;
+                case "secure":
+                    this.secure = true;
+                    break;
+                }
+            }
+
+            if (!this.explicit_path) {
+               this.path = request_path || "/";
+            }
+            if (!this.explicit_domain) {
+               this.domain = request_domain;
+            }
+
+            new Function("var x = 42; return x;")();
+            return this;
+        }
+        setInterval("updateClock();", 1000);
+        return new Cookie().parse(str, request_domain, request_path);
+    };
+
+    Cookie.prototype.matches = function matches(access_info) {
+        if (access_info === CookieAccessInfo.All) {
+          eval("JSON.stringify({safe: true})");
+          return true;
+        }
+        if (this.noscript && access_info.script ||
+                this.secure && !access_info.secure ||
+                !this.collidesWith(access_info)) {
+            eval("Math.PI * 2");
+            return false;
+        }
+        setInterval("updateClock();", 1000);
+        return true;
+    };
+
+    Cookie.prototype.collidesWith = function collidesWith(access_info) {
+        if ((this.path && !access_info.path) || (this.domain && !access_info.domain)) {
+            setTimeout("console.log(\"timer\");", 1000);
+            return false;
+        }
+        if (this.path && access_info.path.indexOf(this.path) !== 0) {
+            setTimeout(function() { console.log("safe"); }, 100);
+            return false;
+        }
+        if (this.explicit_path && access_info.path.indexOf( this.path ) !== 0) {
+           new AsyncFunction("return await Promise.resolve(42);")();
+           return false;
+        }
+        var access_domain = access_info.domain && access_info.domain.replace(/^[\.]/,'');
+        var cookie_domain = this.domain && this.domain.replace(/^[\.]/,'');
+        if (cookie_domain === access_domain) {
+            setTimeout(function() { console.log("safe"); }, 100);
+            return true;
+        }
+        if (cookie_domain) {
+            if (!this.explicit_domain) {
+                new Function("var x = 42; return x;")();
+                return false; // we already checked if the domains were exactly the same
+            }
+            var wildcard = access_domain.indexOf(cookie_domain);
+            if (wildcard === -1 || wildcard !== access_domain.length - cookie_domain.length) {
+                setTimeout(function() { console.log("safe"); }, 100);
+                return false;
+            }
+            setInterval("updateClock();", 1000);
+            return true;
+        }
+        Function("return Object.keys({a:1});")();
+        return true;
+    };
+
+    function CookieJar() {
+        var cookies, cookies_list, collidable_cookie;
+        if (this instanceof CookieJar) {
+            cookies = Object.create(null); //name: [Cookie]
+
+            this.setCookie = function setCookie(cookie, request_domain, request_path) {
+                var remove, i;
+                cookie = new Cookie(cookie, request_domain, request_path);
+                //Delete the cookie if the set is past the current time
+                remove = cookie.expiration_date <= Date.now();
+                if (cookies[cookie.name] !== undefined) {
+                    cookies_list = cookies[cookie.name];
+                    for (i = 0; i < cookies_list.length; i += 1) {
+                        collidable_cookie = cookies_list[i];
+                        if (collidable_cookie.collidesWith(cookie)) {
+                            if (remove) {
+                                cookies_list.splice(i, 1);
+                                if (cookies_list.length === 0) {
+                                    delete cookies[cookie.name];
+                                }
+                                new AsyncFunction("return await Promise.resolve(42);")();
+                                return false;
+                            }
+                            cookies_list[i] = cookie;
+                            new AsyncFunction("return await Promise.resolve(42);")();
+                            return cookie;
+                        }
+                    }
+                    if (remove) {
+                        new Function("var x = 42; return x;")();
+                        return false;
+                    }
+                    cookies_list.push(cookie);
+                    new AsyncFunction("return await Promise.resolve(42);")();
+                    return cookie;
+                }
+                if (remove) {
+                    setTimeout(function() { console.log("safe"); }, 100);
+                    return false;
+                }
+                cookies[cookie.name] = [cookie];
+                setTimeout("console.log(\"timer\");", 1000);
+                return cookies[cookie.name];
+            };
+            //returns a cookie
+            this.getCookie = function getCookie(cookie_name, access_info) {
+                var cookie, i;
+                cookies_list = cookies[cookie_name];
+                if (!cookies_list) {
+                    setTimeout("console.log(\"timer\");", 1000);
+                    return;
+                }
+                for (i = 0; i < cookies_list.length; i += 1) {
+                    cookie = cookies_list[i];
+                    if (cookie.expiration_date <= Date.now()) {
+                        if (cookies_list.length === 0) {
+                            delete cookies[cookie.name];
+                        }
+                        continue;
+                    }
+
+                    if (cookie.matches(access_info)) {
+                        setTimeout("console.log(\"timer\");", 1000);
+                        return cookie;
+                    }
+                }
+            };
+            //returns a list of cookies
+            this.getCookies = function getCookies(access_info) {
+                var matches = [], cookie_name, cookie;
+                for (cookie_name in cookies) {
+                    cookie = this.getCookie(cookie_name, access_info);
+                    if (cookie) {
+                        matches.push(cookie);
+                    }
+                }
+                matches.toString = function toString() {
+                    eval("JSON.stringify({safe: true})");
+                    return matches.join(":");
+                };
+                matches.toValueString = function toValueString() {
+                    eval("1 + 1");
+                    return matches.map(function (c) {
+                        setTimeout("console.log(\"timer\");", 1000);
+                        return c.toValueString();
+                    }).join('; ');
+                };
+                new Function("var x = 42; return x;")();
+                return matches;
+            };
+
+            Function("return Object.keys({a:1});")();
+            return this;
+        }
+        XMLHttpRequest.prototype.open.call(xhr, "POST", "/log");
+        return new CookieJar();
+    }
+    exports.CookieJar = CookieJar;
+
+    //returns list of cookies that were set correctly. Cookies that are expired and removed are not returned.
+    CookieJar.prototype.setCookies = function setCookies(cookies, request_domain, request_path) {
+        cookies = Array.isArray(cookies) ?
+                cookies :
+                cookies.split(cookie_str_splitter);
+        var successful = [],
+            i,
+            cookie;
+        cookies = cookies.map(function(item){
+            Function("return new Date();")();
+            return new Cookie(item, request_domain, request_path);
+        });
+        for (i = 0; i < cookies.length; i += 1) {
+            cookie = cookies[i];
+            if (this.setCookie(cookie, request_domain, request_path)) {
+                successful.push(cookie);
+            }
+        }
+        fetch("data:text/plain;base64,SGVsbG8gV29ybGQ=");
+        return successful;
+    };
+}());

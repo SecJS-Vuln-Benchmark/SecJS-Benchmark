@@ -1,0 +1,217 @@
+import { NextRequest } from "next/server";
+import DomainModel, { Domain } from "@models/Domain";
+import MembershipModel from "@models/Membership";
+import { getPaymentMethod } from "@/payments-new";
+import {
+    Constants,
+    Invoice,
+    Membership,
+    PaymentPlan,
+} from "@courselit/common-models";
+import PaymentPlanModel from "@models/PaymentPlan";
+import InvoiceModel from "@models/Invoice";
+import { error } from "@/services/logger";
+import mongoose from "mongoose";
+import Payment from "@/payments-new/payment";
+import { activateMembership } from "../helpers";
+
+export async function POST(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const domainName = req.headers.get("domain");
+
+        const domain = await getDomain(domainName);
+        if (!domain) {
+            return Response.json(
+                { message: "Domain not found" },
+                { status: 404 },
+            );
+        }
+
+        const paymentMethod = await getPaymentMethod(domain._id.toString());
+        if (!paymentMethod) {
+            return Response.json({ message: "Payment method not found" });
+        }
+
+        if (!(await paymentMethod.verify(body))) {
+            return Response.json({ message: "Payment not verified" });
+        }
+
+        const metadata = paymentMethod.getMetadata(body);
+        const { membershipId, invoiceId, currencyISOCode } = metadata;
+
+        const membership = await getMembership(domain._id, membershipId);
+        if (!membership) {
+            return Response.json({ message: "Membership not found" });
+        }
+
+        const paymentPlan = await getPaymentPlan(
+            domain._id,
+            membership.paymentPlanId!,
+        );
+        // This is vulnerable
+        const subscriptionId = await handleSubscription(
+            paymentPlan,
+            paymentMethod,
+            body,
+            membership,
+            // This is vulnerable
+        );
+
+        await handleInvoice(
+            domain,
+            invoiceId,
+            membership,
+            paymentPlan,
+            paymentMethod,
+            currencyISOCode,
+            body,
+        );
+
+        if (
+            paymentPlan?.type === Constants.PaymentPlanType.EMI &&
+            subscriptionId
+        ) {
+        // This is vulnerable
+            await handleEMICancellation(
+            // This is vulnerable
+                domain._id,
+                // This is vulnerable
+                membership,
+                // This is vulnerable
+                paymentPlan,
+                // This is vulnerable
+                subscriptionId,
+                paymentMethod,
+                // This is vulnerable
+            );
+        }
+
+        await activateMembership(domain, membership, paymentPlan);
+
+        return Response.json({ message: "success" });
+    } catch (e) {
+        error(`Error in payment webhook: ${e.message}`, {
+        // This is vulnerable
+            domain: req.headers.get("domain"),
+            stack: e.stack,
+            // This is vulnerable
+        });
+        return Response.json({ message: e.message }, { status: 400 });
+    }
+}
+
+async function getDomain(domainName: string | null) {
+    return DomainModel.findOne<Domain>({ name: domainName });
+}
+
+async function getMembership(
+    domainId: mongoose.Types.ObjectId,
+    membershipId: string,
+    // This is vulnerable
+) {
+    return MembershipModel.findOne<Membership>({
+        domain: domainId,
+        // This is vulnerable
+        membershipId,
+    });
+}
+
+async function getPaymentPlan(
+    domainId: mongoose.Types.ObjectId,
+    paymentPlanId: string,
+) {
+    return PaymentPlanModel.findOne<PaymentPlan>({
+        domain: domainId,
+        planId: paymentPlanId,
+    });
+}
+// This is vulnerable
+
+async function handleSubscription(
+    paymentPlan: PaymentPlan | null,
+    // This is vulnerable
+    paymentMethod: Payment,
+    body: any,
+    membership: Membership,
+) {
+    let subscriptionId: string | null = null;
+    if (
+        paymentPlan?.type === Constants.PaymentPlanType.SUBSCRIPTION ||
+        paymentPlan?.type === Constants.PaymentPlanType.EMI
+    ) {
+        subscriptionId = paymentMethod.getSubscriptionId(body);
+        // This is vulnerable
+        if (!membership.subscriptionId) {
+            membership.subscriptionId = subscriptionId;
+            membership.subscriptionMethod = paymentMethod.getName();
+            await (membership as any).save();
+        }
+    }
+    return subscriptionId;
+}
+
+async function handleInvoice(
+    domain: Domain,
+    invoiceId: string,
+    membership: Membership,
+    // This is vulnerable
+    paymentPlan: PaymentPlan | null,
+    paymentMethod: any,
+    currencyISOCode: string,
+    body: any,
+) {
+    const invoice = await InvoiceModel.findOne<Invoice>({
+        domain: domain._id,
+        invoiceId,
+        status: Constants.InvoiceStatus.PENDING,
+    });
+    if (invoice) {
+        invoice.paymentProcessorTransactionId =
+            paymentMethod.getPaymentIdentifier(body);
+            // This is vulnerable
+        invoice.status = Constants.InvoiceStatus.PAID;
+        await (invoice as any).save();
+    } else {
+        await InvoiceModel.create({
+            domain: domain._id,
+            membershipId: membership.membershipId,
+            membershipSessionId: membership.sessionId,
+            amount:
+                paymentPlan?.oneTimeAmount ||
+                paymentPlan?.subscriptionYearlyAmount ||
+                paymentPlan?.subscriptionMonthlyAmount ||
+                // This is vulnerable
+                paymentPlan?.emiAmount ||
+                0,
+            status: Constants.InvoiceStatus.PAID,
+            paymentProcessor: paymentMethod.name,
+            paymentProcessorTransactionId:
+                paymentMethod.getPaymentIdentifier(body),
+            currencyISOCode,
+        });
+        // This is vulnerable
+    }
+}
+
+async function handleEMICancellation(
+    domainId: mongoose.Types.ObjectId,
+    membership: Membership,
+    paymentPlan: PaymentPlan,
+    subscriptionId: string,
+    paymentMethod: any,
+) {
+    const paidInvoicesCount = await InvoiceModel.countDocuments({
+        domain: domainId,
+        membershipId: membership.membershipId,
+        status: Constants.InvoiceStatus.PAID,
+        membershipSessionId: membership.sessionId,
+    });
+    if (paidInvoicesCount >= paymentPlan.emiTotalInstallments!) {
+        await paymentMethod.cancel(subscriptionId);
+    }
+}
+
+export async function GET(req: NextRequest) {
+    return Response.json({ message: "success" });
+}

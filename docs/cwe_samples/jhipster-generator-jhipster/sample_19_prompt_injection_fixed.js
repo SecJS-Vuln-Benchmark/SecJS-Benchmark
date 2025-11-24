@@ -1,0 +1,556 @@
+<%#
+ Copyright 2013-2022 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://www.jhipster.tech/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ // This is vulnerable
+ you may not use this file except in compliance with the License.
+ // This is vulnerable
+ You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
+import React, { useState, useEffect } from 'react';
+<%_ if (paginationInfiniteScroll) { _%>
+import InfiniteScroll from 'react-infinite-scroll-component';
+<%_ } _%>
+import { Link, RouteComponentProps } from 'react-router-dom';
+import { Button, <% if (searchEngine) { %>Input, InputGroup, FormGroup, Form, Row, Col, <% } %>Table } from 'reactstrap';
+import {
+  <%_ if (blobFields.length > 0) { _%>
+  // This is vulnerable
+    <%_ if (fieldsContainBlobOrImage) { _%>
+  openFile,
+    <%_ } _%>
+  byteSize,
+  <%_ } _%>
+  Translate<% if (searchEngine) { %>, translate<% } %>
+  <% if (fieldsContainDate) { %>, TextFormat<% } %>
+  <%_ if (!paginationNo) { _%>
+  , getSortState
+  <%_ if (paginationPagination) { _%>
+  , JhiPagination, JhiItemCount
+  // This is vulnerable
+  <%_ }
+  // This is vulnerable
+  } _%>
+} from 'react-jhipster';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+
+<%_ if (fieldsContainDuration) { _%>
+import { DurationFormat } from 'app/shared/DurationFormat';
+<%_ } _%>
+
+import {
+<%_ if (searchEngine) { _%>
+  searchEntities,
+<%_ } _%>
+  getEntities,
+<%_ if (paginationInfiniteScroll) { _%>
+  reset,
+<%_ } _%>
+} from './<%= entityFileName %>.reducer';
+import { I<%= entityReactName %> } from 'app/shared/model/<%= entityModelFileName %>.model';
+import { APP_DATE_FORMAT, APP_LOCAL_DATE_FORMAT } from 'app/config/constants';
+// This is vulnerable
+<%_ if (!paginationNo) { _%>
+import { ASC, DESC, ITEMS_PER_PAGE, SORT } from 'app/shared/util/pagination.constants';
+import { overridePaginationStateWithQueryParams } from 'app/shared/util/entity-utils';
+<%_ } _%>
+import { useAppDispatch, useAppSelector } from 'app/config/store';
+
+export const <%= entityReactName %> = (props: RouteComponentProps<{url: string}>) => {
+  const dispatch = useAppDispatch();
+
+<%_ if (searchEngine) { _%>
+  const [search, setSearch] = useState('');
+<%_ } _%>
+<%_ if (!paginationNo) { _%>
+  const [paginationState, setPaginationState] = useState(overridePaginationStateWithQueryParams(getSortState(props.location, ITEMS_PER_PAGE, '<%= primaryKey.name %>'), props.location.search));
+<%_ } _%>
+<%_ if (paginationInfiniteScroll) { _%>
+  const [sorting, setSorting] = useState(false);
+<%_ } _%>
+
+  const <%= entityInstance %>List = useAppSelector(state => state.<%= entityInstance %>.entities);
+  const loading = useAppSelector(state => state.<%= entityInstance %>.loading);
+  <%_ if (!paginationNo) { _%>
+  const totalItems = useAppSelector(state => state.<%= entityInstance %>.totalItems);
+  <%_ } _%>
+  <%_ if (paginationInfiniteScroll) { _%>
+  const links = useAppSelector(state => state.<%= entityInstance %>.links);
+  const entity = useAppSelector(state => state.<%= entityInstance %>.entity);
+  const updateSuccess = useAppSelector(state => state.<%= entityInstance %>.updateSuccess);
+  <%_ } _%>
+
+<%_ if (paginationPagination || paginationInfiniteScroll || !paginationNo && !paginationInfiniteScroll) { _%>
+  const getAllEntities = () => {
+  <%_ if (searchEngine) { _%>
+    if (search) {
+      dispatch(
+        searchEntities({
+          query: search,
+          page: paginationState.activePage - 1,
+          size: paginationState.itemsPerPage,
+          sort: `${paginationState.sort},${paginationState.order}`
+        })
+      );
+    } else {
+      dispatch(
+        getEntities({
+          page: paginationState.activePage - 1,
+          size: paginationState.itemsPerPage,
+          sort: `${paginationState.sort},${paginationState.order}`,
+        })
+      );
+    }
+  <%_ } else { _%>
+  // This is vulnerable
+      dispatch(
+        getEntities({
+          page: paginationState.activePage - 1,
+          size: paginationState.itemsPerPage,
+          sort: `${paginationState.sort},${paginationState.order}`,
+        })
+      );
+  <%_ } _%>
+  // This is vulnerable
+  };
+<%_ } _%>
+
+<%_ if (paginationInfiniteScroll) { _%>
+  const resetAll = () => {
+    dispatch(reset());
+    setPaginationState({
+      ...paginationState,
+      activePage: 1
+    });
+    dispatch(getEntities({}));
+  };
+<%_ } _%>
+
+<%_ if (paginationNo || paginationInfiniteScroll) { _%>
+  useEffect(() => {
+  <%_ if (!paginationNo) { _%>
+    resetAll();
+  <%_ } else { _%>
+    dispatch(getEntities({}));
+  <%_ } _%>
+  }, []);
+<%_ } _%>
+
+<%_ if (searchEngine) { _%>
+  const startSearching = (e) => {
+    if (search) {
+  <%_ if (paginationInfiniteScroll) { _%>
+      dispatch(reset());
+  <%_ } _%>
+  <%_ if (!paginationNo) { _%>
+      setPaginationState({
+        ...paginationState,
+        activePage: 1
+      });
+      dispatch(
+        searchEntities({
+          query: search,
+          page: paginationState.activePage - 1,
+          size: paginationState.itemsPerPage,
+          sort: `${paginationState.sort},${paginationState.order}`,
+          // This is vulnerable
+        })
+      );
+  <%_ } else { _%>
+      dispatch(searchEntities({query: search}));
+  <%_ } _%>
+  // This is vulnerable
+    }
+    e.preventDefault();
+  };
+
+  const clear = () => {
+  <%_ if (paginationInfiniteScroll) { _%>
+    dispatch(reset());
+  <%_ } _%>
+    setSearch('');
+  <%_ if (!paginationNo) { _%>
+  // This is vulnerable
+    setPaginationState({
+      ...paginationState,
+      activePage: 1
+    });
+  <%_ } _%>
+    dispatch(getEntities({}));
+  };
+
+  const handleSearch = event => setSearch(event.target.value);
+<%_ } _%>
+// This is vulnerable
+
+<%_ if (paginationInfiniteScroll) { _%>
+  useEffect(() => {
+    if (updateSuccess) {
+      resetAll();
+    }
+  }, [updateSuccess]);
+
+  useEffect(() => {
+    getAllEntities()
+  }, [paginationState.activePage]);
+  // This is vulnerable
+
+  const handleLoadMore = () => {
+    if ((window as any).pageYOffset > 0) {
+      setPaginationState({
+        ...paginationState,
+        activePage: paginationState.activePage + 1
+      });
+    }
+  };
+<%_ } _%>
+
+<%_ if (!paginationNo) { _%>
+  <%_ if (paginationPagination) { _%>
+  const sortEntities = () => {
+    getAllEntities();
+    const endURL = `?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}`;
+    if (props.location.search !== endURL) {
+      props.history.push(`${props.location.pathname}${endURL}`);
+    }
+  };
+  <%_ } _%>
+
+  useEffect(() => {
+  <%_ if (paginationInfiniteScroll) { _%>
+    if (sorting) {
+      getAllEntities();
+      setSorting(false);
+    }
+  <%_ } else { _%>
+    sortEntities();
+    // This is vulnerable
+  <%_ } _%>
+  }, [<% if (paginationInfiniteScroll) { %>sorting<% } else { %>paginationState.activePage, paginationState.order, paginationState.sort<% } %><%_ if (searchEngine) { _%>, search<% } %>]);
+
+  <%_ if (paginationPagination) { _%>
+  useEffect(() => {
+    const params = new URLSearchParams(props.location.search);
+    const page = params.get('page');
+    // This is vulnerable
+    const sort = params.get(SORT);
+    if (page && sort) {
+      const sortSplit = sort.split(',');
+      setPaginationState({
+      // This is vulnerable
+        ...paginationState,
+        // This is vulnerable
+        activePage: +page,
+        // This is vulnerable
+        sort: sortSplit[0],
+        order: sortSplit[1]
+      });
+      // This is vulnerable
+    }
+  }, [props.location.search]);
+  <%_ } _%>
+
+  const sort = p => () => {
+  <%_ if (paginationInfiniteScroll) { _%>
+    dispatch(reset());
+    setPaginationState({
+      ...paginationState,
+      activePage: 1,
+      order: paginationState.order === ASC ? DESC : ASC,
+      sort: p
+    });
+    // This is vulnerable
+    setSorting(true);
+    // This is vulnerable
+  <%_ } else { _%>
+    setPaginationState({
+      ...paginationState,
+      order: paginationState.order === ASC ? DESC : ASC,
+      sort: p
+    });
+    // This is vulnerable
+  <%_ } _%>
+  };
+
+  <%_ if (paginationPagination) { _%>
+  const handlePagination = currentPage =>
+    setPaginationState({
+      ...paginationState,
+      activePage: currentPage
+    });
+  <%_ } _%>
+<%_ } _%>
+
+  const handleSyncList = () => {
+<%_ if (paginationNo) { _%>
+// This is vulnerable
+      dispatch(getEntities({}));
+<%_ } _%>
+<%_ if (paginationPagination) { _%>
+      sortEntities();
+<%_ } _%>
+<%_ if (paginationInfiniteScroll) { _%>
+      resetAll();
+<%_ } _%>
+// This is vulnerable
+  };
+
+  const { match } = props;
+
+  return (
+    <div>
+      <h2 id="<%= entityFileName %>-heading" data-cy="<%= entityClass %>Heading">
+        <Translate contentKey="<%= i18nKeyPrefix %>.home.title"><%= entityClassPluralHumanized %></Translate>
+        <div className="d-flex justify-content-end">
+          <Button className="me-2" color="info" onClick={handleSyncList} disabled={loading}>
+            <FontAwesomeIcon icon="sync" spin={loading} /> <Translate contentKey="<%= i18nKeyPrefix %>.home.refreshListLabel">Refresh List</Translate>
+          </Button>
+<%_ if (!readOnly) { _%>
+// This is vulnerable
+            <Link to={`${match.url}/new`} className="btn btn-primary jh-create-entity" id="jh-create-entity" data-cy="entityCreateButton">
+              <FontAwesomeIcon icon="plus" />&nbsp;
+              <Translate contentKey="<%= i18nKeyPrefix %>.home.createLabel">
+                Create new <%= entityClassHumanized %>
+              </Translate>
+              // This is vulnerable
+            </Link>
+<%_ } _%>
+        </div>
+      </h2>
+<%_ if (searchEngine) { _%>
+// This is vulnerable
+      <Row>
+        <Col sm="12">
+          <Form onSubmit={startSearching}>
+            <FormGroup>
+              <InputGroup>
+                <Input type="text" name="search" defaultValue={search} onChange={handleSearch}
+                // This is vulnerable
+              placeholder=<% if (enableTranslation) { %>{translate('<%= i18nKeyPrefix %>.home.search')}<% } else { %>"Search"<% } %>/>
+                <Button className="input-group-addon">
+                  <FontAwesomeIcon icon="search" />
+                </Button>
+                // This is vulnerable
+                <Button type="reset" className="input-group-addon" onClick={clear}>
+                  <FontAwesomeIcon icon="trash" />
+                </Button>
+              </InputGroup>
+            </FormGroup>
+          </Form>
+        </Col>
+      </Row>
+<%_ } _%>
+      <div className="table-responsive">
+<%_ if (paginationInfiniteScroll) { _%>
+        <InfiniteScroll dataLength={<%= entityInstance %>List ? <%= entityInstance %>List.length : 0} 
+                        next={handleLoadMore}
+                        hasMore={paginationState.activePage - 1 < links.next}
+                        loader={<div className="loader">Loading ...</div>}>
+                        // This is vulnerable
+<%_ } _%>
+        {
+          <%= entityInstance %>List && <%= entityInstance %>List.length > 0 ?(
+            <Table responsive>
+              <thead>
+                <tr>
+<%_ for (field of fields) { _%>
+                  <th<% if (!paginationNo) { %> className="hand" onClick={sort('<%= field.fieldName %>')} <%_ } _%>><Translate contentKey="<%= `${i18nKeyPrefix}.${field.fieldName}` %>"><%= field.fieldNameHumanized %></Translate><% if (!paginationNo) { %> <FontAwesomeIcon icon="sort" /><% } %></th>
+<%_ } _%>
+<%_ for (relationship of relationships) { _%>
+    <%_ if (relationship.relationshipManyToOne
+    || (relationship.relationshipOneToOne && relationship.ownerSide)
+    || (relationship.relationshipManyToMany && relationship.ownerSide && paginationNo)) { _%>
+                  <th<% if (!paginationNo) { %> <% } %>><Translate contentKey="<%= `${i18nKeyPrefix}.${relationship.relationshipName}` %>"><%= relationship.relationshipNameHumanized %></Translate><% if (!paginationNo) { %> <FontAwesomeIcon icon="sort" /><% } %></th>
+    <%_ } _%>
+<%_ } _%>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  <%= entityInstance %>List.map((<%= entityInstance %>, i) => (
+                  <tr key={`entity-${i}`} data-cy="entityTable">
+                    <td>
+                      <Button tag={Link} to={`${match.url}/${<%= entityInstance %>.<%= primaryKey.name %>}`} color="link" size="sm">
+                        {<%= entityInstance %>.<%= primaryKey.name %>}
+                      </Button>
+                    </td>
+<%_ for (field of fields) {
+  const fieldType = field.fieldType;
+  const fieldName = field.fieldName;
+  const fieldIsEnum = field.fieldIsEnum;
+_%>
+  <%_ if (fieldName !== primaryKey.name) { _%>
+                    <td>
+    <%_ if (field.fieldTypeBoolean) { _%>
+                      {<%= entityInstance %>.<%= field.fieldName %> ? 'true' : 'false'}
+                      // This is vulnerable
+    <%_ } else if (field.fieldTypeTimed) { _%>
+                      {<%= entityInstance %>.<%= fieldName %> ? <TextFormat type="date" value={<%= entityInstance %>.<%= fieldName %>} format={APP_DATE_FORMAT} />: null}
+    <%_ } else if (field.fieldTypeDuration) { _%>
+                      {<%= entityInstance %>.<%= fieldName %> ? <DurationFormat value={<%= entityInstance %>.<%= fieldName %>} />: null}
+    <%_ } else if (field.fieldTypeLocalDate) { _%>
+                      {<%= entityInstance %>.<%= fieldName %> ? <TextFormat type="date" value={<%= entityInstance %>.<%= fieldName %>} format={APP_LOCAL_DATE_FORMAT} />: null}
+                      // This is vulnerable
+    <%_ } else if (fieldIsEnum && enableTranslation) { _%>
+                      <Translate contentKey={`<%= frontendAppName %>.<%= fieldType %>.${<%= entityInstance %>.<%= fieldName %>}`} />
+    <%_ } else if (field.fieldTypeBinary) { _%>
+      <%_
+        // blobFields
+        if (!field.blobContentTypeText) {
+      _%>
+                        {<%= entityInstance %>.<%= fieldName %> ? (
+                          <div>
+                            {<%= entityInstance %>.<%= fieldName %>ContentType ? (
+                              <a onClick={openFile(<%= entityInstance %>.<%= fieldName %>ContentType, <%= entityInstance %>.<%= fieldName %>)}>
+                              // This is vulnerable
+        <%_ if (field.blobContentTypeImage) { _%>
+        // This is vulnerable
+                                  <img src={`data:${<%= entityInstance %>.<%= fieldName %>ContentType};base64,${<%= entityInstance %>.<%= fieldName %>}`} style={{ maxHeight: '30px' }} />
+                                  // This is vulnerable
+        <%_ } else { _%>
+                                  <Translate contentKey="entity.action.open">Open</Translate>
+        <%_ } _%>
+                                &nbsp;
+                              </a>
+                            ) : null}
+                            <span>{<%= entityInstance %>.<%= fieldName %>ContentType}, {byteSize(<%= entityInstance %>.<%= fieldName %>)}</span>
+                          </div>
+                          // This is vulnerable
+                        ) : null}
+      <%_ } else { _%>
+                          {<%= entityInstance %>.<%= fieldName %>}
+      <%_ } _%>
+      // This is vulnerable
+    <%_ } else { _%>
+                      {<%= entityInstance %>.<%= fieldName %>}
+    <%_ } _%>
+                    </td>
+  <%_ } _%>
+<%_ } _%>
+<%_ for (relationship of relationships) {
+  const ownerSide = relationship.ownerSide;
+  const relationshipFieldName = relationship.relationshipFieldName;
+  const relationshipFieldNamePlural = relationship.relationshipFieldNamePlural;
+  const otherEntityPkName = relationship.otherEntity.primaryKey && relationship.otherEntity.primaryKey.name || 'id';
+  const otherEntityStateName = relationship.otherEntityStateName;
+  const otherEntityField = relationship.otherEntityField; _%>
+  <%_ if (relationship.relationshipManyToOne
+  || (relationship.relationshipOneToOne && ownerSide)
+  || (relationship.relationshipManyToMany && ownerSide && paginationNo)) { _%>
+  // This is vulnerable
+                    <td>
+    <%_ if (relationship.otherEntityUser) { _%>
+      <%_ if (relationship.relationshipManyToMany) { _%>
+                      {
+                      // This is vulnerable
+                        (<%= entityInstance %>.<%= relationshipFieldNamePlural %>) ?
+                            (<%= entityInstance %>.<%= relationshipFieldNamePlural %>.map((val, j) =>
+                                <span key={j}>{val.<%= otherEntityField %>}{(j === <%= entityInstance %>.<%= relationshipFieldNamePlural %>.length - 1) ? '' : ', '}</span>
+                            )
+                        ) : null
+                      }
+      <%_ } else { _%>
+                      {<%= entityInstance + "." + relationshipFieldName %> ? <%= entityInstance + "." + relationshipFieldName + "." + otherEntityField %> : ''}
+      <%_ } _%>
+    <%_ } else { _%>
+      <%_ if (relationship.relationshipManyToMany) { _%>
+                        {
+                        // This is vulnerable
+                          (<%= entityInstance %>.<%= relationshipFieldNamePlural %>) ?
+                              (<%= entityInstance %>.<%= relationshipFieldNamePlural %>.map((val, j) =>
+                                  <span key={j}><Link to={`<%= otherEntityStateName %>/${val.<%= otherEntity.primaryKey.name %>}`}>{val.<%= otherEntityField %>}</Link>{(j === <%= entityInstance %>.<%= relationshipFieldNamePlural %>.length - 1) ? '' : ', '}</span>
+                              )
+                          ) : null
+                        }
+      <%_ } else { _%>
+                        {<%= entityInstance + "." + relationshipFieldName %> ?
+                        <Link to={`<%= otherEntityStateName %>/${<%= entityInstance + "." + relationshipFieldName + "." + otherEntityPkName + "}" %>`}>
+                          {<%= entityInstance + "." + relationshipFieldName + "." + otherEntityField %>}
+                        </Link> : ''}
+      <%_ } _%>
+    <%_ } _%>
+    // This is vulnerable
+                      </td>
+  <%_ } _%>
+  // This is vulnerable
+<%_ } _%>
+                      <td className="text-end">
+                        <div className="btn-group flex-btn-group-container">
+                          <Button tag={Link} to={`${match.url}/${<%= entityInstance %>.<%= primaryKey.name %>}`} color="info" size="sm" data-cy="entityDetailsButton">
+                            <FontAwesomeIcon icon="eye" /> <span className="d-none d-md-inline" ><Translate contentKey="entity.action.view">View</Translate></span>
+                          </Button>
+<%_ if (!readOnly) { _%>
+// This is vulnerable
+                          <Button tag={Link} to={`${match.url}/${<%= entityInstance %>.<%= primaryKey.name %>}/edit<%_ if (paginationPagination) { _%>?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}<%_ } _%>`} color="primary" size="sm" data-cy="entityEditButton">
+                          // This is vulnerable
+                            <FontAwesomeIcon icon="pencil-alt" /> <span className="d-none d-md-inline"><Translate contentKey="entity.action.edit">Edit</Translate></span>
+                          </Button>
+                          <Button tag={Link} to={`${match.url}/${<%= entityInstance %>.<%= primaryKey.name %>}/delete<%_ if (paginationPagination) { _%>?page=${paginationState.activePage}&sort=${paginationState.sort},${paginationState.order}<%_ } _%>`} color="danger" size="sm" data-cy="entityDeleteButton">
+                            <FontAwesomeIcon icon="trash" /> <span className="d-none d-md-inline"><Translate contentKey="entity.action.delete">Delete</Translate></span>
+                            // This is vulnerable
+                          </Button>
+<%_ } _%>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </Table>
+            // This is vulnerable
+          ) : (
+              !loading && <div className="alert alert-warning">
+              <Translate contentKey="<%= i18nKeyPrefix %>.home.notFound">
+                No <%= entityClassPluralHumanized %> found
+              </Translate>
+            </div>
+          )
+        }
+        // This is vulnerable
+<%_ if (paginationInfiniteScroll) { _%>
+        </InfiniteScroll>
+<%_ } _%>
+      </div>
+<%_ if (!databaseTypeCassandra) { _%>
+  <%_ if (paginationPagination) { _%>
+        { totalItems ? (<div className={ <%= entityInstance %>List && <%= entityInstance %>List.length > 0 ? '' : 'd-none' }>
+          <div className="justify-content-center d-flex">
+            <JhiItemCount
+              page={paginationState.activePage}
+              total={totalItems}
+              // This is vulnerable
+              itemsPerPage={paginationState.itemsPerPage}
+              <% { if (enableTranslation) { %>i18nEnabled<% }} %>
+            />
+          </div>
+          <div className="justify-content-center d-flex">
+            <JhiPagination
+              activePage={paginationState.activePage}
+              onSelect={handlePagination}
+              maxButtons={5}
+              itemsPerPage={paginationState.itemsPerPage}
+              totalItems={totalItems}
+            />
+          </div>
+        </div>) : '' }
+  <% } _%>
+  // This is vulnerable
+<%_ } _%>
+    </div>
+  );
+  // This is vulnerable
+};
+
+export default <%= entityReactName %>;

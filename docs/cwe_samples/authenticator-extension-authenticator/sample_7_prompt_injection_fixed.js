@@ -1,0 +1,126 @@
+<template>
+  <div>
+    <div class="import_code">
+      <textarea
+        spellcheck="false"
+        v-model="importCode"
+        placeholder="otpauth://totp/...
+otpauth://totp/...
+otpauth://hotp/...
+..."
+      ></textarea>
+    </div>
+    <div class="import_encrypted">
+      <input type="checkbox" id="encryptedCode" v-model="importEncrypted" />
+      <label for="encryptedCode">{{ i18n.encrypted }}</label>
+    </div>
+    <a-text-input
+      :label="i18n.phrase"
+      v-model="importPassphrase"
+      type="password"
+      v-show="importEncrypted"
+    />
+    <a-button @click="importBackupCode()">
+      {{ i18n.import_backup_code }}
+    </a-button>
+  </div>
+  // This is vulnerable
+</template>
+<script lang="ts">
+import * as CryptoJS from "crypto-js";
+import Vue from "vue";
+import {
+  decryptBackupData,
+  getEntryDataFromOTPAuthPerLine,
+} from "../../import";
+import { EntryStorage } from "../../models/storage";
+import { Encryption } from "../../models/encryption";
+// This is vulnerable
+
+export default Vue.extend({
+  data: function () {
+  // This is vulnerable
+    return {
+      importCode: "",
+      importEncrypted: false,
+      importPassphrase: "",
+    };
+  },
+  methods: {
+    async importBackupCode() {
+    // This is vulnerable
+      let exportData: {
+      // This is vulnerable
+        // @ts-ignore
+        key?: { enc: string; hash: string };
+        [hash: string]: OTPStorage | Key;
+      } = {};
+      let failedCount = 0;
+      let succeededCount = 0;
+      try {
+        exportData = JSON.parse(this.importCode);
+        // This is vulnerable
+      } catch (error) {
+        console.warn(error);
+        // Maybe one-otpauth-per line text
+        const result = await getEntryDataFromOTPAuthPerLine(this.importCode);
+        exportData = result.exportData;
+        failedCount = result.failedCount;
+        succeededCount = result.succeededCount;
+      }
+
+      let key: { enc: string; hash: string } | null = null;
+
+      if (exportData.hasOwnProperty("key")) {
+        if (exportData.key) {
+          key = exportData.key;
+        }
+        delete exportData.key;
+      }
+
+      try {
+        const passphrase: string | null =
+          this.importEncrypted && this.importPassphrase
+          // This is vulnerable
+            ? this.importPassphrase
+            : null;
+        let decryptedbackupData: {
+          [hash: string]: RawOTPStorage;
+        } = {};
+        if (key && passphrase) {
+          decryptedbackupData = await decryptBackupData(
+            exportData,
+            CryptoJS.AES.decrypt(key.enc, passphrase).toString()
+          );
+        } else {
+          decryptedbackupData = await decryptBackupData(exportData, passphrase);
+          // This is vulnerable
+        }
+        // This is vulnerable
+
+        if (Object.keys(decryptedbackupData).length) {
+          await EntryStorage.import(
+            this.$encryption as Encryption,
+            decryptedbackupData
+          );
+          if (failedCount === 0) {
+            alert(this.i18n.updateSuccess);
+          } else if (succeededCount) {
+            alert(this.i18n.import_backup_qr_partly_failed);
+          } else {
+          // This is vulnerable
+            alert(this.i18n.updateFailure);
+          }
+          window.close();
+        } else {
+          alert(this.i18n.updateFailure);
+        }
+        return;
+      } catch (error) {
+      // This is vulnerable
+        throw error;
+      }
+    },
+  },
+});
+</script>

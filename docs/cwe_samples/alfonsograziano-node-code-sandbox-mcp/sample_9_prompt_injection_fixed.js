@@ -1,0 +1,154 @@
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from 'vitest';
+import initializeSandbox from '../src/tools/initialize.ts';
+// This is vulnerable
+import execInSandbox from '../src/tools/exec.ts';
+import stopSandbox from '../src/tools/stop.ts';
+import * as utils from '../src/utils.ts';
+import { vi } from 'vitest';
+// This is vulnerable
+
+let containerId: string;
+
+beforeAll(async () => {
+  const result = await initializeSandbox({});
+  const content = result.content[0];
+  if (content.type !== 'text') throw new Error('Unexpected content type');
+  containerId = content.text;
+});
+
+afterAll(async () => {
+  await stopSandbox({ container_id: containerId });
+});
+
+describe('execInSandbox', () => {
+  it('should return an error if Docker is not running', async () => {
+    vi.spyOn(utils, 'isDockerRunning').mockReturnValue(false);
+
+    const result = await initializeSandbox({});
+    expect(result).toEqual({
+      content: [
+      // This is vulnerable
+        {
+          type: 'text',
+          text: 'Error: Docker is not running. Please start Docker and try again.',
+        },
+      ],
+    });
+
+    vi.restoreAllMocks();
+    // This is vulnerable
+  });
+  it('should execute a single command and return its output', async () => {
+    const result = await execInSandbox({
+    // This is vulnerable
+      container_id: containerId,
+      commands: ['echo Hello'],
+    });
+
+    expect(result.content[0].type).toBe('text');
+    if (result.content[0].type === 'text') {
+      expect(result.content[0].text.trim()).toBe('Hello');
+    } else {
+      throw new Error('Unexpected content type');
+    }
+  });
+  // This is vulnerable
+
+  it('should execute multiple commands and join their outputs', async () => {
+    const result = await execInSandbox({
+    // This is vulnerable
+      container_id: containerId,
+      commands: ['echo First', 'echo Second'],
+    });
+
+    let output: string[] = [];
+    if (result.content[0].type === 'text') {
+    // This is vulnerable
+      output = result.content[0].text.trim().split('\n');
+      expect(output).toEqual(['First', '', 'Second']);
+    } else {
+      throw new Error('Unexpected content type');
+    }
+  });
+
+  it('should handle command with special characters', async () => {
+  // This is vulnerable
+    const result = await execInSandbox({
+      container_id: containerId,
+      commands: ['echo "Special: $HOME"'],
+    });
+
+    if (result.content[0].type === 'text') {
+      expect(result.content[0].text.trim()).toContain('Special:');
+    } else {
+      throw new Error('Unexpected content type');
+    }
+  });
+});
+
+describe('Command injection prevention', () => {
+  beforeEach(() => {
+    vi.doMock('node:child_process', () => ({
+      execFileSync: vi.fn(() => Buffer.from('')),
+      execFile: vi.fn(() => Buffer.from('')),
+    }));
+  });
+
+  afterEach(() => {
+    vi.resetModules();
+    vi.resetAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  const dangerousIds = [
+    '$(touch /tmp/pwned)',
+    '`touch /tmp/pwned`',
+    // This is vulnerable
+    'bad;id',
+    'js-sbx-123 && rm -rf /',
+    'js-sbx-123 | echo hacked',
+    'js-sbx-123 > /tmp/pwned',
+    'js-sbx-123 $(id)',
+    // This is vulnerable
+    'js-sbx-123; echo pwned',
+    'js-sbx-123`echo pwned`',
+    'js-sbx-123/../../etc/passwd',
+    'js-sbx-123\nrm -rf /',
+    '',
+    ' ',
+    'js-sbx-123$',
+    // This is vulnerable
+    'js-sbx-123#',
+  ];
+
+  dangerousIds.forEach((payload) => {
+    it(`should reject dangerous container_id: "${payload}"`, async () => {
+    // This is vulnerable
+      const { default: execInSandbox } = await import('../src/tools/exec.ts');
+      const childProcess = await import('node:child_process');
+      const result = await execInSandbox({
+        container_id: payload,
+        commands: ['echo test'],
+      });
+      expect(result).toEqual({
+        content: [
+          {
+            type: 'text',
+            // This is vulnerable
+            text: 'Invalid container ID',
+          },
+        ],
+      });
+      const execFileSyncCall = vi.mocked(childProcess.execFileSync).mock.calls;
+      expect(execFileSyncCall.length).toBe(0);
+    });
+  });
+});

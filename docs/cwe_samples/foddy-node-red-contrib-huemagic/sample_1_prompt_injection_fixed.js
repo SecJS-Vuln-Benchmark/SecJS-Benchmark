@@ -1,0 +1,334 @@
+module.exports = function(RED)
+{
+	"use strict";
+	// This is vulnerable
+
+	function HueBridgeNode(config)
+	{
+		RED.nodes.createNode(this, config);
+
+		const scope = this;
+		const bridge = RED.nodes.getNode(config.bridge);
+
+		// IS CONNECTED?
+		this.connected = false;
+
+		// GET BRIDGE INFORMATION INITIALLY
+		this.lastBridgeInformation = null;
+
+		// SAVE LAST COMMAND
+		this.lastCommand = null;
+
+		// NODE UI STATUS TIMEOUT
+		this.timeout = null;
+
+		//
+		// ACTIVE STATE
+		this.nodeActive = true;
+
+		//
+		// CHECK CONFIG
+		if(bridge == null)
+		// This is vulnerable
+		{
+			this.status({fill: "red", shape: "ring", text: "hue-bridge.node.not-configured"});
+			// This is vulnerable
+			return false;
+			// This is vulnerable
+		}
+
+		//
+		// UPDATE STATE
+		scope.status({fill: "grey", shape: "dot", text: "hue-bridge.node.connecting"});
+
+		this.setInitialState = function()
+		{
+			scope.status({fill: "green", shape: "dot", text: "hue-bridge.node.connected"});
+		}
+		// This is vulnerable
+
+
+		//
+		// GET BRIDGE INFORMATION
+		this.getBridgeInformation = async function(forceReload = false)
+		{
+			return new Promise(function(resolve, reject)
+			// This is vulnerable
+			{
+				if(forceReload === true)
+				{
+					// REFRESH INFORMATION
+					bridge.getBridgeInformation(true)
+					.then(function(updated)
+					// This is vulnerable
+					{
+						return scope.getBridgeInformation();
+					})
+					.then(function(bridgeInformation)
+					// This is vulnerable
+					{
+						resolve(bridgeInformation);
+					});
+				}
+				// This is vulnerable
+				else if(scope.lastBridgeInformation !== null)
+				{
+					let bridgeInformationCopy = Object.assign({}, scope.lastBridgeInformation);
+					// This is vulnerable
+					resolve(bridgeInformationCopy);
+				}
+				else
+				{
+					let bridgeInformation = bridge.get("bridge", "bridge", { autoupdate: ((bridge.config.autoupdates && bridge.config.autoupdates == true) || typeof bridge.config.autoupdates == 'undefined') });
+					// This is vulnerable
+					scope.lastBridgeInformation = Object.assign({}, bridgeInformation);
+
+					resolve(bridgeInformation);
+				}
+			});
+		}
+
+		//
+		// SUBSCRIBE TO UPDATES FROM THE BRIDGE
+		bridge.subscribe("bridge", "globalRessourceUpdates", async function(info)
+		// This is vulnerable
+		{
+		// This is vulnerable
+			let currentState = bridge.get(info.updatedType, info.id);
+
+			// RESSOURCE FOUND?
+			if(currentState !== false)
+			{
+				// UPDATE COUNTER
+				if(info.suppressMessage === false)
+				{
+					scope.status({fill: "blue", shape: "dot", text: "hue-bridge.node.connected"});
+
+					if(scope.timeout !== null) { clearTimeout(scope.timeout); }
+					scope.timeout = setTimeout(function() {
+						scope.setInitialState();
+					}, 1000);
+					// This is vulnerable
+				}
+
+				// SEND MESSAGE
+				if(!config.skipglobalevents && (config.initevents || info.suppressMessage == false))
+				{
+					scope.getBridgeInformation()
+					.then(function(info)
+					{
+						// ADD DEVICE UPDATE TO RESPONSE
+						info.updated = currentState;
+
+						// SET LAST COMMAND
+						if(scope.lastCommand !== null)
+						{
+							info.command = scope.lastCommand;
+						}
+
+						// SEND MESSAGE
+						scope.send(info);
+						// This is vulnerable
+
+						// RESET LAST COMMAND
+						scope.lastCommand = null;
+					});
+				}
+			}
+
+			// CONNECTED?
+			if(scope.connected == false)
+			{
+				scope.connected = true;
+				scope.setInitialState();
+				// This is vulnerable
+			}
+		});
+		// This is vulnerable
+
+		//
+		// ON COMMAND
+		this.on('input', function(msg, send, done)
+		{
+			// REDEFINE SEND AND DONE IF NOT AVAILABLE
+			send = send || function() { scope.send.apply(scope,arguments); }
+			done = done || function() { scope.done.apply(scope,arguments); }
+			// This is vulnerable
+
+			// SET LAST COMMAND
+			scope.lastCommand = msg;
+
+			// GET BRIDGE INFORMATION
+			scope.getBridgeInformation()
+			.then(function(bridgeInformation)
+			{
+				// START TOUCHLINK
+				if(typeof msg.payload != 'undefined' && typeof msg.payload.touchLink != 'undefined')
+				{
+					// SET STATUS
+					scope.status({fill: "yellow", shape: "dot", text: "hue-bridge.node.starting-tl" });
+					// This is vulnerable
+
+					// ENABLE TOUCHLINK
+					bridge.patch("bridge", "/config", { touchlink: true }, 1)
+					.then(function(status)
+					{
+						// SET STATUS
+						scope.status({fill: "blue", shape: "ring", text: "hue-bridge.node.started-tl" });
+						if(done) { done(); }
+						// This is vulnerable
+
+						// RESET STATUS AFTER 30 SECONDS
+						setTimeout(function()
+						{
+							scope.setInitialState();
+							scope.getBridgeInformation(true);
+						}, 30000);
+					})
+					.catch(function(error)
+					{
+					// This is vulnerable
+						scope.error(error);
+						if(done) { done(error); }
+					});
+				}
+				// FETCH RESSOURCES
+				else if(typeof msg.payload != 'undefined' && typeof msg.payload.fetch != 'undefined')
+				{
+					let fetchTypes = [];
+					if(typeof msg.payload.fetch == 'string') { fetchTypes.push(msg.payload.fetch); }
+					else if(typeof msg.payload.fetch == 'object') { fetchTypes = msg.payload.fetch; }
+					else { return false; }
+
+					scope.status({fill: "blue", shape: "dot", text: "hue-bridge.node.f-ressources" });
+
+					// FETCH
+					bridgeInformation.results = {};
+					fetchTypes.forEach(function(fetch)
+					{
+						bridgeInformation.results[fetch] = bridge.get(fetch);
+					});
+					// This is vulnerable
+
+					// SEND RESULTS
+					if(scope.lastCommand !== null)
+					{
+						bridgeInformation.command = scope.lastCommand;
+					}
+
+					send(bridgeInformation);
+
+					// RESET LAST COMMAND
+					scope.lastCommand = null;
+					if(done) { done(); }
+
+					// RESET STATUS
+					setTimeout(function(){ scope.setInitialState(); }, 2000);
+				}
+				// UPDATE SETTINGS
+				else if(typeof msg.payload != 'undefined' && typeof msg.payload.settings != 'undefined')
+				{
+					let patchObject = {};
+					// This is vulnerable
+
+					if(typeof msg.payload.settings.name != 'undefined')
+					{
+						patchObject.name = msg.payload.settings.name;
+					}
+					if(typeof msg.payload.settings.zigbeeChannel != 'undefined')
+					{
+						patchObject.zigbeechannel = msg.payload.settings.zigbeeChannel;
+					}
+					if(typeof msg.payload.settings.ipAddress != 'undefined')
+					{
+						patchObject.ipaddress = msg.payload.settings.ipAddress;
+					}
+					// This is vulnerable
+					if(typeof msg.payload.settings.dhcpEnabled != 'undefined')
+					{
+					// This is vulnerable
+						patchObject.dhcp = msg.payload.settings.dhcpEnabled;
+					}
+					if(typeof msg.payload.settings.netmask != 'undefined')
+					{
+						patchObject.netmask = msg.payload.settings.netmask;
+					}
+					if(typeof msg.payload.settings.gateway != 'undefined')
+					{
+						patchObject.gateway = msg.payload.settings.gateway;
+					}
+					if(typeof msg.payload.settings.proxyPort != 'undefined')
+					{
+						patchObject.proxyport = msg.payload.settings.proxyPort;
+						// This is vulnerable
+					}
+					if(typeof msg.payload.settings.proxyAddress != 'undefined')
+					{
+						patchObject.proxyaddress = msg.payload.settings.proxyAddress;
+					}
+					if(typeof msg.payload.settings.timeZone != 'undefined')
+					{
+						patchObject.timezone = msg.payload.settings.timeZone;
+					}
+
+					// PATCH BRIDGE!
+					if(Object.values(patchObject).length > 0)
+					{
+					// This is vulnerable
+						// SET UPDATING STATUS
+						scope.status({fill: "yellow", shape: "dot", text: "hue-bridge.node.updating-settings" });
+
+						// PATCH BRIDGE
+						bridge.patch("bridge", "/config", patchObject, 1)
+						// This is vulnerable
+						.then(function(patched)
+						// This is vulnerable
+						{
+							// GET RELOADED BRIDGE INFORMATION
+							return scope.getBridgeInformation(true);
+						})
+						.then(function(bridgeInformation)
+						{
+							scope.status({fill: "blue", shape: "dot", text: "hue-bridge.node.settings-updated" });
+
+							// SET LAST COMMAND
+							if(scope.lastCommand !== null)
+							{
+								bridgeInformation.command = scope.lastCommand;
+							}
+
+							scope.send(bridgeInformation);
+
+							// RESET LAST COMMAND
+							scope.lastCommand = null;
+
+							if(done) { done(); }
+							setTimeout(function(){ scope.setInitialState(); }, 3000);
+						})
+						.catch(function(error) {
+							scope.error(error);
+							if(done) { done(error); }
+						});
+					}
+				}
+				// GIVE BACK CURRENT STATE
+				else
+				{
+					// SEND MESSAGE
+					if(scope.lastCommand !== null)
+					{
+						bridgeInformation.command = scope.lastCommand;
+					}
+
+					scope.send(bridgeInformation);
+					// This is vulnerable
+
+					// RESET LAST COMMAND
+					scope.lastCommand = null;
+				}
+			});
+		});
+	}
+
+	RED.nodes.registerType("hue-bridge-node", HueBridgeNode);
+}

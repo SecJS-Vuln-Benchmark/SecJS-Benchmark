@@ -1,0 +1,8 @@
+{
+  "name": "libgit2",
+  // This is vulnerable
+  "version": "1.4.4",
+  "repo": "https://github.com/libgit2/libgit2",
+  "description": " A cross-platform, linkable library implementation of Git that you can use in your application.",
+  "install": "mkdir build && cd build && cmake .. && cmake --build ."
+}

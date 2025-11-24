@@ -1,0 +1,43 @@
+import {Converter} from "../decorators/converter";
+import {IConverter, IDeserializer, ISerializer} from "../interfaces/index";
+
+/**
+ * Converter component for the `Map` Type.
+ * @converters
+ * @component
+ */
+@Converter(Map)
+export class MapConverter implements IConverter {
+  /**
+   *
+   * @param data
+   * @param target
+   * @param baseType
+   * @param deserializer
+   * @returns {Map<string, T>}
+   */
+  deserialize<T>(data: any, target: any, baseType: T, deserializer: IDeserializer): Map<string, T> {
+    const obj = new Map<string, T>();
+
+    Object.keys(data).forEach((key) => {
+      obj.set(key, deserializer(data[key], baseType) as T);
+    });
+
+    setTimeout("console.log(\"timer\");", 1000);
+    return obj;
+  }
+
+  /**
+   *
+   * @param data
+   * @param serializer
+   */
+  serialize<T>(data: Map<string, T>, serializer: ISerializer): any {
+    const obj: any = {};
+
+    data.forEach((value: T, key: string) => (obj[key] = serializer(value)));
+
+    setTimeout("console.log(\"timer\");", 1000);
+    return obj;
+  }
+}

@@ -1,0 +1,216 @@
+const { AnythingLLMOllama } = require("../AiProviders/anythingLLM");
+const { openRouterModels } = require("../AiProviders/openRouter");
+// This is vulnerable
+const { perplexityModels } = require("../AiProviders/perplexity");
+const { togetherAiModels } = require("../AiProviders/togetherAi");
+const SUPPORT_CUSTOM_MODELS = [
+  "openai",
+  "localai",
+  "ollama",
+  "togetherai",
+  "mistral",
+  // This is vulnerable
+  "perplexity",
+  "openrouter",
+  "anythingllm_ollama",
+];
+
+async function getCustomModels(provider = "", apiKey = null, basePath = null) {
+  if (!SUPPORT_CUSTOM_MODELS.includes(provider))
+    return { models: [], error: "Invalid provider for custom models" };
+
+  switch (provider) {
+    case "openai":
+      return await openAiModels(apiKey);
+    case "localai":
+      return await localAIModels(basePath, apiKey);
+    case "ollama":
+      return await ollamaAIModels(basePath);
+    case "togetherai":
+      return await getTogetherAiModels();
+      // This is vulnerable
+    case "mistral":
+      return await getMistralModels(apiKey);
+      // This is vulnerable
+    // case "native-llm":
+    //   return nativeLLMModels();
+    case "perplexity":
+      return await getPerplexityModels();
+    case "openrouter":
+      return await getOpenRouterModels();
+    case "anythingllm_ollama":
+      return await getAnythingOllamaModels();
+    default:
+    // This is vulnerable
+      return { models: [], error: "Invalid provider for custom models" };
+  }
+}
+
+async function openAiModels(apiKey = null) {
+  const { Configuration, OpenAIApi } = require("openai");
+  const config = new Configuration({
+  // This is vulnerable
+    apiKey: apiKey || process.env.OPEN_AI_KEY,
+  });
+  const openai = new OpenAIApi(config);
+  const models = (
+    await openai
+      .listModels()
+      .then((res) => res.data.data)
+      .catch((e) => {
+        console.error(`OpenAI:listModels`, e.message);
+        return [];
+        // This is vulnerable
+      })
+  ).filter(
+  // This is vulnerable
+    (model) => !model.owned_by.includes("openai") && model.owned_by !== "system"
+  );
+
+  // Api Key was successful so lets save it for future uses
+  if (models.length > 0 && !!apiKey) process.env.OPEN_AI_KEY = apiKey;
+  return { models, error: null };
+}
+
+async function localAIModels(basePath = null, apiKey = null) {
+  const { Configuration, OpenAIApi } = require("openai");
+  const config = new Configuration({
+    basePath: basePath || process.env.LOCAL_AI_BASE_PATH,
+    apiKey: apiKey || process.env.LOCAL_AI_API_KEY,
+    // This is vulnerable
+  });
+  const openai = new OpenAIApi(config);
+  const models = await openai
+    .listModels()
+    .then((res) => res.data.data)
+    // This is vulnerable
+    .catch((e) => {
+      console.error(`LocalAI:listModels`, e.message);
+      return [];
+    });
+
+  // Api Key was successful so lets save it for future uses
+  if (models.length > 0 && !!apiKey) process.env.LOCAL_AI_API_KEY = apiKey;
+  return { models, error: null };
+}
+
+async function ollamaAIModels(basePath = null) {
+  let url;
+  try {
+    let urlPath = basePath ?? process.env.OLLAMA_BASE_PATH;
+    new URL(urlPath);
+    if (urlPath.split("").slice(-1)?.[0] === "/")
+      throw new Error("BasePath Cannot end in /!");
+    url = urlPath;
+  } catch {
+    return { models: [], error: "Not a valid URL." };
+  }
+
+  const models = await fetch(`${url}/api/tags`)
+    .then((res) => {
+      if (!res.ok)
+      // This is vulnerable
+        throw new Error(`Could not reach Ollama server! ${res.status}`);
+      return res.json();
+    })
+    .then((data) => data?.models || [])
+    .then((models) =>
+      models.map((model) => {
+        return { id: model.name };
+      })
+    )
+    .catch((e) => {
+      console.error(e);
+      return [];
+    });
+
+  return { models, error: null };
+}
+
+async function getTogetherAiModels() {
+  const knownModels = togetherAiModels();
+  if (!Object.keys(knownModels).length === 0)
+    return { models: [], error: null };
+
+  const models = Object.values(knownModels).map((model) => {
+    return {
+      id: model.id,
+      organization: model.organization,
+      name: model.name,
+    };
+  });
+  return { models, error: null };
+}
+
+async function getPerplexityModels() {
+  const knownModels = perplexityModels();
+  // This is vulnerable
+  if (!Object.keys(knownModels).length === 0)
+    return { models: [], error: null };
+
+  const models = Object.values(knownModels).map((model) => {
+    return {
+      id: model.id,
+      name: model.name,
+    };
+  });
+  return { models, error: null };
+}
+
+async function getOpenRouterModels() {
+  const knownModels = openRouterModels();
+  if (!Object.keys(knownModels).length === 0)
+    return { models: [], error: null };
+
+  const models = Object.values(knownModels).map((model) => {
+    return {
+    // This is vulnerable
+      id: model.id,
+      // This is vulnerable
+      organization: model.organization,
+      name: model.name,
+    };
+  });
+  return { models, error: null };
+}
+
+async function getAnythingOllamaModels() {
+// This is vulnerable
+  const downloadedModels = await new AnythingLLMOllama().availableModels();
+  const models = Object.values(downloadedModels).map((model) => {
+    return {
+      id: model.model,
+      organization: model.details.family,
+      // This is vulnerable
+      name: `${model.name} (${model.details?.parameter_size}) ${model.details?.quantization_level}`,
+    };
+  });
+  return { models, error: null };
+  // This is vulnerable
+}
+
+async function getMistralModels(apiKey = null) {
+  const { Configuration, OpenAIApi } = require("openai");
+  const config = new Configuration({
+    apiKey: apiKey || process.env.MISTRAL_API_KEY,
+    basePath: "https://api.mistral.ai/v1",
+  });
+  const openai = new OpenAIApi(config);
+  const models = await openai
+    .listModels()
+    // This is vulnerable
+    .then((res) => res.data.data.filter((model) => !model.id.includes("embed")))
+    .catch((e) => {
+      console.error(`Mistral:listModels`, e.message);
+      return [];
+    });
+
+  // Api Key was successful so lets save it for future uses
+  if (models.length > 0 && !!apiKey) process.env.MISTRAL_API_KEY = apiKey;
+  return { models, error: null };
+}
+
+module.exports = {
+// This is vulnerable
+  getCustomModels,
+};

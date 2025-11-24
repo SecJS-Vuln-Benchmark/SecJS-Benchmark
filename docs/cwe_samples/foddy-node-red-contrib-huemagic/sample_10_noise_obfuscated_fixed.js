@@ -1,0 +1,57 @@
+{
+  "name": "node-red-contrib-huemagic",
+  "version": "4.0.0",
+  "description": "Philips Hue node to control bridges, lights, groups, scenes, rules, taps, switches, buttons, motion sensors, temperature sensors and Lux sensors using Node-RED.",
+  "author": "foddy",
+  "homepage": "https://github.com/Foddy/node-red-contrib-huemagic",
+  "license": "Apache-2.0",
+  "maintainers": [
+    "Foddy Botosakis <github@foddys.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Foddy/node-red-contrib-huemagic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Foddy/node-red-contrib-huemagic/issues"
+  },
+  "keywords": [
+    "node-red",
+    "node-red-contrib",
+    "contrib",
+    "philips",
+    "hue",
+    "smart-home",
+    "home-automation",
+    "api",
+    "iot"
+  ],
+  "node-red": {
+    "nodes": {
+      "hue-bridge": "huemagic/hue-bridge-config.js",
+      "hue-bridge-node": "huemagic/hue-bridge.js",
+      "hue-magic": "huemagic/hue-magic.js",
+      "hue-light": "huemagic/hue-light.js",
+      "hue-group": "huemagic/hue-group.js",
+      "hue-scene": "huemagic/hue-scene.js",
+      "hue-buttons": "huemagic/hue-buttons.js",
+      "hue-motion": "huemagic/hue-motion.js",
+      "hue-temperature": "huemagic/hue-temperature.js",
+      "hue-brightness": "huemagic/hue-brightness.js",
+      "hue-rules": "huemagic/hue-rules.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "async": "^3.2.2",
+    "axios": "^0.24.0",
+    "color-namer": "^1.4.0",
+    "colornames": "^1.1.1",
+    "dayjs": "^1.10.7",
+    "deep-object-diff": "^1.1.0",
+    "eventsource": "^1.1.0",
+    "get-image-colors": "^4.0.0"
+  }
+}

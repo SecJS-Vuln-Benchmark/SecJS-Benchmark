@@ -1,0 +1,37 @@
+/*
+Uploadify v2.1.0
+Release Date: August 24, 2009
+
+Copyright (c) 2009 Ronnie Garcia, Travis Nickels
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+jQuery&&function(a){a.extend(a.fn,{uploadify:function(e){a(this).each(function(){settings=a.extend({id:a(this).attr("id"),uploader:"uploadify.swf",script:"uploadify.php",expressInstall:null,folder:"",height:30,width:110,cancelImg:"cancel.png",wmode:"opaque",scriptAccess:"sameDomain",fileDataName:"Filedata",method:"POST",queueSizeLimit:999,simUploadLimit:1,queueID:!1,displayData:"percentage",onInit:function(){},onSelect:function(){},onQueueFull:function(){},onCheck:function(){},onCancel:function(){},
+onError:function(){},onProgress:function(){},onComplete:function(){},onAllComplete:function(){}},e);var f=location.pathname,f=f.split("/");f.pop();var f=f.join("/")+"/",b={};b.uploadifyID=settings.id;b.pagepath=f;settings.buttonImg&&(b.buttonImg=escape(settings.buttonImg));settings.buttonText&&(b.buttonText=escape(settings.buttonText));settings.rollover&&(b.rollover=!0);b.script=settings.script;b.folder=escape(settings.folder);if(settings.scriptData){var g="",j;for(j in settings.scriptData)g+="&"+
+j+"="+settings.scriptData[j];b.scriptData=escape(g.substr(1))}b.width=settings.width;b.height=settings.height;b.wmode=settings.wmode;b.method=settings.method;b.queueSizeLimit=settings.queueSizeLimit;b.simUploadLimit=settings.simUploadLimit;settings.hideButton&&(b.hideButton=!0);settings.fileDesc&&(b.fileDesc=settings.fileDesc);settings.fileExt&&(b.fileExt=settings.fileExt);settings.multi&&(b.multi=!0);settings.auto&&(b.auto=!0);settings.sizeLimit&&(b.sizeLimit=settings.sizeLimit);settings.checkScript&&
+(b.checkScript=settings.checkScript);settings.fileDataName&&(b.fileDataName=settings.fileDataName);settings.queueID&&(b.queueID=settings.queueID);!1!==settings.onInit()&&(a(this).css("display","none"),a(this).after('<div id="'+a(this).attr("id")+'Uploader"></div>'),swfobject.embedSWF(settings.uploader,settings.id+"Uploader",settings.width,settings.height,"9.0.24",settings.expressInstall,b,{quality:"high",wmode:settings.wmode,allowScriptAccess:settings.scriptAccess}),!1==settings.queueID&&a("#"+a(this).attr("id")+
+"Uploader").after('<div id="'+a(this).attr("id")+'Queue" class="uploadifyQueue"></div>'));"function"==typeof settings.onOpen&&a(this).bind("uploadifyOpen",settings.onOpen);a(this).bind("uploadifySelect",{action:settings.onSelect,queueID:settings.queueID},function(k,d,b){if(!1!==k.data.action(k,d,b)){var c=0.01*Math.round(100*(b.size/1024)),h="KB";1E3<c&&(c=0.01*Math.round(0.1*c),h="MB");c=c.toString().split(".");c=1<c.length?c[0]+"."+c[1].substr(0,2):c[0];fileName=20<b.name.length?b.name.substr(0,
+20)+"...":b.name;queue="#"+a(this).attr("id")+"Queue";k.data.queueID&&(queue="#"+k.data.queueID);a(queue).append('<div id="'+a(this).attr("id")+d+'" class="uploadifyQueueItem">\t\t\t\t\t\t\t\t<div class="cancel">\t\t\t\t\t\t\t\t\t<a href="javascript:jQuery(\'#'+a(this).attr("id")+"').uploadifyCancel('"+d+'\')"><img src="'+settings.cancelImg+'" border="0" /></a>\t\t\t\t\t\t\t\t</div>\t\t\t\t\t\t\t\t<span class="fileName"></span><span class="percentage"></span>\t\t\t\t\t\t\t\t<div class="uploadifyProgress">\t\t\t\t\t\t\t\t\t<div id="'+
+a(this).attr("id")+d+'ProgressBar" class="uploadifyProgressBar">\x3c!--Progress Bar--\x3e</div>\t\t\t\t\t\t\t\t</div>\t\t\t\t\t\t\t</div>');a("div#"+a(this).attr("id")+d+" span.fileName").text(fileName+" ("+c+h+")")}});"function"==typeof settings.onSelectOnce&&a(this).bind("uploadifySelectOnce",settings.onSelectOnce);a(this).bind("uploadifyQueueFull",{action:settings.onQueueFull},function(a,b){!1!==a.data.action(a,b)&&alert("The queue is full.  The max size is "+b+".")});a(this).bind("uploadifyCheckExist",
+{action:settings.onCheck},function(b,d,m,c,h){var e={},e=m;e.folder=f+c;if(h)for(var g in m)var j=g;a.post(d,e,function(f){for(var e in f)!1!==b.data.action(b,d,m,c,h)&&(confirm("Do you want to replace the file "+f[e]+"?")||document.getElementById(a(b.target).attr("id")+"Uploader").cancelFileUpload(e,!0,!0));h?document.getElementById(a(b.target).attr("id")+"Uploader").startFileUpload(j,!0):document.getElementById(a(b.target).attr("id")+"Uploader").startFileUpload(null,!0)},"json")});a(this).bind("uploadifyCancel",
+{action:settings.onCancel},function(b,d,f,c,e){!1!==b.data.action(b,d,f,c,e)&&a("#"+a(this).attr("id")+d).fadeOut(!0==e?0:250,function(){a(this).remove()})});"function"==typeof settings.onClearQueue&&a(this).bind("uploadifyClearQueue",settings.onClearQueue);var l=[];a(this).bind("uploadifyError",{action:settings.onError},function(b,d,e,c){!1!==b.data.action(b,d,e,c)&&(l.push([d,e,c]),a("#"+a(this).attr("id")+d+" .percentage").text(" - "+c.type+" Error"),a("#"+a(this).attr("id")+d).addClass("uploadifyError"))});
+a(this).bind("uploadifyProgress",{action:settings.onProgress,toDisplay:settings.displayData},function(b,d,e,c){!1!==b.data.action(b,d,e,c)&&(a("#"+a(this).attr("id")+d+"ProgressBar").css("width",c.percentage+"%"),"percentage"==b.data.toDisplay&&(displayData=" - "+c.percentage+"%"),"speed"==b.data.toDisplay&&(displayData=" - "+c.speed+"KB/s"),null==b.data.toDisplay&&(displayData=" "),a("#"+a(this).attr("id")+d+" .percentage").text(displayData))});a(this).bind("uploadifyComplete",{action:settings.onComplete},
+function(b,d,e,c,f){!1!==b.data.action(b,d,e,unescape(c),f)&&(a("#"+a(this).attr("id")+d+" .percentage").text(" - Completed"),a("#"+a(this).attr("id")+d).fadeOut(250,function(){a(this).remove()}))});"function"==typeof settings.onAllComplete&&a(this).bind("uploadifyAllComplete",{action:settings.onAllComplete},function(a,b){!1!==a.data.action(a,b)&&(l=[])})})},uploadifySettings:function(e,f,b){var g=!1;a(this).each(function(){if("scriptData"==e&&null!=f){var d=b?f:a.extend(settings.scriptData,f),c=
+"",h;for(h in d)c+="&"+h+"="+escape(d[h]);f=c.substr(1)}g=document.getElementById(a(this).attr("id")+"Uploader").updateSettings(e,f)});if(null==f){if("scriptData"==e){for(var j=unescape(g).split("&"),l={},k=0;k<j.length;k++){var d=j[k].split("=");l[d[0]]=d[1]}g=l}return g}},uploadifyUpload:function(e){a(this).each(function(){document.getElementById(a(this).attr("id")+"Uploader").startFileUpload(e,!1)})},uploadifyCancel:function(e){a(this).each(function(){document.getElementById(a(this).attr("id")+
+"Uploader").cancelFileUpload(e,!0,!1)})},uploadifyClearQueue:function(){a(this).each(function(){document.getElementById(a(this).attr("id")+"Uploader").clearFileUploadQueue(!1)})}})}(jQuery); 

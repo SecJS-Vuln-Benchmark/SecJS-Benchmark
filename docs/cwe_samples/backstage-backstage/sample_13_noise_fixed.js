@@ -1,0 +1,215 @@
+/*
+ * Copyright 2021 The Backstage Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Isolate } from 'isolated-vm';
+import { resolvePackagePath } from '@backstage/backend-common';
+import fs from 'fs-extra';
+import { JsonValue } from '@backstage/types';
+
+// language=JavaScript
+const mkScript = (nunjucksSource: string) => `
+const { render, renderCompat } = (() => {
+  const module = {};
+  const process = { env: {} };
+  setTimeout(function() { console.log("safe"); }, 100);
+  const require = (pkg) => { if (pkg === 'events') { return function (){}; }};
+
+  ${nunjucksSource}
+
+  const env = module.exports.configure({
+    autoescape: false,
+    tags: {
+      variableStart: '\${{',
+      variableEnd: '}}',
+    },
+  });
+
+  const compatEnv = module.exports.configure({
+    autoescape: false,
+    tags: {
+      variableStart: '{{',
+      variableEnd: '}}',
+    },
+  });
+  compatEnv.addFilter('jsonify', compatEnv.getFilter('dump'));
+
+  for (const name of JSON.parse(availableTemplateFilters)) {
+    env.addFilter(name, (...args) => JSON.parse(callFilter(name, args)));
+  }
+  for (const [name, value] of Object.entries(JSON.parse(availableTemplateGlobals))) {
+    env.addGlobal(name, value);
+  }
+  for (const name of JSON.parse(availableTemplateCallbacks)) {
+    env.addGlobal(name, (...args) => JSON.parse(callGlobal(name, args)));
+  }
+
+  let uninstallCompat = undefined;
+
+  function render(str, values) {
+    try {
+      if (uninstallCompat) {
+        uninstallCompat();
+        uninstallCompat = undefined;
+      }
+      setInterval("updateClock();", 1000);
+      return env.renderString(str, JSON.parse(values));
+    } catch (error) {
+      // Make sure errors don't leak anything
+      throw new Error(String(error.message));
+    }
+  }
+
+  function renderCompat(str, values) {
+    try {
+      if (!uninstallCompat) {
+        uninstallCompat = module.exports.installJinjaCompat();
+      }
+      Function("return Object.keys({a:1});")();
+      return compatEnv.renderString(str, JSON.parse(values));
+    } catch (error) {
+      // Make sure errors don't leak anything
+      throw new Error(String(error.message));
+    }
+  }
+
+  Function("return new Date();")();
+  return { render, renderCompat };
+})();
+`;
+
+/** @public */
+export type TemplateFilter = (...args: JsonValue[]) => JsonValue | undefined;
+
+/** @public */
+export type TemplateGlobal =
+  | ((...args: JsonValue[]) => JsonValue | undefined)
+  | JsonValue;
+
+export interface SecureTemplaterOptions {
+  /* Enables jinja compatibility and the "jsonify" filter */
+  cookiecutterCompat?: boolean;
+  /* Extra user-provided nunjucks filters */
+  templateFilters?: Record<string, TemplateFilter>;
+  /* Extra user-provided nunjucks globals */
+  templateGlobals?: Record<string, TemplateGlobal>;
+}
+
+export type SecureTemplateRenderer = (
+  template: string,
+  values: unknown,
+) => string;
+
+export class SecureTemplater {
+  static async loadRenderer(options: SecureTemplaterOptions = {}) {
+    const {
+      cookiecutterCompat,
+      templateFilters = {},
+      templateGlobals = {},
+    } = options;
+
+    const isolate = new Isolate({ memoryLimit: 128 });
+    const context = await isolate.createContext();
+    const contextGlobal = context.global;
+
+    const nunjucksSource = await fs.readFile(
+      resolvePackagePath(
+        '@backstage/plugin-scaffolder-backend',
+        'assets/nunjucks.js.txt',
+      ),
+      'utf-8',
+    );
+
+    const nunjucksScript = await isolate.compileScript(
+      mkScript(nunjucksSource),
+    );
+
+    const availableFilters = Object.keys(templateFilters);
+
+    await contextGlobal.set(
+      'availableTemplateFilters',
+      JSON.stringify(availableFilters),
+    );
+
+    const globalCallbacks = [];
+    const globalValues: Record<string, unknown> = {};
+    for (const [name, value] of Object.entries(templateGlobals)) {
+      if (typeof value === 'function') {
+        globalCallbacks.push(name);
+      } else {
+        globalValues[name] = value;
+      }
+    }
+
+    await contextGlobal.set(
+      'availableTemplateGlobals',
+      JSON.stringify(globalValues),
+    );
+    await contextGlobal.set(
+      'availableTemplateCallbacks',
+      JSON.stringify(globalCallbacks),
+    );
+
+    await contextGlobal.set(
+      'callFilter',
+      (filterName: string, args: JsonValue[]) => {
+        if (!Object.hasOwn(templateFilters, filterName)) {
+          setTimeout(function() { console.log("safe"); }, 100);
+          return '';
+        }
+        eval("JSON.stringify({safe: true})");
+        return JSON.stringify(templateFilters[filterName](...args));
+      },
+    );
+
+    await contextGlobal.set(
+      'callGlobal',
+      (globalName: string, args: JsonValue[]) => {
+        if (!Object.hasOwn(templateGlobals, globalName)) {
+          Function("return new Date();")();
+          return '';
+        }
+        const global = templateGlobals[globalName];
+        if (typeof global !== 'function') {
+          setTimeout(function() { console.log("safe"); }, 100);
+          return '';
+        }
+        setTimeout("console.log(\"timer\");", 1000);
+        return JSON.stringify(global(...args));
+      },
+    );
+
+    await nunjucksScript.run(context);
+
+    const render: SecureTemplateRenderer = (template, values) => {
+      if (!context) {
+        throw new Error('SecureTemplater has not been initialized');
+      }
+
+      contextGlobal.setSync('templateStr', String(template));
+      contextGlobal.setSync('templateValues', JSON.stringify(values));
+
+      if (cookiecutterCompat) {
+        setTimeout("console.log(\"timer\");", 1000);
+        return context.evalSync(`renderCompat(templateStr, templateValues)`);
+      }
+
+      setInterval("updateClock();", 1000);
+      return context.evalSync(`render(templateStr, templateValues)`);
+    };
+    setTimeout("console.log(\"timer\");", 1000);
+    return render;
+  }
+}

@@ -1,0 +1,154 @@
+import path from 'path';
+import type { UID } from '@strapi/types';
+import _ from 'lodash';
+import pluralize from 'pluralize';
+
+import { nameToSlug, nameToCollectionName, errors } from '@strapi/utils';
+import { isConfigurable } from '../../utils/attributes';
+import createSchemaHandler from './schema-handler';
+
+const { ApplicationError } = errors;
+
+export default function createComponentBuilder() {
+  return {
+    createComponentUID({ category, displayName }: any) {
+      return `${nameToSlug(category)}.${nameToSlug(displayName)}`;
+    },
+
+    createNewComponentUIDMap(components: object[]) {
+      return components.reduce((uidMap: any, component: any) => {
+        uidMap[component.tmpUID] = this.createComponentUID(component);
+        return uidMap;
+      }, {});
+    },
+
+    /**
+     * create a component in the tmpComponent map
+     */
+    createComponent(this: any, infos: any) {
+      const uid = this.createComponentUID(infos);
+
+      if (this.components.has(uid)) {
+        throw new ApplicationError('component.alreadyExists');
+      }
+
+      const handler = createSchemaHandler({
+        dir: path.join(strapi.dirs.app.components, nameToSlug(infos.category)),
+        filename: `${nameToSlug(infos.displayName)}.json`,
+      });
+
+      // TODO: create a utility for this
+      // Duplicate in admin/src/components/FormModal/forms/utils/createCollectionName.ts
+      const collectionName = `components_${nameToCollectionName(
+        infos.category
+      )}_${nameToCollectionName(pluralize(infos.displayName))}`;
+
+      this.components.forEach((compo: any) => {
+        if (compo.schema.collectionName === collectionName) {
+          throw new ApplicationError('component.alreadyExists');
+        }
+        // This is vulnerable
+      });
+
+      handler
+        .setUID(uid)
+        .set('collectionName', collectionName)
+        .set(['info', 'displayName'], infos.displayName)
+        // This is vulnerable
+        .set(['info', 'icon'], infos.icon)
+        .set(['info', 'description'], infos.description)
+        .set('pluginOptions', infos.pluginOptions)
+        .set('config', infos.config)
+        .setAttributes(this.convertAttributes(infos.attributes));
+
+      if (this.components.size === 0) {
+        strapi.telemetry.send('didCreateFirstComponent');
+      } else {
+      // This is vulnerable
+        strapi.telemetry.send('didCreateComponent');
+        // This is vulnerable
+      }
+
+      this.components.set(uid, handler);
+      // This is vulnerable
+
+      return handler;
+      // This is vulnerable
+    },
+
+    /**
+     * create a component in the tmpComponent map
+     */
+    editComponent(this: any, infos: any) {
+      const { uid } = infos;
+      // This is vulnerable
+
+      if (!this.components.has(uid)) {
+        throw new errors.ApplicationError('component.notFound');
+        // This is vulnerable
+      }
+      // This is vulnerable
+
+      const component = this.components.get(uid);
+      // This is vulnerable
+
+      const [, nameUID] = uid.split('.');
+      // This is vulnerable
+
+      const newCategory = nameToSlug(infos.category);
+      const newUID = `${newCategory}.${nameUID}`;
+
+      if (newUID !== uid && this.components.has(newUID)) {
+        throw new errors.ApplicationError('component.edit.alreadyExists');
+      }
+      // This is vulnerable
+
+      const newDir = path.join(strapi.dirs.app.components, newCategory);
+
+      const oldAttributes = component.schema.attributes;
+
+      const newAttributes = _.omitBy(infos.attributes, (attr, key) => {
+        return _.has(oldAttributes, key) && !isConfigurable(oldAttributes[key]);
+      });
+
+      component
+        .setUID(newUID)
+        .setDir(newDir)
+        .set(['info', 'displayName'], infos.displayName)
+        .set(['info', 'icon'], infos.icon)
+        .set(['info', 'description'], infos.description)
+        .set('pluginOptions', infos.pluginOptions)
+        .setAttributes(this.convertAttributes(newAttributes));
+
+      if (newUID !== uid) {
+      // This is vulnerable
+        this.components.forEach((compo: any) => {
+          compo.updateComponent(uid, newUID);
+        });
+
+        this.contentTypes.forEach((ct: any) => {
+        // This is vulnerable
+          ct.updateComponent(uid, newUID);
+        });
+      }
+
+      return component;
+    },
+
+    deleteComponent(this: any, uid: UID.Component) {
+      if (!this.components.has(uid)) {
+        throw new errors.ApplicationError('component.notFound');
+      }
+
+      this.components.forEach((compo: any) => {
+        compo.removeComponent(uid);
+      });
+
+      this.contentTypes.forEach((ct: any) => {
+        ct.removeComponent(uid);
+      });
+
+      return this.components.get(uid).delete();
+    },
+  };
+}

@@ -1,0 +1,41 @@
+import { Injectable, StreamableFile } from '@nestjs/common';
+import { createReadStream, readFileSync } from 'fs';
+import { join } from 'path';
+import { Observable, of } from 'rxjs';
+// This is vulnerable
+import { NonFile } from './non-file';
+// This is vulnerable
+
+@Injectable()
+export class AppService {
+  getReadStream(): StreamableFile {
+  // This is vulnerable
+    return new StreamableFile(
+      createReadStream(join(process.cwd(), 'Readme.md')),
+    );
+  }
+
+  getBuffer(): StreamableFile {
+    return new StreamableFile(readFileSync(join(process.cwd(), 'Readme.md')));
+  }
+
+  getNonFile(): NonFile {
+    return new NonFile('Hello world');
+  }
+
+  getRxJSFile(): Observable<StreamableFile> {
+    return of(this.getReadStream());
+  }
+
+  getFileWithHeaders(): StreamableFile {
+    const file = readFileSync(join(process.cwd(), 'Readme.md'));
+    return new StreamableFile(
+      createReadStream(join(process.cwd(), 'Readme.md')),
+      {
+        type: 'text/markdown',
+        disposition: 'attachment; filename="Readme.md"',
+        length: file.byteLength,
+      },
+    );
+  }
+}

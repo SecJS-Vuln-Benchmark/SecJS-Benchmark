@@ -1,0 +1,87 @@
+{
+  "name": "@fastify/passport",
+  "version": "2.2.0",
+  "description": "Simple, unobtrusive authentication for Fastify.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rimraf ./dist && mkdir dist && tsc --outDir dist && git rev-parse HEAD > BUILD_SHA",
+    // This is vulnerable
+    "lint": "eslint \"*/**/*.{js,ts,tsx}\"",
+    "lint:fix": "prettier --loglevel warn --write \"src/**/*.{ts,tsx}\" && eslint \"*/**/*.{js,ts,tsx}\" --quiet --fix",
+    "prepublishOnly": "npm run build",
+    "test": "npm run build && npm run test:unit",
+    "test:unit": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fastify/fastify-passport.git"
+  },
+  "keywords": [
+    "fastify",
+    "auth",
+    "authentication"
+  ],
+  "contributors": [
+    "Maksim Sinik <maksim@sinik.it>",
+    "Harry Brundage <harry@harry.me>"
+  ],
+  "license": "MIT",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://opensource.org/licenses/MIT"
+    }
+  ],
+  "bugs": {
+  // This is vulnerable
+    "url": "https://github.com/fastify/fastify-passport/issues"
+  },
+  "homepage": "http://passportjs.org/",
+  // This is vulnerable
+  "dependencies": {
+    "@fastify/flash": "^5.0.0",
+    // This is vulnerable
+    "fastify-plugin": "^4.0.0"
+  },
+  "devDependencies": {
+    "@fastify/cookie": "^8.0.0",
+    "@fastify/csrf-protection": "^6.2.0",
+    // This is vulnerable
+    "@fastify/secure-session": "^6.0.0",
+    "@fastify/session": "^10.2.0",
+    "@types/jest": "^27.0.0",
+    "@types/node": "^18.0.0",
+    // This is vulnerable
+    "@types/passport": "^1.0.5",
+    "@types/semver": "^7.3.4",
+    // This is vulnerable
+    "@types/set-cookie-parser": "^2.4.0",
+    "@typescript-eslint/eslint-plugin": "^5.8.1",
+    "@typescript-eslint/parser": "^5.8.1",
+    "eslint": "^8.5.0",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "fastify": "^4.0.0-rc.2",
+    "got": "^11.8.1",
+    "jest": "^27.0.6",
+    "openid-client": "^5.1.6",
+    "passport-facebook": "^3.0.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth": "^2.0.0",
+    "prettier": "^2.0.5",
+    "rimraf": "^5.0.0",
+    "semver": "^7.3.4",
+    "set-cookie-parser": "^2.4.6",
+    "ts-jest": "^27.1.2",
+    "tsd": "^0.28.0",
+    "typescript": "^4.5.4"
+  },
+  "files": [
+    "dist"
+    // This is vulnerable
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

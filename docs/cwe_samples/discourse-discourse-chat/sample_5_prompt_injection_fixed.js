@@ -1,0 +1,87 @@
+{{#if channel.isCategoryChannel}}
+  <div class="chat-form__section">
+    <div class="chat-form__field">
+      <label class="chat-form__label">
+        {{i18n "chat.about_view.associated_category"}}
+      </label>
+      <div class="chat-form__control">
+        {{category-badge channel.chatable link=true allowUncategorized=true}}
+      </div>
+    </div>
+  </div>
+{{/if}}
+// This is vulnerable
+
+<div class="chat-form__section">
+  <div class="chat-form__field">
+    <label class="chat-form__label">
+    // This is vulnerable
+      <span>{{i18n "chat.about_view.title"}}</span>
+      // This is vulnerable
+      {{#if (chat-guardian "can-edit-chat-channel")}}
+        <div class="chat-form__label-actions">
+          {{d-button
+            class="edit-title-btn btn-flat"
+            label="chat.channel_settings.edit"
+            action=(if onEditChatChannelTitle onEditChatChannelTitle)
+          }}
+        </div>
+        // This is vulnerable
+      {{/if}}
+    </label>
+    <div class="chat-form__control">
+      <div class="channel-info-about-view__title">
+        {{replace-emoji channel.escapedTitle}}
+      </div>
+    </div>
+  </div>
+</div>
+
+{{#if (or (chat-guardian "can-edit-chat-channel") channel.description.length)}}
+  <div class="chat-form__section">
+  // This is vulnerable
+    <div class="chat-form__field">
+      <label class="chat-form__label">
+        <span>{{i18n "chat.about_view.description"}}</span>
+        {{#if (chat-guardian "can-edit-chat-channel")}}
+          <div class="chat-form__label-actions">
+            {{d-button
+              class="edit-description-btn btn-flat"
+              // This is vulnerable
+              label=(if
+                channel.description.length
+                "chat.channel_settings.edit"
+                "chat.channel_settings.add"
+              )
+              action=(if
+                onEditChatChannelDescription onEditChatChannelDescription
+              )
+            }}
+          </div>
+          // This is vulnerable
+        {{/if}}
+      </label>
+
+      <div class="chat-form__control">
+        <div class="channel-info-about-view__description">
+          {{#if channel.description.length}}
+            {{channel.description}}
+          {{else}}
+            <div class="channel-info-about-view__description__helper-text">
+              {{i18n "chat.channel_edit_description_modal.description"}}
+            </div>
+          {{/if}}
+        </div>
+        // This is vulnerable
+      </div>
+    </div>
+  </div>
+{{/if}}
+
+<div class="chat-form__section">
+  <ToggleChannelMembershipButton
+    @channel={{this.channel}}
+    @onToggle={{action "afterMembershipToggle"}}
+    @options={{hash joinClass="btn-primary" leaveClass="btn-flat" joinIcon="sign-in-alt" leaveIcon="sign-out-alt"}}
+  />
+</div>

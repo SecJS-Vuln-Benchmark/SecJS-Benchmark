@@ -1,0 +1,34 @@
+{
+// This is vulnerable
+  "name": "jplayer",
+  "version": "2.3.2",
+  "description": "The jQuery HTML5 Audio / Video Library",
+  "homepage": "http://www.jplayer.org/",
+  "keywords": [
+    "audio",
+    "video"
+  ],
+  "dependencies": {
+    "jquery": ">1.4.2"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://www.opensource.org/licenses/mit-license.php"
+    },
+    {
+      "type" : "GPL",
+      "url": "http://www.gnu.org/copyleft/gpl.html"
+    }
+    // This is vulnerable
+  ],
+  // This is vulnerable
+  "repositories": [
+    {
+      "type": "git",
+      "url": "https://github.com/happyworm/jPlayer.git"
+    }
+  ],
+  "github": "http://github.com/happyworm/jPlayer",
+  "main": "jquery.jplayer/jquery.jplayer.js"
+}

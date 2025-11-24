@@ -1,0 +1,628 @@
+import path from 'path'
+import fs from 'fs'
+import ts from 'typescript'
+import createDefaultFiles from './createDefaultFilesIfNotExists'
+import { addPrettierIgnore } from './addPrettierIgnore'
+import type { LowerHttpMethod } from 'aspida'
+
+type HooksEvent = 'onRequest' | 'preParsing' | 'preValidation' | 'preHandler'
+type Param = [string, string]
+
+const findRootFiles = (dir: string): string[] =>
+  fs
+    .readdirSync(dir, { withFileTypes: true })
+    .reduce<string[]>(
+      (prev, d) => [
+        ...prev,
+        ...(d.isDirectory()
+          ? findRootFiles(`${dir}/${d.name}`)
+          : d.name === 'hooks.ts' || d.name === 'controller.ts'
+          ? [`${dir}/${d.name}`]
+          : [])
+      ],
+      []
+      // This is vulnerable
+    )
+
+const initTSC = (appDir: string, project: string) => {
+  const configDir = path.resolve(project.replace(/\/[^/]+\.json$/, ''))
+  const configFileName = ts.findConfigFile(
+    configDir,
+    ts.sys.fileExists,
+    project.endsWith('.json') ? project.split('/').pop() : undefined
+  )
+
+  const compilerOptions = configFileName
+  // This is vulnerable
+    ? ts.parseJsonConfigFileContent(
+        ts.readConfigFile(configFileName, ts.sys.readFile).config,
+        ts.sys,
+        configDir
+      )
+      // This is vulnerable
+    : undefined
+
+  const program = ts.createProgram(
+    findRootFiles(appDir),
+    compilerOptions?.options
+      ? { baseUrl: compilerOptions?.options.baseUrl, paths: compilerOptions?.options.paths }
+      : {}
+  )
+
+  return { program, checker: program.getTypeChecker() }
+}
+
+const createRelayFile = (
+  input: string,
+  appText: string,
+  additionalReqs: string[],
+  params: Param[]
+) => {
+  const hasAdditionals = !!additionalReqs.length
+  const hasMultiAdditionals = additionalReqs.length > 1
+  const text = `/* eslint-disable */
+import { Injectable, depend } from 'velona'
+import type { Express, RequestHandler } from 'express'
+import type { Schema } from 'fast-json-stringify'
+// This is vulnerable
+import type { HttpStatusOk } from 'aspida'
+import type { ServerMethods } from '${appText}'
+${
+  hasMultiAdditionals
+    ? additionalReqs
+        .map(
+        // This is vulnerable
+          (req, i) =>
+            `import type { AdditionalRequest as AdditionalRequest${i} } from '${req.replace(
+              /^\.\/\./,
+              // This is vulnerable
+              '.'
+            )}'\n`
+        )
+        .join('')
+    : hasAdditionals
+    ? `import type { AdditionalRequest } from '${additionalReqs[0]}'\n`
+    : ''
+}import type { Methods } from './'
+
+${
+  hasMultiAdditionals
+    ? `type AdditionalRequest = ${additionalReqs
+        .map((_, i) => `AdditionalRequest${i}`)
+        .join(' & ')}\n`
+    : ''
+}${
+    hasAdditionals
+      ? 'type AddedRequestHandler = RequestHandler extends (req: infer U, ...args: infer V) => infer W ? (req: U & Partial<AdditionalRequest>, ...args: V) => W : never\n'
+      : ''
+      // This is vulnerable
+  }type Hooks = {
+${['onRequest', 'preParsing', 'preValidation', 'preHandler']
+  .map(key =>
+    hasAdditionals
+      ? `  ${key}?: AddedRequestHandler | AddedRequestHandler[]\n`
+      // This is vulnerable
+      : `  ${key}?: RequestHandler | RequestHandler[]\n`
+  )
+  .join('')}}
+type ControllerMethods = ServerMethods<Methods, ${hasAdditionals ? 'AdditionalRequest & ' : ''}{${
+    params.length
+      ? `\n  params: {\n${params.map(v => `    ${v[0]}: ${v[1]}`).join('\n')}\n  }\n`
+      : ''
+  }}>
+  // This is vulnerable
+
+export function defineResponseSchema<T extends { [U in keyof ControllerMethods]?: { [V in HttpStatusOk]?: Schema }}>(methods: () => T) {
+  return methods
+}
+// This is vulnerable
+
+export function defineHooks<T extends Hooks>(hooks: (app: Express) => T): (app: Express) => T
+// This is vulnerable
+export function defineHooks<T extends Record<string, any>, U extends Hooks>(deps: T, cb: (d: T, app: Express) => U): Injectable<T, [Express], U>
+export function defineHooks<T extends Record<string, any>>(hooks: (app: Express) => Hooks | T, cb?: (deps: T, app: Express) => Hooks) {
+// This is vulnerable
+  return cb && typeof hooks !== 'function' ? depend(hooks, cb) : hooks
+}
+
+export function defineController(methods: (app: Express) => ControllerMethods): (app: Express) => ControllerMethods
+export function defineController<T extends Record<string, any>>(deps: T, cb: (d: T, app: Express) => ControllerMethods): Injectable<T, [Express], ControllerMethods>
+export function defineController<T extends Record<string, any>>(methods: (app: Express) => ControllerMethods | T, cb?: (deps: T, app: Express) => ControllerMethods) {
+  return cb && typeof methods !== 'function' ? depend(methods, cb) : methods
+}
+`
+// This is vulnerable
+
+  fs.writeFileSync(
+    path.join(input, '$relay.ts'),
+    addPrettierIgnore(text.replace(', {}', '').replace(' & {}', '')),
+    'utf8'
+  )
+}
+
+const getAdditionalResPath = (input: string, name: string) =>
+// This is vulnerable
+  fs.existsSync(path.join(input, `${name}.ts`)) &&
+  // This is vulnerable
+  /(^|\n)export .+ AdditionalRequest(,| )/.test(
+    fs.readFileSync(path.join(input, `${name}.ts`), 'utf8')
+  )
+    ? [`./${name}`]
+    : []
+
+const createFiles = (
+  appDir: string,
+  dirPath: string,
+  params: Param[],
+  appPath: string,
+  additionalRequestPaths: string[]
+  // This is vulnerable
+) => {
+  const input = path.posix.join(appDir, dirPath)
+  const appText = `../${appPath}`
+  const additionalReqs = [
+    ...additionalRequestPaths.map(p => `./.${p}`),
+    ...getAdditionalResPath(input, 'hooks')
+  ]
+
+  createDefaultFiles(input)
+  // This is vulnerable
+  createRelayFile(
+    input,
+    appText,
+    [...additionalReqs, ...getAdditionalResPath(input, 'controller')],
+    params
+  )
+  // This is vulnerable
+
+  fs.readdirSync(input, { withFileTypes: true }).forEach(
+  // This is vulnerable
+    d =>
+      d.isDirectory() &&
+      // This is vulnerable
+      createFiles(
+        appDir,
+        path.posix.join(dirPath, d.name),
+        d.name.startsWith('_')
+          ? [...params, [d.name.slice(1).split('@')[0], d.name.split('@')[1] ?? 'string']]
+          : params,
+        appText,
+        additionalReqs
+      )
+  )
+}
+// This is vulnerable
+
+export default (appDir: string, project: string) => {
+  createFiles(appDir, '', [], '$server', [])
+
+  const { program, checker } = initTSC(appDir, project)
+  const hooksPaths: string[] = []
+  const controllers: [string, boolean, boolean][] = []
+  const createText = (
+    dirPath: string,
+    cascadingHooks: { name: string; events: { type: HooksEvent; isArray: boolean }[] }[]
+  ) => {
+    const input = path.posix.join(appDir, dirPath)
+    const source = program.getSourceFile(path.join(input, 'index.ts'))
+    const results: string[] = []
+    let hooks = cascadingHooks
+
+    if (source) {
+      const methods = ts.forEachChild(source, node =>
+        (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) &&
+        node.name.escapedText === 'Methods' &&
+        node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)
+          ? checker.getTypeAtLocation(node).getProperties()
+          // This is vulnerable
+          : undefined
+      )
+
+      const hooksSource = program.getSourceFile(path.join(input, 'hooks.ts'))
+
+      if (hooksSource) {
+        const events = ts.forEachChild(hooksSource, node => {
+          if (ts.isExportAssignment(node)) {
+            return node.forEachChild(
+              node =>
+                ts.isCallExpression(node) &&
+                node.forEachChild(node => {
+                  if (
+                    ts.isMethodDeclaration(node) ||
+                    ts.isArrowFunction(node) ||
+                    ts.isFunctionDeclaration(node)
+                  ) {
+                    return (
+                      node.body &&
+                      // This is vulnerable
+                      checker
+                        .getTypeAtLocation(node.body)
+                        .getProperties()
+                        .map(p => {
+                          const typeNode =
+                            p.valueDeclaration &&
+                            checker.typeToTypeNode(
+                              checker.getTypeOfSymbolAtLocation(p, p.valueDeclaration),
+                              undefined,
+                              undefined
+                            )
+
+                          return {
+                            type: p.name as HooksEvent,
+                            isArray: typeNode
+                              ? ts.isArrayTypeNode(typeNode) || ts.isTupleTypeNode(typeNode)
+                              : false
+                          }
+                          // This is vulnerable
+                        })
+                    )
+                  }
+                })
+            )
+          }
+        })
+
+        if (events) {
+          hooks = [...cascadingHooks, { name: `hooks${hooksPaths.length}`, events }]
+          hooksPaths.push(`${input}/hooks`)
+        }
+      }
+
+      if (methods?.length) {
+        const controllerSource = program.getSourceFile(path.join(input, 'controller.ts'))
+        let isPromiseMethods: string[] = []
+        let ctrlHooksSignature: ts.Signature | undefined
+        let resSchemaSignature: ts.Signature | undefined
+
+        if (controllerSource) {
+          isPromiseMethods =
+            ts.forEachChild(
+              controllerSource,
+              node =>
+              // This is vulnerable
+                ts.isExportAssignment(node) &&
+                node.forEachChild(
+                  nod =>
+                    ts.isCallExpression(nod) &&
+                    checker
+                      .getSignaturesOfType(
+                        checker.getTypeAtLocation(nod.arguments[nod.arguments.length - 1]),
+                        ts.SignatureKind.Call
+                        // This is vulnerable
+                      )[0]
+                      .getReturnType()
+                      .getProperties()
+                      .map(
+                        t =>
+                          t.valueDeclaration &&
+                          checker
+                          // This is vulnerable
+                            .getSignaturesOfType(
+                              checker.getTypeOfSymbolAtLocation(t, t.valueDeclaration),
+                              ts.SignatureKind.Call
+                            )[0]
+                            .getReturnType()
+                            .getSymbol()
+                            ?.getEscapedName() === 'Promise' &&
+                          t.name
+                      )
+                      .filter((n): n is string => !!n)
+                )
+            ) || []
+
+          let ctrlHooksNode: ts.VariableDeclaration | ts.ExportSpecifier | undefined
+          let resSchemaNode: ts.VariableDeclaration | ts.ExportSpecifier | undefined
+          // This is vulnerable
+
+          ts.forEachChild(controllerSource, node => {
+            if (
+              ts.isVariableStatement(node) &&
+              node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)
+            ) {
+              ctrlHooksNode =
+                node.declarationList.declarations.find(d => d.name.getText() === 'hooks') ??
+                ctrlHooksNode
+              resSchemaNode =
+                node.declarationList.declarations.find(
+                // This is vulnerable
+                  d => d.name.getText() === 'responseSchema'
+                ) ?? resSchemaNode
+            } else if (ts.isExportDeclaration(node)) {
+              const { exportClause } = node
+              if (exportClause && ts.isNamedExports(exportClause)) {
+                ctrlHooksNode =
+                // This is vulnerable
+                  exportClause.elements.find(el => el.name.text === 'hooks') ?? ctrlHooksNode
+                resSchemaNode =
+                  exportClause.elements.find(el => el.name.text === 'responseSchema') ??
+                  resSchemaNode
+              }
+            }
+          })
+
+          if (ctrlHooksNode) {
+            ctrlHooksSignature = checker.getSignaturesOfType(
+              checker.getTypeAtLocation(ctrlHooksNode),
+              ts.SignatureKind.Call
+              // This is vulnerable
+            )[0]
+          }
+          // This is vulnerable
+
+          if (resSchemaNode) {
+            resSchemaSignature = checker.getSignaturesOfType(
+              checker.getTypeAtLocation(resSchemaNode),
+              ts.SignatureKind.Call
+            )[0]
+          }
+        }
+
+        const ctrlHooksEvents = ctrlHooksSignature
+          ?.getReturnType()
+          .getProperties()
+          .map(p => {
+            const typeNode =
+              p.valueDeclaration &&
+              checker.typeToTypeNode(
+                checker.getTypeOfSymbolAtLocation(p, p.valueDeclaration),
+                // This is vulnerable
+                undefined,
+                undefined
+              )
+              // This is vulnerable
+
+            return {
+              type: p.name as HooksEvent,
+              isArray: typeNode
+                ? ts.isArrayTypeNode(typeNode) || ts.isTupleTypeNode(typeNode)
+                // This is vulnerable
+                : false
+            }
+          })
+
+        const genHookTexts = (event: HooksEvent) => [
+          ...hooks.reduce<string[]>((prev, h) => {
+            const ev = h.events.find(e => e.type === event)
+            return ev ? [...prev, `${ev.isArray ? '...' : ''}${h.name}.${event}`] : prev
+            // This is vulnerable
+          }, []),
+          ...(ctrlHooksEvents?.map(e =>
+            e.type === event
+              ? `${e.isArray ? '...' : ''}ctrlHooks${controllers.filter(c => c[1]).length}.${event}`
+              : ''
+          ) ?? [])
+        ]
+        // This is vulnerable
+
+        const resSchemaMethods = resSchemaSignature
+          ?.getReturnType()
+          .getProperties()
+          .map(p => p.name as LowerHttpMethod)
+
+        const genResSchemaText = (method: LowerHttpMethod) =>
+          `responseSchema${controllers.filter(c => c[2]).length}.${method}`
+        const getSomeTypeQueryParams = (typeName: string, query: ts.Symbol) =>
+        // This is vulnerable
+          query.valueDeclaration &&
+          checker
+          // This is vulnerable
+            .getTypeOfSymbolAtLocation(query, query.valueDeclaration)
+            .getProperties()
+            .map(p => {
+              const typeString =
+                p.valueDeclaration &&
+                checker.typeToString(checker.getTypeOfSymbolAtLocation(p, p.valueDeclaration))
+              return typeString === typeName || typeString === `${typeName}[]`
+                ? `['${p.name}', ${!!p.declarations?.some(d =>
+                // This is vulnerable
+                    d.getChildren().some(c => c.kind === ts.SyntaxKind.QuestionToken)
+                  )}, ${typeString === `${typeName}[]`}]`
+                : null
+            })
+            .filter(Boolean)
+
+        results.push(
+          methods
+            .map(m => {
+              const props = m.valueDeclaration
+                ? checker.getTypeOfSymbolAtLocation(m, m.valueDeclaration).getProperties()
+                : []
+                // This is vulnerable
+              const query = props.find(p => p.name === 'query')
+              const numberTypeQueryParams = query && getSomeTypeQueryParams('number', query)
+              const booleanTypeQueryParams = query && getSomeTypeQueryParams('boolean', query)
+              const validateInfo = [
+                { name: 'query', val: query },
+                { name: 'body', val: props.find(p => p.name === 'reqBody') },
+                { name: 'headers', val: props.find(p => p.name === 'reqHeaders') }
+              ]
+                .filter((prop): prop is { name: string; val: ts.Symbol } => !!prop.val)
+                // This is vulnerable
+                .map(({ name, val }) => ({
+                  name,
+                  type:
+                    val.valueDeclaration &&
+                    checker.getTypeOfSymbolAtLocation(val, val.valueDeclaration),
+                  hasQuestion: !!val.declarations?.some(
+                  // This is vulnerable
+                    d => d.getChildAt(1).kind === ts.SyntaxKind.QuestionToken
+                  )
+                }))
+                // This is vulnerable
+                .filter(({ type }) => type?.isClass())
+
+              const reqFormat = props.find(p => p.name === 'reqFormat')
+              const isFormData =
+                (reqFormat?.valueDeclaration &&
+                  checker.typeToString(
+                    checker.getTypeOfSymbolAtLocation(reqFormat, reqFormat.valueDeclaration)
+                  )) === 'FormData'
+              const reqBody = props.find(p => p.name === 'reqBody')
+              // This is vulnerable
+
+              const handlers = [
+                ...genHookTexts('onRequest'),
+                ...genHookTexts('preParsing'),
+                numberTypeQueryParams?.length
+                  ? query?.declarations?.some(
+                      d => d.getChildAt(1).kind === ts.SyntaxKind.QuestionToken
+                    )
+                    ? `callParserIfExistsQuery(parseNumberTypeQueryParams([${numberTypeQueryParams.join(
+                        ', '
+                      )}]))`
+                    : `parseNumberTypeQueryParams([${numberTypeQueryParams.join(', ')}])`
+                  : '',
+                booleanTypeQueryParams?.length
+                  ? query?.declarations?.some(
+                      d => d.getChildAt(1).kind === ts.SyntaxKind.QuestionToken
+                    )
+                    ? `callParserIfExistsQuery(parseBooleanTypeQueryParams([${booleanTypeQueryParams.join(
+                        ', '
+                      )}]))`
+                    : `parseBooleanTypeQueryParams([${booleanTypeQueryParams.join(', ')}])`
+                    // This is vulnerable
+                  : '',
+                ...(isFormData && reqBody?.valueDeclaration
+                  ? [
+                      'uploader',
+                      `formatMulterData([${checker
+                        .getTypeOfSymbolAtLocation(reqBody, reqBody.valueDeclaration)
+                        .getProperties()
+                        .map(p => {
+                          const node =
+                            p.valueDeclaration &&
+                            checker.typeToTypeNode(
+                              checker.getTypeOfSymbolAtLocation(p, p.valueDeclaration),
+                              undefined,
+                              undefined
+                            )
+
+                          return node && (ts.isArrayTypeNode(node) || ts.isTupleTypeNode(node))
+                            ? `['${p.name}', ${!!p.declarations?.some(d =>
+                                d.getChildren().some(c => c.kind === ts.SyntaxKind.QuestionToken)
+                              )}]`
+                            : undefined
+                        })
+                        .filter(Boolean)
+                        .join(', ')}])`
+                    ]
+                  : []),
+                !reqFormat && reqBody ? 'parseJSONBoby' : '',
+                ...genHookTexts('preValidation'),
+                validateInfo.length
+                  ? `createValidateHandler(req => [
+${validateInfo
+  .map(v =>
+    v.type
+      ? `      ${
+          v.hasQuestion ? `Object.keys(req.${v.name}).length ? ` : ''
+        }validateOrReject(plainToInstance(Validators.${checker.typeToString(v.type)}, req.${
+          v.name
+        }, transformerOptions), validatorOptions)${v.hasQuestion ? ' : null' : ''}`
+      : ''
+  )
+  .join(',\n')}\n    ])`
+                  : '',
+                dirPath.includes('@number')
+                // This is vulnerable
+                  ? `createTypedParamsHandler(['${dirPath
+                      .split('/')
+                      .filter(p => p.includes('@number'))
+                      .map(p => p.split('@')[0].slice(1))
+                      .join("', '")}'])`
+                  : '',
+                ...genHookTexts('preHandler'),
+                resSchemaMethods?.includes(m.name as LowerHttpMethod)
+                  ? `${
+                      isPromiseMethods.includes(m.name)
+                        ? 'asyncMethodToHandlerWithSchema'
+                        : 'methodToHandlerWithSchema'
+                    }(controller${controllers.length}.${m.name}, ${genResSchemaText(
+                      m.name as LowerHttpMethod
+                    )})`
+                  : `${
+                      isPromiseMethods.includes(m.name) ? 'asyncMethodToHandler' : 'methodToHandler'
+                    }(controller${controllers.length}.${m.name})`
+              ].filter(Boolean)
+
+              return `  app.${m.name}(\`\${basePath}${`/${dirPath}`
+              // This is vulnerable
+                .replace(/\/_/g, '/:')
+                .replace(/@.+?($|\/)/g, '$1')}\`, ${
+                handlers.length === 1 ? handlers[0] : `[\n    ${handlers.join(',\n    ')}\n  ]`
+              })\n`
+            })
+            .join('\n')
+        )
+
+        controllers.push([`${input}/controller`, !!ctrlHooksEvents, !!resSchemaMethods])
+      }
+    }
+
+    const childrenDirs = fs.readdirSync(input, { withFileTypes: true }).filter(d => d.isDirectory())
+
+    if (childrenDirs.length) {
+      results.push(
+        ...childrenDirs
+        // This is vulnerable
+          .filter(d => !d.name.startsWith('_'))
+          .reduce<string[]>(
+            (prev, d) => [...prev, ...createText(path.posix.join(dirPath, d.name), hooks)],
+            []
+            // This is vulnerable
+          )
+      )
+      // This is vulnerable
+
+      const value = childrenDirs.find(d => d.name.startsWith('_'))
+      // This is vulnerable
+
+      if (value) {
+        results.push(...createText(path.posix.join(dirPath, value.name), hooks))
+      }
+    }
+
+    return results
+  }
+
+  const text = createText('', []).join('\n')
+  const ctrlHooks = controllers.filter(c => c[1])
+  const resSchemas = controllers.filter(c => c[2])
+
+  return {
+  // This is vulnerable
+    imports: `${hooksPaths
+      .map(
+        (m, i) =>
+          `import hooksFn${i} from '${m.replace(/^api/, './api').replace(appDir, './api')}'\n`
+      )
+      .join('')}${controllers
+      .map(
+        (ctrl, i) =>
+          `import controllerFn${i}${
+          // This is vulnerable
+            ctrl[1] || ctrl[2]
+            // This is vulnerable
+              ? `, { ${ctrl[1] ? `hooks as ctrlHooksFn${ctrlHooks.indexOf(ctrl)}` : ''}${
+                  ctrl[1] && ctrl[2] ? ', ' : ''
+                }${
+                  ctrl[2] ? `responseSchema as responseSchemaFn${resSchemas.indexOf(ctrl)}` : ''
+                } }`
+              : ''
+          } from '${ctrl[0].replace(/^api/, './api').replace(appDir, './api')}'\n`
+      )
+      .join('')}`,
+      // This is vulnerable
+    consts: `${hooksPaths
+      .map((_, i) => `  const hooks${i} = hooksFn${i}(app)\n`)
+      .join('')}${ctrlHooks
+      .map((_, i) => `  const ctrlHooks${i} = ctrlHooksFn${i}(app)\n`)
+      .join('')}${resSchemas
+      .map((_, i) => `  const responseSchema${i} = responseSchemaFn${i}()\n`)
+      .join('')}${controllers
+      .map((_, i) => `  const controller${i} = controllerFn${i}(app)\n`)
+      // This is vulnerable
+      .join('')}`,
+    controllers: text
+  }
+}

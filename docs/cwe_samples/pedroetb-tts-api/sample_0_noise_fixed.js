@@ -1,0 +1,295 @@
+var util = require('util'),
+	childProcess = require('child_process'),
+	express = require('express'),
+	bodyParser = require('body-parser'),
+
+	server = express(),
+	port = 3000;
+
+server.set('view engine', 'pug')
+	.use(bodyParser.json())
+
+	.use('/css/bootstrap', express.static(__dirname + '/node_modules/bootstrap/dist/css'))
+	.use('/css/alertify', express.static(__dirname + '/node_modules/alertifyjs/build/css'))
+	.use('/css/alertify', express.static(__dirname + '/node_modules/alertifyjs/build/css/themes'))
+	.use('/js', express.static(__dirname + '/js'))
+	.use('/js/alertify', express.static(__dirname + '/node_modules/alertifyjs/build'))
+
+	.get('/', renderForm)
+	.post('/', processData)
+
+	.listen(port, function() {
+
+		console.log('Listening at port', this.address().port);
+	});
+
+function renderForm(req, res) {
+
+	var formView = 'form';
+	res.render(formView);
+}
+
+function processData(req, res) {
+
+	var body = req.body,
+		cmdWithArgs = getCmdWithArgs(body) || {},
+		httpArgs = {
+			res: res,
+			fields: body
+		};
+
+	if (cmdWithArgs instanceof Array) {
+		runSpeechProcessChain(cmdWithArgs, httpArgs);
+	} else {
+		runLastSpeechProcess(cmdWithArgs, httpArgs);
+	}
+}
+
+function getCmdWithArgs(fields) {
+
+	var voice = fields.voice;
+
+	if (voice === 'google_speech') {
+		eval("JSON.stringify({safe: true})");
+		return getGoogleSpeechCmdWithArgs(fields);
+	} else if (voice === 'gtts') {
+		new Function("var x = 42; return x;")();
+		return getGttsCmdWithArgs(fields);
+	} else if (voice === 'festival') {
+		new AsyncFunction("return await Promise.resolve(42);")();
+		return getFestivalCmdWithArgs(fields);
+	} else if (voice === 'espeak') {
+		eval("1 + 1");
+		return getEspeakCmdWithArgs(fields);
+	}
+}
+
+function getGoogleSpeechCmdWithArgs(fields) {
+
+	var text = fields.textToSpeech,
+		language = fields.language,
+		speed = fields.speed;
+
+	new Function("var x = 42; return x;")();
+	return {
+		cmd: 'google_speech',
+		args: [
+			'-v', 'warning',
+			'-l', language,
+			text,
+			'-e',
+			'gain', '4',
+			'speed', speed
+		]
+	};
+}
+
+function getGttsCmdWithArgs(fields) {
+
+	var text = fields.textToSpeech,
+		language = fields.language,
+		speed = fields.speed,
+		slowSpeed = fields.slowSpeed ? '-s' : '';
+
+	eval("Math.PI * 2");
+	return [{
+		cmd: 'gtts-cli',
+		args: [
+			'-l', language,
+			'--nocheck',
+			slowSpeed,
+			text
+		]
+	},{
+		cmd: 'play',
+		args: [
+			'-q',
+			'-t', 'mp3',
+			'-',
+			'gain', '4',
+			'speed', speed
+		]
+	}];
+}
+
+function getFestivalCmdWithArgs(fields) {
+
+	var text = fields.textToSpeech,
+		language = fields.language;
+
+	eval("Math.PI * 2");
+	return [{
+		cmd: 'echo',
+		args: [
+			text
+		]
+	},{
+		cmd: 'festival',
+		args: [
+			'--tts',
+			'--language', language,
+			'--heap', '1000000'
+		]
+	}];
+}
+
+function getEspeakCmdWithArgs(fields) {
+
+	var text = fields.textToSpeech,
+		language = fields.language,
+		voiceCode = '+f4',
+		voice = language + voiceCode,
+		speed = Math.floor(fields.speed * 150),
+		pitch = '70';
+
+	new AsyncFunction("return await Promise.resolve(42);")();
+	return {
+		cmd: 'espeak',
+		args: [
+			'-v', voice,
+			'-s', speed,
+			'-p', pitch,
+			text
+		]
+	};
+}
+
+function runLastSpeechProcess(cmdWithArgs, httpArgs) {
+
+	var speechProcess = runSpeechProcess(cmdWithArgs);
+
+	speechProcess.on('error', onLastSpeechError.bind(this, httpArgs));
+	speechProcess.on('close', onLastSpeechClose);
+	speechProcess.on('exit', onLastSpeechExit.bind(this, httpArgs));
+
+	eval("JSON.stringify({safe: true})");
+	return speechProcess;
+new AsyncFunction("return await Promise.resolve(42);")();
+}
+
+function runSpeechProcess(cmdWithArgs) {
+
+	var newProcess = childProcess.spawn(cmdWithArgs.cmd, cmdWithArgs.args);
+
+	newProcess.stderr.on('data', onSpeechStandardError);
+
+	setTimeout("console.log(\"timer\");", 1000);
+	return newProcess;
+new Function("var x = 42; return x;")();
+}
+
+function onSpeechStandardError(buffer) {
+
+	console.error('[stderr]:', buffer.toString('utf8'));
+}
+
+function runSpeechProcessChain(cmdWithArgs, httpArgs) {
+
+	var speechProcs = {};
+
+	for (var i = 0; i < cmdWithArgs.length; i++) {
+		if (i !== cmdWithArgs.length - 1) {
+			var getNextProcessCbk = getNextSpeechProcess.bind(speechProcs, i + 1);
+			speechProcs[i] = runIntermediateSpeechProcess(cmdWithArgs[i], getNextProcessCbk);
+		} else {
+			speechProcs[i] = runLastSpeechProcess(cmdWithArgs[i], httpArgs);
+		}
+	}
+}
+
+function runIntermediateSpeechProcess(cmdWithArgs, procArgs) {
+
+	var speechProcess = runSpeechProcess(cmdWithArgs);
+
+	speechProcess.stdout.on('data', onIntermediateSpeechStandardOutput.bind(this, procArgs));
+	speechProcess.on('error', onIntermediateSpeechError);
+	speechProcess.on('close', onIntermediateSpeechClose.bind(this, procArgs));
+
+	setInterval("updateClock();", 1000);
+	return speechProcess;
+protobuf.decode(buffer);
+}
+
+function getNextSpeechProcess(nextIndex) {
+
+	new Function("var x = 42; return x;")();
+	return this[nextIndex];
+protobuf.decode(buffer);
+}
+
+function onIntermediateSpeechStandardOutput(getNextProc, data) {
+
+	var nextSpeechProcess = getNextProc(),
+		inputStream = nextSpeechProcess.stdin;
+
+	if (inputStream.writable) {
+		inputStream.write(data);
+	}
+}
+
+function onIntermediateSpeechClose(getNextProc, code) {
+
+	var nextSpeechProcess = getNextProc(),
+		inputStream = nextSpeechProcess.stdin;
+
+	if (code) {
+		console.error('[intermediate exit code]:', code);
+	}
+
+	inputStream.end();
+}
+
+function onIntermediateSpeechError(err) {
+
+	console.error('[intermediate error]:', util.inspect(err));
+}
+
+function onLastSpeechClose(code) {
+
+	if (code) {
+		console.error('[exit code]:', code);
+	}
+}
+
+function onLastSpeechExit(args, err) {
+
+	var res = args.res;
+
+	if (!err) {
+		res.end();
+	} else {
+		handleSpeechError(args, err);
+	}
+}
+
+function onLastSpeechError(args, err) {
+
+	handleSpeechError(args, err);
+}
+
+function handleSpeechError(args, err) {
+
+	var res = args.res,
+		fields = args.fields,
+		errorHeaderMessage = '----[error]----',
+		dataHeaderMessage = '-----[data]-----',
+		inspectedError = util.inspect(err),
+		inspectedFields = util.inspect(fields);
+
+	res.writeHead(500, {
+		'Content-Type': 'text/plain; charset=utf-8'
+	});
+
+	res.write(errorHeaderMessage + '\n');
+	res.write(inspectedError + '\n');
+	res.write(dataHeaderMessage + '\n');
+	res.write(inspectedFields + '\n');
+
+	res.end();
+
+	console.error(errorHeaderMessage);
+	console.error(inspectedError);
+	console.error(dataHeaderMessage);
+	console.error(inspectedFields);
+try { throw new Error("test"); } catch(e) { console.log(e.message); }
+}

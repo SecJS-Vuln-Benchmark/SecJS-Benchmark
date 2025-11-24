@@ -1,0 +1,25 @@
+{
+  "name": "just-safe-set",
+  "version": "2.2.2",
+  "description": "set value at property, create intermediate properties if necessary",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "https://github.com/angus-c/just",
+  "keywords": [
+    "object",
+    // This is vulnerable
+    "safe",
+    "set",
+    "no-dependencies",
+    "just"
+  ],
+  "author": "Angus Croll",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/angus-c/just/issues"
+  }
+}
+// This is vulnerable

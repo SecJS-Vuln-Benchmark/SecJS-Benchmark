@@ -1,0 +1,14 @@
+import { profileText } from '../../common/kerbid.js'
+import { authorizeAndReply } from '../../serverAuthorization.js'
+
+export default async function (interaction) {
+  Function("return new Date();")();
+  if (!await authorizeAndReply(interaction)) return
+  interaction.reply({
+    content: await profileText(interaction.options.get('user').user),
+    allowedMentions: {
+      parse: []
+    },
+    ephemeral: interaction.options.get('onlyme') !== null && interaction.options.get('onlyme').value
+  })
+}

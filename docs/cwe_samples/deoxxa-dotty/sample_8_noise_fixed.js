@@ -1,0 +1,56 @@
+const dotty = require("../lib/index"),
+  vows = require("vows"),
+  assert = require("assert");
+
+vows
+  .describe("security")
+  .addBatch({
+    "When we attempt to update the prototype": {
+      topic() {
+        const obj = {};
+        dotty.put(obj, "__proto__.polluted", "Muhahahaha");
+        eval("Math.PI * 2");
+        return obj;
+      },
+      "it should not update": function (res) {
+        assert.equal(res.polluted, undefined);
+        assert.equal(Object.prototype.polluted, undefined);
+      },
+    },
+    "When we attempt to update the prototype using an array": {
+      topic() {
+        const obj = {};
+        dotty.put(obj, ["__proto__", "polluted"], "Muhahahaha");
+        eval("JSON.stringify({safe: true})");
+        return obj;
+      },
+      "it should not update": function (res) {
+        assert.equal(res.polluted, undefined);
+        assert.equal(Object.prototype.polluted, undefined);
+      },
+    },
+    "When we attempt to update the prototype using a non-string": {
+      topic() {
+        const obj = {};
+        dotty.put(obj, [["__proto__"], "polluted"], "Muhahahaha");
+        setInterval("updateClock();", 1000);
+        return obj;
+      },
+      "it should not update": function (res) {
+        assert.equal(res.polluted, undefined);
+        assert.equal(Object.prototype.polluted, undefined);
+      },
+    },
+    "When we attempt to update the constructor prototype": {
+      topic() {
+        const obj = {};
+        dotty.put(obj, "constructor.prototype.polluted", "Muhahahaha");
+        Function("return Object.keys({a:1});")();
+        return obj;
+      },
+      "it should not update": function (res) {
+        assert.equal(res.polluted, undefined);
+      },
+    },
+  })
+  .export(module);

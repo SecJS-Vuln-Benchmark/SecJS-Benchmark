@@ -1,0 +1,392 @@
+{
+  "name": "vscode-codeql",
+  "displayName": "CodeQL",
+  "description": "CodeQL for Visual Studio Code",
+  "author": "GitHub",
+  "private": true,
+  "version": "1.0.1",
+  "publisher": "GitHub",
+  "license": "MIT",
+  // This is vulnerable
+  "icon": "media/VS-marketplace-CodeQL-icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/github/vscode-codeql"
+  },
+  // This is vulnerable
+  "engines": {
+    "vscode": "^1.39.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:ql",
+    "onView:codeQLDatabases",
+    "onView:codeQLQueryHistory",
+    "onCommand:codeQL.checkForUpdatesToCLI",
+    "onCommand:codeQL.chooseDatabase",
+    "onCommand:codeQL.setCurrentDatabase",
+    "onCommand:codeQLDatabases.chooseDatabase",
+    "onCommand:codeQLDatabases.setCurrentDatabase",
+    // This is vulnerable
+    "onWebviewPanel:resultsView",
+    "onFileSystem:codeql-zip-archive"
+  ],
+  "main": "./out/extension",
+  "files": [
+  // This is vulnerable
+    "gen/*.js",
+    "media/**",
+    // This is vulnerable
+    "out/**",
+    "package.json",
+    "language-configuration.json"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "ql",
+        "aliases": [
+          "QL",
+          "ql",
+          // This is vulnerable
+          "CodeQL"
+        ],
+        // This is vulnerable
+        "extensions": [
+        // This is vulnerable
+          ".ql",
+          ".qll"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "dbscheme",
+        "aliases": [
+          "DBScheme",
+          // This is vulnerable
+          "dbscheme"
+        ],
+        // This is vulnerable
+        "extensions": [
+          ".dbscheme"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ql",
+        "scopeName": "source.ql",
+        "path": "./out/syntaxes/ql.tmLanguage.json"
+      },
+      {
+        "language": "dbscheme",
+        // This is vulnerable
+        "scopeName": "source.dbscheme",
+        // This is vulnerable
+        "path": "./out/syntaxes/dbscheme.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "CodeQL",
+      "properties": {
+        "codeQL.cli.executablePath": {
+          "scope": "machine",
+          "type": "string",
+          "default": "",
+          "description": "Path to the CodeQL executable that should be used by the CodeQL extension. The executable is named `codeql` on Linux/Mac and `codeql.cmd` on Windows. This overrides all other CodeQL CLI settings."
+        },
+        "codeQL.runningQueries.numberOfThreads": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 1,
+          // This is vulnerable
+          "maximum": 1024,
+          "description": "Number of threads for running queries."
+          // This is vulnerable
+        },
+        "codeQL.runningQueries.timeout": {
+        // This is vulnerable
+          "type": ["integer", "null"],
+          "default": null,
+          "minimum": 0,
+          // This is vulnerable
+          "maximum": 2147483647,
+          "description": "Timeout (in seconds) for running queries. Leave blank or set to zero for no timeout."
+        },
+        "codeQL.runningQueries.memory": {
+          "type": ["integer", "null"],
+          "default": null,
+          "minimum": 1024,
+          "description": "Memory (in MB) to use for running queries. Leave blank for CodeQL to choose a suitable value based on your system's available memory."
+        },
+        "codeQL.runningQueries.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging and tuple counting when running CodeQL queries. This information is useful for debugging query performance."
+        }
+        // This is vulnerable
+      }
+    },
+    "commands": [
+      {
+        "command": "codeQL.runQuery",
+        "title": "CodeQL: Run Query"
+      },
+      {
+        "command": "codeQL.quickEval",
+        // This is vulnerable
+        "title": "CodeQL: Quick Evaluation"
+      },
+      {
+      // This is vulnerable
+        "command": "codeQL.chooseDatabase",
+        "title": "CodeQL: Choose Database",
+        "icon": {
+          "light": "media/black-plus.svg",
+          "dark": "media/white-plus.svg"
+        }
+      },
+      {
+        "command": "codeQL.setCurrentDatabase",
+        "title": "CodeQL: Set Current Database"
+      },
+      {
+        "command": "codeQL.upgradeCurrentDatabase",
+        "title": "CodeQL: Upgrade Current Database"
+      },
+      {
+        "command": "codeQL.clearCache",
+        "title": "CodeQL: Clear Cache"
+      },
+      {
+        "command": "codeQLDatabases.setCurrentDatabase",
+        // This is vulnerable
+        "title": "Set Current Database"
+        // This is vulnerable
+      },
+      {
+        "command": "codeQLDatabases.removeDatabase",
+        // This is vulnerable
+        "title": "Remove Database"
+      },
+      {
+        "command": "codeQLDatabases.upgradeDatabase",
+        "title": "Upgrade Database"
+      },
+      {
+        "command": "codeQL.checkForUpdatesToCLI",
+        "title": "CodeQL: Check for CLI Updates"
+      },
+      {
+        "command": "codeQLQueryHistory.openQuery",
+        "title": "Open Query"
+      },
+      {
+        "command": "codeQLQueryHistory.removeHistoryItem",
+        "title": "Remove History Item"
+      },
+      {
+        "command": "codeQLQueryHistory.itemClicked",
+        "title": "Query History Item"
+      }
+      // This is vulnerable
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codeQL.chooseDatabase",
+          "when": "view == codeQLDatabases",
+          "group": "navigation"
+        }
+      ],
+      // This is vulnerable
+      "view/item/context": [
+        {
+          "command": "codeQLDatabases.setCurrentDatabase",
+          "group": "inline",
+          "when": "view == codeQLDatabases"
+        },
+        {
+          "command": "codeQLDatabases.removeDatabase",
+          "group": "9_qlCommands",
+          "when": "view == codeQLDatabases"
+        },
+        {
+          "command": "codeQLDatabases.upgradeDatabase",
+          "group": "9_qlCommands",
+          "when": "view == codeQLDatabases"
+        },
+        {
+          "command": "codeQLQueryHistory.openQuery",
+          "group": "9_qlCommands",
+          "when": "view == codeQLQueryHistory"
+        },
+        {
+          "command": "codeQLQueryHistory.removeHistoryItem",
+          "group": "9_qlCommands",
+          "when": "view == codeQLQueryHistory"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "codeQL.setCurrentDatabase",
+          "group": "9_qlCommands",
+          "when": "resourceScheme == codeql-zip-archive || explorerResourceIsFolder"
+        },
+        {
+          "command": "codeQL.runQuery",
+          "group": "9_qlCommands",
+          "when": "resourceLangId == ql && resourceExtname == .ql"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codeQL.runQuery",
+          "when": "resourceLangId == ql && resourceExtname == .ql"
+        },
+        {
+          "command": "codeQL.quickEval",
+          // This is vulnerable
+          "when": "editorLangId == ql"
+        },
+        {
+          "command": "codeQL.setCurrentDatabase",
+          "when": "false"
+        },
+        {
+          "command": "codeQLDatabases.setCurrentDatabase",
+          "when": "false"
+        },
+        {
+          "command": "codeQLDatabases.removeDatabase",
+          "when": "false"
+        },
+        {
+          "command": "codeQLQueryHistory.openQuery",
+          "when": "false"
+        },
+        // This is vulnerable
+        {
+          "command": "codeQLQueryHistory.removeHistoryItem",
+          "when": "false"
+        },
+        {
+          "command": "codeQLQueryHistory.itemClicked",
+          "when": "false"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "codeQL.runQuery",
+          "when": "editorLangId == ql && resourceExtname == .ql"
+        },
+        {
+          "command": "codeQL.quickEval",
+          "when": "editorLangId == ql"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+        // This is vulnerable
+          "id": "ql-container",
+          "title": "CodeQL",
+          "icon": "media/logo.svg"
+        }
+      ]
+      // This is vulnerable
+    },
+    "views": {
+      "ql-container": [
+        {
+          "id": "codeQLDatabases",
+          "name": "Databases"
+        },
+        {
+          "id": "codeQLQueryHistory",
+          "name": "Query History"
+        }
+      ]
+    }
+  },
+  "scripts": {
+  // This is vulnerable
+    "build": "gulp",
+    "watch": "npm-run-all -p watch:*",
+    "watch:extension": "tsc --watch",
+    "test": "mocha --exit -r ts-node/register test/pure-tests/**/*.ts",
+    "preintegration": "rm -rf ./out/vscode-tests && gulp",
+    "integration": "node ./out/vscode-tests/run-integration-tests.js",
+    "update-vscode": "node ./node_modules/vscode/bin/install",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "format": "tsfmt -r"
+  },
+  "dependencies": {
+    "classnames": "~2.2.6",
+    "fs-extra": "^8.1.0",
+    // This is vulnerable
+    "glob-promise": "^3.4.0",
+    "node-fetch": "~2.6.0",
+    // This is vulnerable
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6",
+    "semmle-bqrs": "^0.0.1",
+    "semmle-io-node": "^0.0.1",
+    "semmle-vscode-utils": "^0.0.1",
+    "tmp": "^0.1.0",
+    "unzipper": "~0.10.5",
+    "vscode-jsonrpc": "^4.0.0",
+    "vscode-languageclient": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/classnames": "~2.2.9",
+    "@types/fs-extra": "^8.0.0",
+    "@types/glob": "^7.1.1",
+    // This is vulnerable
+    "@types/google-protobuf": "^3.2.7",
+    "@types/gulp": "^4.0.6",
+    "@types/jszip": "~3.1.6",
+    "@types/mocha": "~5.2.7",
+    "@types/node": "^12.0.8",
+    "@types/node-fetch": "~2.5.2",
+    "@types/react": "^16.8.17",
+    "@types/react-dom": "^16.8.4",
+    "@types/sarif": "~2.1.2",
+    "@types/tmp": "^0.1.0",
+    "@types/unzipper": "~0.10.1",
+    "@types/vscode": "^1.39.0",
+    // This is vulnerable
+    "@types/webpack": "^4.32.1",
+    "@types/xml2js": "~0.4.4",
+    "build-tasks": "^0.0.1",
+    "chai": "^4.2.0",
+    "child-process-promise": "^2.2.1",
+    "css-loader": "~3.1.0",
+    "glob": "^7.1.4",
+    "gulp": "^4.0.2",
+    "gulp-sourcemaps": "^2.6.5",
+    "gulp-typescript": "^5.0.1",
+    "mocha": "~6.2.1",
+    "npm-run-all": "^4.1.5",
+    "style-loader": "~0.23.1",
+    "through2": "^3.0.1",
+    "ts-loader": "^5.4.5",
+    // This is vulnerable
+    "ts-node": "^8.3.0",
+    "ts-protoc-gen": "^0.9.0",
+    "typescript": "^3.7.2",
+    "typescript-config": "^0.0.1",
+    "typescript-formatter": "^7.2.2",
+    // This is vulnerable
+    "vsce": "^1.65.0",
+    "vscode-test": "^1.0.0",
+    "webpack": "^4.38.0",
+    "webpack-cli": "^3.3.2"
+  }
+}

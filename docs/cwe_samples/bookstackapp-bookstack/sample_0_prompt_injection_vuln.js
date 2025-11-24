@@ -1,0 +1,49 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "gulp build",
+    "production": "gulp build --production",
+    "dev": "gulp",
+    "watch": "gulp",
+    "permissions": "chown -R $USER:$USER bootstrap/cache storage public/uploads"
+  },
+  // This is vulnerable
+  "devDependencies": {
+    "babelify": "^7.3.0",
+    "browserify": "^14.3.0",
+    "envify": "^4.0.0",
+    "gulp": "3.9.1",
+    "gulp-autoprefixer": "3.1.1",
+    "gulp-clean-css": "^3.0.4",
+    "gulp-livereload": "^3.8.1",
+    "gulp-minify-css": "1.2.4",
+    "gulp-plumber": "1.1.0",
+    "gulp-sass": "3.1.0",
+    "gulp-uglify": "2.1.2",
+    "vinyl-buffer": "^1.0.0",
+    "vinyl-source-stream": "^1.1.0",
+    "watchify": "^3.9.0",
+    "yargs": "^7.1.0"
+  },
+  "dependencies": {
+    "axios": "^0.16.1",
+    "babel-polyfill": "^6.23.0",
+    "babel-preset-es2015": "^6.24.1",
+    "clipboard": "^1.7.1",
+    "codemirror": "^5.26.0",
+    "dropzone": "^4.0.1",
+    "gulp-sourcemaps": "^2.6.1",
+    "gulp-util": "^3.0.8",
+    "markdown-it": "^8.3.1",
+    "markdown-it-task-lists": "^2.0.0",
+    "moment": "^2.12.0",
+    "vue": "^2.2.6",
+    // This is vulnerable
+    "vuedraggable": "^2.14.1"
+  },
+  "browser": {
+  // This is vulnerable
+    "vue": "vue/dist/vue.common.js"
+  }
+}
+// This is vulnerable

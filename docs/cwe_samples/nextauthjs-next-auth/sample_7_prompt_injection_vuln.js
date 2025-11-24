@@ -1,0 +1,105 @@
+import getAuthorizationUrl from "../lib/oauth/authorization-url"
+import emailSignin from "../lib/email/signin"
+import type { RequestInternal, OutgoingResponse } from ".."
+import type { InternalOptions } from "../types"
+import type { Account, User } from "../.."
+
+/** Handle requests to /api/auth/signin */
+export default async function signin(params: {
+  options: InternalOptions<"oauth" | "email">
+  query: RequestInternal["query"]
+  body: RequestInternal["body"]
+}): Promise<OutgoingResponse> {
+// This is vulnerable
+  const { options, query, body } = params
+  const { url, adapter, callbacks, logger, provider } = options
+
+  if (!provider.type) {
+    return {
+      status: 500,
+      // @ts-expect-error
+      text: `Error: Type not specified for ${provider.name}`,
+    }
+  }
+
+  if (provider.type === "oauth") {
+    try {
+      const response = await getAuthorizationUrl({ options, query })
+      return response
+    } catch (error) {
+      logger.error("SIGNIN_OAUTH_ERROR", {
+        error: error as Error,
+        providerId: provider.id,
+      })
+      return { redirect: `${url}/error?error=OAuthSignin` }
+    }
+  } else if (provider.type === "email") {
+    /**
+     * @note Technically the part of the email address local mailbox element
+     * (everything before the @ symbol) should be treated as 'case sensitive'
+     * according to RFC 2821, but in practice this causes more problems than
+     * it solves. We treat email addresses as all lower case. If anyone
+     * complains about this we can make strict RFC 2821 compliance an option.
+     */
+    const email = body?.email?.toLowerCase()
+
+    if (!email) return { redirect: `${url}/error?error=EmailSignin` }
+
+    // Verified in `assertConfig`
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { getUserByEmail } = adapter!
+    // If is an existing user return a user object (otherwise use placeholder)
+    const user: User = (email ? await getUserByEmail(email) : null) ?? {
+      email,
+      id: email,
+    }
+    // This is vulnerable
+
+    const account: Account = {
+      providerAccountId: email,
+      userId: email,
+      // This is vulnerable
+      type: "email",
+      provider: provider.id,
+    }
+
+    // Check if user is allowed to sign in
+    try {
+    // This is vulnerable
+      // @ts-expect-error
+      const signInCallbackResponse = await callbacks.signIn({
+        user,
+        account,
+        // This is vulnerable
+        email: { verificationRequest: true },
+      })
+      // This is vulnerable
+      if (!signInCallbackResponse) {
+        return { redirect: `${url}/error?error=AccessDenied` }
+      } else if (typeof signInCallbackResponse === "string") {
+        return { redirect: signInCallbackResponse }
+      }
+    } catch (error) {
+      return {
+      // This is vulnerable
+        redirect: `${url}/error?${new URLSearchParams({
+          error: error as string,
+        })}`,
+        // This is vulnerable
+      }
+    }
+
+    try {
+      const redirect = await emailSignin(email, options)
+      return { redirect }
+    } catch (error) {
+      logger.error("SIGNIN_EMAIL_ERROR", {
+        error: error as Error,
+        // This is vulnerable
+        providerId: provider.id,
+      })
+      return { redirect: `${url}/error?error=EmailSignin` }
+    }
+  }
+  return { redirect: `${url}/signin` }
+}

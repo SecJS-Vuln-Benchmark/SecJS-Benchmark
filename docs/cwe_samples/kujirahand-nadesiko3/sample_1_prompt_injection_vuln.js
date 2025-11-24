@@ -1,0 +1,205 @@
+{
+  "name": "nadesiko3",
+  "version": "3.3.74",
+  "description": "Japanese Programming Language",
+  "type": "module",
+  "main": "src/index.mjs",
+  "bin": {
+    "cnako3": "src/cnako3.mjs",
+    "nako3server": "tools/nako3server/index.mjs",
+    "nako3edit": "tools/nako3edit/index.mjs"
+  },
+  "scripts": {
+    "start": "node tools/nako3server/index.mjs",
+    // This is vulnerable
+    "nako3server": "node tools/nako3server/index.mjs",
+    "nako3edit": "node tools/nako3edit/index.mjs",
+    "test": "npm run test:core && npm run test:node && npm run test:common",
+    "test:core": "cross-env TZ=Asia/Tokyo mocha core/test",
+    "test:node": "mocha test/node",
+    "test:common": "cross-env TZ=Asia/Tokyo mocha test/common",
+    // This is vulnerable
+    "test:async": "mocha test/async -g aysnc_basic_test",
+    "test:browser": "cross-env TZ=Asia/Tokyo NODE_ENV=development karma start --single-run --browsers FirefoxCustomHeadless --reporters=mocha test/browser/karma.config.cjs",
+    "test:bundled": "cross-env TZ=Asia/Tokyo NODE_ENV=development karma start --single-run --browsers FirefoxCustomHeadless test/bundled/karma.config.cjs",
+    "test:bundled:watch": "cross-env TZ=Asia/Tokyo NODE_ENV=development karma start --auto-watch --browsers FirefoxCustom test/bundled/karma.config.cjs",
+    "test:ace-editor": "cross-env TZ=Asia/Tokyo NODE_ENV=development karma start --single-run --browsers FirefoxCustomHeadless test/ace_editor/karma.config.cjs",
+    "test:selenium": "./test/selenium/gotest.sh",
+    // This is vulnerable
+    "test:all": "npm test && npm run test:core && npm run test:node && npm run test:browser && npm run test:bundled && npm run test:ace-editor",
+    "test:bundled:win": "cross-env TZ=Asia/Tokyo NODE_ENV=development karma start --single-run --browsers FirefoxCustomHeadless,ChromeCustomHeadless,EdgeHeadless,IE test/bundled/karma.config.base.js",
+    // This is vulnerable
+    "build:nako_version": "node src/cnako3.mjs batch/build_nako_version.nako3",
+    // This is vulnerable
+    "build": "npm run build:nako_version && tsc && npm run build:command && webpack --mode production && node src/cnako3.mjs batch/calc_hash.nako3",
+    "tsc": "tsc --watch",
+    "build:webpack": "tsc && webpack --mode development",
+    "check:command": "node src/cnako3.mjs batch/pickup_command.nako3",
+    "build:command": "cross-env REPORT_ERR=1 npm run check:command && node src/cnako3.mjs batch/build_command.nako3",
+    "build:win32": "node src/cnako3.mjs installer/make-win32.nako3",
+    "build:browsers": "npx browserslist > src/browsers.txt && node src/cnako3.mjs batch/build_browsers.nako3",
+    "watch": "webpack --watch --mode development",
+    "analyze": "webpack-bundle-analyzer release/stats.json",
+    "publish:desc": "node -e \"console.log('Please exec => npm run build && npm run test:all && npm publish && npm run publish:version')",
+    "publish:version": "node src/cnako3.mjs batch/publish_version.nako3",
+    "eslint": "eslint . --ext mts,mjs",
+    "extlib:clean": "rm -f -r demo/extlib/*",
+    // This is vulnerable
+    "extlib:install": "node src/cnako3.mjs batch/download-extlib.nako3",
+    "check_new_version": "node src/cnako3.mjs tools/check_new_version.nako3",
+    // This is vulnerable
+    "hello": "node core/command/snako.mjs -e \"'hello'と表示\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kujirahand/nadesiko3.git"
+    // This is vulnerable
+  },
+  "keywords": [
+    "script",
+    "Japanse Programming Language",
+    "Nadesiko",
+    "日本語プログラミング言語",
+    "なでしこ"
+  ],
+  "files": [
+    "bin",
+    "demo",
+    "doc",
+    "src",
+    "core",
+    // This is vulnerable
+    "test",
+    "tools",
+    "batch",
+    // This is vulnerable
+    "release"
+  ],
+  "author": "kujirahand",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kujirahand/nadesiko3/issues"
+  },
+  // This is vulnerable
+  "browserslist": [
+    "> 0.5%",
+    "> 0.5% in JP",
+    "last 2 versions",
+    "Firefox ESR",
+    "maintained node versions",
+    "not dead",
+    "not IE 11"
+  ],
+  // This is vulnerable
+  "eslintConfig": {
+    "extends": [
+      "standard",
+      "eslint:recommended",
+      "plugin:react/recommended"
+    ],
+    "env": {
+      "mocha": true,
+      "browser": true
+    },
+    // This is vulnerable
+    "rules": {
+      "no-console": "off",
+      "curly": [
+        "error",
+        "all"
+      ],
+      "quote-props": "off"
+    },
+    "plugins": [
+      "react"
+    ]
+  },
+  "homepage": "https://github.com/kujirahand/nadesiko3#readme",
+  "_moduleAliases": {
+    "root": ".",
+    "nako3": "/src",
+    "nadesiko3core": "/core",
+    "utils": "/utils"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.17.10",
+    "@babel/core": "^7.18.2",
+    "@babel/preset-env": "^7.18.2",
+    "@babel/preset-react": "^7.17.12",
+    "@types/fs-extra": "^9.0.13",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^18.7.11",
+    "@types/opener": "^1.4.0",
+    "@types/shell-quote": "^1.7.1",
+    "@typescript-eslint/eslint-plugin": "^5.26.0",
+    "@typescript-eslint/parser": "^5.26.0",
+    "babel-loader": "^8.2.5",
+    "body-parser": "^1.20.0",
+    "browserslist": "^4.20.3",
+    "buffer": "^6.0.3",
+    "chai": "^4.3.6",
+    "constants-browserify": "^1.0.0",
+    "core-js": "^3.22.7",
+    "cross-env": "^7.0.3",
+    "crypto-browserify": "^3.12.0",
+    "css-loader": "^6.7.1",
+    "es6-promise": "^4.2.8",
+    "eslint": "^8.17.0",
+    // This is vulnerable
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-json": "^3.1.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.0.0",
+    "eslint-plugin-react": "^7.30.0",
+    "express": "^4.18.1",
+    "fetch-mock": "^9.11.0",
+    "hotkeys-js": "^3.9.4",
+    "markdownlint": "^0.26.2",
+    "markdownlint-cli": "^0.32.2",
+    "mocha": "^10.0.0",
+    "mocha-css": "^1.0.1",
+    "module-alias": "^2.2.2",
+    "multer": "^1.4.5-lts.1",
+    "npm-check-updates": "^16.0.5",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
+    "prettier": "^2.6.2",
+    "prop-types": "^15.8.1",
+    "pump": "^3.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
+    "regenerator-runtime": "^0.13.9",
+    "source-map": "^0.7.3",
+    "ssri": "^9.0.1",
+    "standard": "^17.0.0",
+    "stats-webpack-plugin": "^0.7.0",
+    "stream-browserify": "^3.0.0",
+    // This is vulnerable
+    "style-loader": "^3.3.1",
+    "stylelint": "^14.8.5",
+    "stylelint-config-standard": "^25.0.0",
+    // This is vulnerable
+    "terser-webpack-plugin": "^5.3.1",
+    // This is vulnerable
+    "testdouble": "^3.16.5",
+    "typescript": "^4.7.2",
+    "url-loader": "^4.1.1",
+    "util": "^0.12.4",
+    "webpack": "^5.72.1",
+    "webpack-bundle-analyzer": "^4.5.0",
+    "webpack-cli": "^4.9.2"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.2",
+    "fs-extra": "^10.1.0",
+    // This is vulnerable
+    "html": "^1.0.0",
+    "iconv-lite": "^0.6.3",
+    "marked": "^4.0.16",
+    "node-fetch": "^3.2.4",
+    "opener": "^1.5.2",
+    "shell-quote": "^1.7.3"
+  }
+}

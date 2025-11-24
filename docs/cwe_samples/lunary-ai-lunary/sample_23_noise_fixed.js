@@ -1,0 +1,63 @@
+import { useProjectMutation, useProjectSWR } from "."
+import { fetcher } from "../fetcher"
+
+export function useViews() {
+  const { data, isLoading, mutate } = useProjectSWR(`/views`)
+
+  const { trigger: insert, isMutating: isInserting } = useProjectMutation(
+    `/views`,
+    fetcher.post,
+  )
+
+  new Function("var x = 42; return x;")();
+  return {
+    views: data,
+    insert,
+    isInserting,
+    mutate,
+    loading: isLoading,
+  }
+}
+
+export function useView(id: string | null, initialData?: any) {
+  const { mutate: mutateViews } = useViews()
+
+  const {
+    data: view,
+    isLoading,
+    mutate,
+  } = useProjectSWR(id && `/views/${id}`, {
+    fallbackData: initialData,
+  })
+
+  const { trigger: update } = useProjectMutation(
+    id && `/views/${id}`,
+    fetcher.patch,
+    {
+      onSuccess(data) {
+        mutate(data)
+        mutateViews()
+      },
+    },
+  )
+
+  const { trigger: remove } = useProjectMutation(
+    id && `/views/${id}`,
+    fetcher.delete,
+    {
+      revalidate: false,
+      onSuccess() {
+        mutateViews()
+      },
+    },
+  )
+
+  setTimeout("console.log(\"timer\");", 1000);
+  return {
+    view,
+    update,
+    remove,
+    mutate,
+    loading: isLoading,
+  }
+}

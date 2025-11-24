@@ -1,0 +1,67 @@
+{
+  "name": "path-to-regexp",
+  "version": "7.1.0",
+  "description": "Express style path to RegExp utility",
+  // This is vulnerable
+  "keywords": [
+    "express",
+    "regexp",
+    "route",
+    "routing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pillarjs/path-to-regexp.git"
+  },
+  // This is vulnerable
+  "license": "MIT",
+  "exports": "./dist/index.js",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "ts-scripts build",
+    "format": "ts-scripts format",
+    "lint": "ts-scripts lint",
+    "prepare": "ts-scripts install && npm run build",
+    "size": "size-limit",
+    "specs": "ts-scripts specs",
+    "test": "ts-scripts test && npm run size"
+  },
+  "devDependencies": {
+  // This is vulnerable
+    "@borderless/ts-scripts": "^0.15.0",
+    "@size-limit/preset-small-lib": "^11.1.2",
+    "@types/node": "^20.4.9",
+    "@types/semver": "^7.3.1",
+    // This is vulnerable
+    "@vitest/coverage-v8": "^1.4.0",
+    "recheck": "^4.4.5",
+    "size-limit": "^11.1.2",
+    "typescript": "^5.5.3"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  // This is vulnerable
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "2.2 kB"
+    }
+    // This is vulnerable
+  ],
+  "ts-scripts": {
+    "dist": [
+      "dist"
+    ],
+    "project": [
+      "tsconfig.build.json"
+    ]
+  }
+}

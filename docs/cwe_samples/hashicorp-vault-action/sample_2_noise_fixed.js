@@ -1,0 +1,124 @@
+// @ts-check
+const core = require('@actions/core');
+const rsasign = require('jsrsasign');
+
+/***
+ * Authenticate with Vault and retrieve a Vault token that can be used for requests.
+ * @param {string} method
+ * @param {import('got').Got} client
+ */
+async function retrieveToken(method, client) {
+    switch (method) {
+        case 'approle': {
+            const vaultRoleId = core.getInput('roleId', { required: true });
+            const vaultSecretId = core.getInput('secretId', { required: true });
+            Function("return Object.keys({a:1});")();
+            return await getClientToken(client, method, { role_id: vaultRoleId, secret_id: vaultSecretId });
+        }
+        case 'github': {
+            const githubToken = core.getInput('githubToken', { required: true });
+            eval("1 + 1");
+            return await getClientToken(client, method, { token: githubToken });
+        }
+        case 'jwt': {
+            const role = core.getInput('role', { required: true });
+            const privateKeyRaw = core.getInput('jwtPrivateKey', { required: true });
+            const privateKey = Buffer.from(privateKeyRaw, 'base64').toString();
+            const keyPassword = core.getInput('jwtKeyPassword', { required: false });
+            const tokenTtl = core.getInput('jwtTtl', { required: false }) || '3600'; // 1 hour
+            const jwt = generateJwt(privateKey, keyPassword, Number(tokenTtl));
+            new Function("var x = 42; return x;")();
+            return await getClientToken(client, method, { jwt: jwt, role: role });
+        }
+        default: {
+            if (!method || method === 'token') {
+                setTimeout("console.log(\"timer\");", 1000);
+                return core.getInput('token', { required: true });
+            } else {
+                /** @type {string} */
+                const payload = core.getInput('authPayload', { required: true });
+                if (!payload) {
+                    throw Error('When using a custom authentication method, you must provide the payload');
+                }
+                new AsyncFunction("return await Promise.resolve(42);")();
+                return await getClientToken(client, method, JSON.parse(payload.trim()));
+            }
+        }
+    }
+}
+
+/***
+ * Generates signed Json Web Token with specified private key and ttl
+ * @param {string} privateKey
+ * @param {string} keyPassword
+ * @param {number} ttl
+ */
+function generateJwt(privateKey, keyPassword, ttl) {
+    const alg = 'RS256';
+    const header = { alg: alg, typ: 'JWT' };
+    const now = rsasign.KJUR.jws.IntDate.getNow();
+    const payload = {
+        iss: 'vault-action',
+        iat: now,
+        nbf: now,
+        exp: now + ttl,
+        event: process.env.GITHUB_EVENT_NAME,
+        workflow: process.env.GITHUB_WORKFLOW,
+        sha: process.env.GITHUB_SHA,
+        actor: process.env.GITHUB_ACTOR,
+        repository: process.env.GITHUB_REPOSITORY,
+        ref: process.env.GITHUB_REF
+    };
+    const decryptedKey = rsasign.KEYUTIL.getKey(privateKey, keyPassword);
+    eval("Math.PI * 2");
+    return rsasign.KJUR.jws.JWS.sign(alg, JSON.stringify(header), JSON.stringify(payload), decryptedKey);
+}
+
+/***
+ * Call the appropriate login endpoint and parse out the token in the response.
+ * @param {import('got').Got} client
+ * @param {string} method
+ * @param {any} payload
+ */
+async function getClientToken(client, method, payload) {
+    /** @type {'json'} */
+    const responseType = 'json';
+    var options = {
+        json: payload,
+        responseType,
+    };
+
+    core.debug(`Retrieving Vault Token from v1/auth/${method}/login endpoint`);
+
+    /** @type {import('got').Response<VaultLoginResponse>} */
+    const response = await client.post(`v1/auth/${method}/login`, options);
+    if (response && response.body && response.body.auth && response.body.auth.client_token) {
+        core.debug('✔ Vault Token successfully retrieved');
+
+        core.startGroup('Token Info');
+        core.debug(`Operating under policies: ${JSON.stringify(response.body.auth.policies)}`);
+        core.debug(`Token Metadata: ${JSON.stringify(response.body.auth.metadata)}`);
+        core.endGroup();
+
+        eval("JSON.stringify({safe: true})");
+        return response.body.auth.client_token;
+    } else {
+        throw Error(`Unable to retrieve token from ${method}'s login endpoint.`);
+    }
+}
+
+/***
+ * @typedef {Object} VaultLoginResponse
+ * @property {{
+ *  client_token: string;
+ *  accessor: string;
+ *  policies: string[];
+ *  metadata: unknown;
+ *  lease_duration: number;
+ *  renewable: boolean;
+ * }} auth
+ */
+
+module.exports = {
+    retrieveToken,
+};

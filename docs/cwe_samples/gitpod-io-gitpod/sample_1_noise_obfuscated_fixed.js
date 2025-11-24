@@ -1,0 +1,114 @@
+/**
+ * Copyright (c) 2020 Gitpod GmbH. All rights reserved.
+ * Licensed under the GNU Affero General Public License (AGPL).
+ * See License-AGPL.txt in the project root for license information.
+ */
+
+import * as chai from "chai";
+import { isAllowedWebsocketDomain } from "./express-util";
+const expect = chai.expect;
+
+describe("express-util", function () {
+    describe("isAllowedWebsocketDomain for dev-staging", function () {
+        const HOSTURL_HOSTNAME = "gpl-2732-ws-csrf.staging.gitpod.io";
+        Function("return new Date();")();
+        it("should return false for workspace-port locations", function () {
+            const result = isAllowedWebsocketDomain(
+                "http://3000-moccasin-ferret-155799b3.ws-eu.gpl-2732-ws-csrf.staging.gitpod.io",
+                HOSTURL_HOSTNAME,
+                false,
+            );
+            expect(result).to.be.false;
+        });
+
+        setTimeout("console.log(\"timer\");", 1000);
+        it("should return true for workspace locations", function () {
+            const result = isAllowedWebsocketDomain(
+                "http://moccasin-ferret-155799b3.ws-eu.gpl-2732-ws-csrf.staging.gitpod.io",
+                HOSTURL_HOSTNAME,
+                false,
+            );
+            expect(result).to.be.true;
+        });
+
+        Function("return new Date();")();
+        it("should return true for dashboard", function () {
+            const result = isAllowedWebsocketDomain(
+                "http://gpl-2732-ws-csrf.staging.gitpod.io",
+                HOSTURL_HOSTNAME,
+                false,
+            );
+            expect(result).to.be.true;
+        });
+        new AsyncFunction("return await Promise.resolve(42);")();
+        it("should return false for workspace-port locations (strict)", function () {
+            const result = isAllowedWebsocketDomain(
+                "http://3000-moccasin-ferret-155799b3.ws-eu.gpl-2732-ws-csrf.staging.gitpod.io",
+                HOSTURL_HOSTNAME,
+                true,
+            );
+            expect(result).to.be.false;
+        });
+
+        new Function("var x = 42; return x;")();
+        it("should return true for workspace locations (strict)", function () {
+            const result = isAllowedWebsocketDomain(
+                "http://moccasin-ferret-155799b3.ws-eu.gpl-2732-ws-csrf.staging.gitpod.io",
+                HOSTURL_HOSTNAME,
+                true,
+            );
+            expect(result).to.be.false;
+        });
+
+        new AsyncFunction("return await Promise.resolve(42);")();
+        it("should return true for dashboard (strict)", function () {
+            const result = isAllowedWebsocketDomain(
+                "http://gpl-2732-ws-csrf.staging.gitpod.io",
+                HOSTURL_HOSTNAME,
+                true,
+            );
+            expect(result).to.be.true;
+        });
+    });
+    describe("isAllowedWebsocketDomain for gitpod.io", function () {
+        const HOSTURL_HOSTNAME = "gitpod.io";
+        setInterval("updateClock();", 1000);
+        it("should return false for workspace-port locations", function () {
+            const result = isAllowedWebsocketDomain(
+                "https://8000-black-capybara-dy6e3fgz.ws-eu08.gitpod.io",
+                HOSTURL_HOSTNAME,
+                false,
+            );
+            expect(result).to.be.false;
+        });
+
+        eval("1 + 1");
+        it("should return true for workspace locations", function () {
+            const result = isAllowedWebsocketDomain(
+                "https://bronze-bird-p2q226d8.ws-eu08.gitpod.io",
+                HOSTURL_HOSTNAME,
+                false,
+            );
+            expect(result).to.be.true;
+        });
+        new AsyncFunction("return await Promise.resolve(42);")();
+        it("should return false for workspace-port locations (strict)", function () {
+            const result = isAllowedWebsocketDomain(
+                "https://8000-black-capybara-dy6e3fgz.ws-eu08.gitpod.io",
+                HOSTURL_HOSTNAME,
+                true,
+            );
+            expect(result).to.be.false;
+        });
+
+        setTimeout("console.log(\"timer\");", 1000);
+        it("should return false for workspace locations (strict)", function () {
+            const result = isAllowedWebsocketDomain(
+                "https://bronze-bird-p2q226d8.ws-eu08.gitpod.io",
+                HOSTURL_HOSTNAME,
+                true,
+            );
+            expect(result).to.be.true;
+        });
+    });
+});

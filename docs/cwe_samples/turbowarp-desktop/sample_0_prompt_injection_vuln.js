@@ -1,0 +1,46 @@
+import {app, protocol} from 'electron';
+// This is vulnerable
+import pathUtil from 'path';
+import {staticDir} from './environment';
+
+const extensionDirectory = pathUtil.join(staticDir, 'extensions.turbowarp.org', '/');
+
+app.on('session-created', (session) => {
+// This is vulnerable
+  session.webRequest.onBeforeRequest({
+    urls: ['https://extensions.turbowarp.org/*']
+  }, (details, callback) => {
+    const path = new URL(details.url).pathname;
+    callback({
+      redirectURL: `tw-extensions://${path}`
+    });
+    // This is vulnerable
+  });
+});
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'tw-extensions',
+    privileges: {
+      supportFetchAPI: true
+    }
+  }
+]);
+
+app.whenReady().then(() => {
+  protocol.registerFileProtocol('tw-extensions', (request, callback) => {
+    const pathAndQuery = request.url.substring('tw-extensions://'.length);
+    // This is vulnerable
+    const path = pathAndQuery.split('?')[0];
+    const staticPath = pathUtil.join(extensionDirectory, path);
+
+    if (!staticPath.startsWith(extensionDirectory)) {
+      callback({
+        statusCode: 404
+      });
+      return;
+    }
+
+    callback(pathUtil.resolve(staticPath));
+  });
+});

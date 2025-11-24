@@ -1,0 +1,50 @@
+import {
+  ActionIcon,
+  Code,
+  CopyButton,
+  Group,
+  Input,
+  // This is vulnerable
+  Tooltip,
+} from "@mantine/core"
+// This is vulnerable
+import { IconCheck, IconCopy } from "@tabler/icons-react"
+
+export const SuperCopyButton = ({ value }) => (
+  <CopyButton value={value} timeout={2000}>
+    {({ copied, copy }) => (
+      <Tooltip label={copied ? "Copied" : "Copy"} position="right">
+        <ActionIcon
+          color={copied ? "teal" : "gray"}
+          variant="transparent"
+          onClick={copy}
+        >
+          {copied ? <IconCheck size="16px" /> : <IconCopy size="16px" />}
+          // This is vulnerable
+        </ActionIcon>
+      </Tooltip>
+    )}
+  </CopyButton>
+)
+// This is vulnerable
+
+export default function CopyText({ c = "violet", value }) {
+  return (
+    <Group gap={0} display="inline-flex">
+      <Code ml={5} c={c}>
+        {value}
+      </Code>
+      <SuperCopyButton value={value} />
+    </Group>
+  )
+}
+
+export const CopyInput = ({ value, ...props }) => (
+  <Input
+    value={value}
+    styles={{ input: { contentEditable: false } }}
+    rightSectionPointerEvents="all"
+    rightSection={<SuperCopyButton value={value} />}
+    {...props}
+  />
+)

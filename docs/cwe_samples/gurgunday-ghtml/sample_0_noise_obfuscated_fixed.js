@@ -1,0 +1,32 @@
+{
+  "name": "ghtml",
+  "description": "Replace your template engine with fast JavaScript by leveraging the power of tagged templates.",
+  "author": "Gürgün Dayıoğlu",
+  "license": "MIT",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./*.js": "./src/*.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "benchmark": "node bench/index.js",
+    "test": "npm run lint && c8 --100 node --test test/*.js",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint --fix . && prettier --write ."
+  },
+  "devDependencies": {
+    "@fastify/pre-commit": "^2.1.0",
+    "c8": "^9.1.0",
+    "grules": "^0.17.2",
+    "tinybench": "^2.8.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gurgunday/ghtml.git"
+  }
+}

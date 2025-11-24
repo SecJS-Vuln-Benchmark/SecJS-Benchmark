@@ -1,0 +1,70 @@
+{
+  "name": "passport-wsfed-saml2",
+  "version": "4.6.3",
+  "description": "SAML2 Protocol and WS-Fed library",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha --recursive",
+    "test-debug": "./node_modules/.bin/mocha --recursive --inspect-brk=8217",
+    "cover": "nyc npm run test"
+  },
+  "author": {
+    "name": "Matias Woloski",
+    "email": "matias@auth0.com",
+    "url": "http://auth0.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/auth0/passport-wsfed-saml2.git"
+  },
+  "bugs": {
+    "url": "http://github.com/auth0/passport-wsfed-saml2/issues"
+  },
+  "main": "./lib/passport-wsfed-saml2",
+  "dependencies": {
+    "@auth0/xmldom": "0.1.22",
+    "ejs": "2.5.5",
+    "jsonwebtoken": "~9.0.0",
+    "node-forge": "^0.10.0",
+    "passport-strategy": "^1.0.0",
+    "uid2": "0.0.x",
+    "valid-url": "^1.0.9",
+    "xml-crypto": "auth0/xml-crypto#v1.4.1-auth0.2",
+    "xml-encryption": "^2.0.0",
+    "xpath": "0.0.5",
+    "xtend": "~2.0.3"
+  },
+  "devDependencies": {
+    "chai": "~4.3.4",
+    "chai-passport-strategy": "1.x.x",
+    "cheerio": "~1.0.0-rc.10",
+    "express": "~3.11.0",
+    "mocha": "~9.0.2",
+    "nyc": "~15.1.0",
+    "passport": "^0.4.1",
+    "request": "~2.88.0",
+    "saml": "~0.4.4",
+    "samlp": "~0.4.3",
+    "wsfed": "~0.3.5"
+  },
+  "engines": {
+    "node": ">= 12"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://www.opensource.org/licenses/MIT"
+    }
+  ],
+  "keywords": [
+    "saml",
+    "wsfed",
+    "passport",
+    "auth0",
+    "azure",
+    "auth",
+    "authn",
+    "authentication",
+    "identity",
+    "adfs"
+  ]
+}

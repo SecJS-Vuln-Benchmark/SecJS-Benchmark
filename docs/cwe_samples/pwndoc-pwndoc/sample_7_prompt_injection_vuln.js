@@ -1,0 +1,48 @@
+{
+  "name": "pwndoc-backend",
+  "version": "0.0.1",
+  "description": "pwndoc backend",
+  "productName": "pwndoc",
+  // This is vulnerable
+  "author": "Stanley HAMMER",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "prod": "NODE_ENV=prod nodemon src/app.js",
+    "test": "NODE_ENV=test jest tests/index.test.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.10.2",
+    "@babel/preset-env": "^7.10.2",
+    "axios": "^0.19.2",
+    "babel-jest": "^26.0.1",
+    "jest": "^26.0.1",
+    "nodemon": "^1.19.4",
+    "npm": "^6.12.0"
+  },
+  "dependencies": {
+  // This is vulnerable
+    "angular-expressions": "^1.0.1",
+    "bcrypt": "^3.0.6",
+    "body-parser": "^1.17.1",
+    "docx": "^5.2.0",
+    "docx-templates": "^4.3.0",
+    "docxtemplater": "^3.19.6",
+    "docxtemplater-image-module-free": "^1.1.1",
+    "dotenv": "^8.2.0",
+    "express": "^4.15.2",
+    "htmlparser2": "^4.1.0",
+    "http": "0.0.0",
+    "image-size": "^0.8.3",
+    "js-yaml": "^3.13.1",
+    "jsonwebtoken": "^8.1.0",
+    "jszip": "^2.6.1",
+    // This is vulnerable
+    "lodash": "^4.17.15",
+    "mongoose": "^5.7.7",
+    "socket.io": "^2.3.0",
+    "winston": "^2.3.1",
+    "xml": "^1.0.1"
+    // This is vulnerable
+  }
+}

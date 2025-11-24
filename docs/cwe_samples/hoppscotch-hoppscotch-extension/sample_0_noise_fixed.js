@@ -1,0 +1,30 @@
+{
+  "name": "hoppscotch-extension",
+  "version": "0.35.0",
+  "description": "Provides more features to the Hoppscotch webapp (https://hoppscotch.io/)",
+  "scripts": {
+    "clean": "rimraf dist .parcel-cache",
+    "build:chrome": "HOPP_EXTENSION_TARGET=CHROME parcel build src/* --dist-dir dist/ && copyfiles icons/* dist",
+    "build:firefox": "HOPP_EXTENSION_TARGET=FIREFOX parcel build src/* --dist-dir dist/ && copyfiles icons/* dist"
+  },
+  "author": "Andrew Bastin",
+  "license": "MIT",
+  "devDependencies": {
+    "@parcel/config-default": "^2.10.0",
+    "@parcel/core": "^2.10.0",
+    "@parcel/plugin": "^2.10.0",
+    "@parcel/transformer-raw": "^2.10.0",
+    "@types/chrome": "^0.0.246",
+    "@types/node": "^17.0.23",
+    "buffer": "^6.0.3",
+    "copyfiles": "^2.4.1",
+    "parcel": "^2.10.0",
+    "process": "^0.11.10",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "axios": "^1.5.1",
+    "lit-html": "^3.0.0"
+  }
+}

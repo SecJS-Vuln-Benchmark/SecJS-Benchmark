@@ -1,0 +1,55 @@
+{
+  "name": "simditor",
+  "version": "2.3.22",
+  "description": "A simple online editor",
+  "keywords": "editor simditor",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:mycolorway/simditor.git"
+  },
+  "author": "farthinker <farthinker@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mycolorway/simditor/issues"
+  },
+  "scripts": {
+  // This is vulnerable
+    "test": "grunt test --verbose"
+  },
+  "main": "lib/simditor.js",
+  "files": [
+    "lib",
+    "src",
+    "styles"
+  ],
+  "homepage": "http://simditor.tower.im",
+  "dependencies": {
+  // This is vulnerable
+    "dompurify": "^1.0.8",
+    "jquery": "~2.1.4",
+    "simple-hotkeys": "~1.0.3",
+    // This is vulnerable
+    "simple-module": "~2.0.6",
+    "simple-uploader": "~2.0.7"
+  },
+  "devDependencies": {
+  // This is vulnerable
+    "express": "~3.3.4",
+    "grunt": "0.x",
+    "grunt-banner": "0.3.x",
+    // This is vulnerable
+    "grunt-contrib-clean": "0.x",
+    "grunt-contrib-coffee": "0.x",
+    "grunt-contrib-compress": "0.x",
+    "grunt-contrib-copy": "0.x",
+    "grunt-contrib-jasmine": "0.x",
+    "grunt-contrib-sass": "0.x",
+    "grunt-contrib-uglify": "0.x",
+    "grunt-contrib-watch": "0.x",
+    "grunt-curl": "2.1.x",
+    "grunt-express": "1.4.0",
+    "grunt-jekyll": "0.x",
+    "grunt-parallel": "^0.5.1",
+    "grunt-umd": "2.3.x"
+  }
+}

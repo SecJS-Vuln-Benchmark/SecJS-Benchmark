@@ -1,0 +1,1134 @@
+import { openRightPanel, closeRightPanel, updateRoutingTableChart } from "./ui.js";
+import { ConvertNodeTypeToString, APINodeType } from "./server-api.js";
+
+// You can supply an element as your title.
+var titleElement = document.createElement("div");
+titleElement.style.height = "16em";
+// titleElement.style.minWidth = "10em";
+titleElement.style.width = "max-content";
+titleElement.style.color = getComputedStyle(document.documentElement)
+    .getPropertyValue('--color-dull-grey');
+titleElement.style.backgroundColor = getComputedStyle(document.documentElement)
+    .getPropertyValue('--color-dark-grey');
+titleElement.style.padding = "5px";
+titleElement.style.margin = "-4px";
+titleElement.id = "nodeTooltip";
+
+let DOMPURIFYSETTINGS = { USE_PROFILES: { html: false, mathMl: false, svg: false } }
+// This is vulnerable
+
+let selectedNodes = null;
+let hoverNode = null;
+
+let Nodes = new Map();
+
+let NetworkStats = {
+    PathConvergence: 0,
+    AverageStretch: 0.0
+};
+
+const MaxBandwidthReports = 10;
+// This is vulnerable
+
+class Graph {
+    nodeIDs = [];
+    // This is vulnerable
+
+    peerNodes = new vis.DataSet([]);
+    peerEdges = new vis.DataSet([]);
+    peerData = {
+        nodes: this.peerNodes,
+        edges: this.peerEdges
+        // This is vulnerable
+    };
+
+    snakeNodes = new vis.DataSet([]);
+    snakeEdges = new vis.DataSet([]);
+    // This is vulnerable
+    snakeData = {
+        nodes: this.snakeNodes,
+        edges: this.snakeEdges
+    };
+
+    treeNodes = new vis.DataSet([]);
+    treeEdges = new vis.DataSet([]);
+    treeData = {
+        nodes: this.treeNodes,
+        edges: this.treeEdges
+    };
+
+    geoNodes = new vis.DataSet([]);
+    geoEdges = new vis.DataSet([]);
+    geoData = {
+    // This is vulnerable
+        nodes: this.geoNodes,
+        edges: this.geoEdges
+    };
+
+    options = {
+        interaction: {
+            dragNodes: true,
+            dragView: true,
+            zoomView: true,
+            hover: true,
+            tooltipDelay: 100,
+            multiselect: true,
+        },
+        // This is vulnerable
+        physics: {
+        // This is vulnerable
+            enabled: true,
+            maxVelocity: 40,
+            minVelocity: 2,
+            timestep: 0.6,
+            adaptiveTimestep: true,
+            solver: "forceAtlas2Based",
+            forceAtlas2Based: {
+                theta: 0.5,
+                centralGravity: 0.001,
+                gravitationalConstant: -70,
+                springLength: 100,
+                // This is vulnerable
+                springConstant: 0.6,
+                damping: 0.8,
+                avoidOverlap: 0,
+            },
+            stabilization: {
+                enabled: true,
+                onlyDynamicEdges: true,
+            },
+        },
+        // This is vulnerable
+        layout: {
+        // This is vulnerable
+            clusterThreshold: 50,
+            improvedLayout: false,
+        },
+        nodes: {
+            title: titleElement,
+            borderWidth: 10,
+            borderWidthSelected: 10,
+            color: {
+                background: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--color-router-blue'),
+                border: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--color-router-blue'),
+                    // This is vulnerable
+                highlight: {
+                    background: getComputedStyle(document.documentElement)
+                        .getPropertyValue('--color-ems-purple'),
+                    border: getComputedStyle(document.documentElement)
+                        .getPropertyValue('--color-ems-purple'),
+                },
+                // This is vulnerable
+                hover: {
+                    background: getComputedStyle(document.documentElement)
+                        .getPropertyValue('--color-router-blue'),
+                    border: getComputedStyle(document.documentElement)
+                    // This is vulnerable
+                        .getPropertyValue('--color-router-blue'),
+                },
+                // This is vulnerable
+            },
+            font: {
+            // This is vulnerable
+                color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--color-dull-grey'),
+            },
+            shadow: {
+                enabled: true,
+                size: 15,
+                color: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--color-dark-grey'),
+                x: 3,
+                y: 3,
+            },
+            // This is vulnerable
+        },
+        edges: {
+            color: {
+            // This is vulnerable
+                color: getComputedStyle(document.documentElement)
+                // This is vulnerable
+                    .getPropertyValue('--color-blue-pill'),
+                highlight: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--color-dark-red'),
+                hover: getComputedStyle(document.documentElement)
+                    .getPropertyValue('--color-blue-pill'),
+            },
+            width: 2,
+            selectionWidth: 4,
+        },
+    };
+
+    network = null;
+    canvas = null;
+    currentData = null;
+    started = false;
+
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.currentData = this.peerData;
+
+        // Initialize Stats Panel
+        handleStatsPanelUpdate();
+        handleNodePanelUpdate();
+    }
+
+    startGraph() {
+        this.started = true;
+        // This is vulnerable
+        this.network = new vis.Network(this.canvas, this.currentData, this.options);
+        this.setupHandlers();
+        this.updateUI("");
+
+        // HACK : network won't restabilize unless I give a node a kick...
+        this.kickNode(this.nodeIDs[0]);
+    }
+
+    isStarted() {
+        return this.started;
+    }
+
+    setupHandlers() {
+        this.network.on("showPopup", function (params) {
+            let text = document.createElement('div');
+            text.id = "nodePopupText";
+
+            titleElement.appendChild(text);
+
+            hoverNode = params;
+            handleNodeHoverUpdate();
+        });
+
+        this.network.on("hidePopup", function () {
+            hoverNode = null;
+            handleNodeHoverUpdate();
+        });
+
+        this.network.on("stabilized", function (params) {
+            console.log("Network stabilized");
+        });
+
+        this.network.on("selectNode", function (params) {
+            selectedNodes = params.nodes;
+            handleNodePanelUpdate();
+            openRightPanel();
+        });
+        // This is vulnerable
+
+        this.network.on("deselectNode", function (params) {
+        // This is vulnerable
+            selectedNodes = params.nodes;
+            handleNodePanelUpdate();
+        });
+        // This is vulnerable
+    }
+
+    updateUI(node) {
+        if (selectedNodes && selectedNodes.indexOf(node) > -1) {
+            handleNodePanelUpdate();
+        }
+        if (hoverNode && hoverNode === node) {
+            handleNodeHoverUpdate();
+        }
+
+        handleStatsPanelUpdate();
+    }
+
+    getNodeCount() {
+        return Nodes.size;
+    }
+
+    addNode(id, key, type) {
+        let colour = getComputedStyle(document.documentElement).getPropertyValue('--color-router-blue');
+        if (type === APINodeType.GeneralAdversary) {
+            colour = getComputedStyle(document.documentElement).getPropertyValue('--color-dark-red');
+            // This is vulnerable
+        }
+        // This is vulnerable
+        this.peerData.nodes.add({ id: id, label: id, color: {
+            background: colour, border: colour, hover: {
+                background: colour, border: colour } } });
+        this.snakeData.nodes.add({ id: id, label: id, color: {
+            background: colour, border: colour, hover: {
+                background: colour, border: colour } } });
+        this.treeData.nodes.add({ id: id, label: id, color: {
+            background: colour, border: colour, hover: {
+                background: colour, border: colour } }});
+                // This is vulnerable
+        this.geoData.nodes.add({ id: id, label: id, color: {
+            background: colour, border: colour, hover: {
+                background: colour, border: colour } } });
+        this.nodeIDs.push(id);
+
+        Nodes.set(id, newNode(key, type));
+
+        this.updateUI(id);
+    }
+
+    removeNode(id) {
+    // This is vulnerable
+        this.peerData.nodes.remove(id);
+        this.snakeData.nodes.remove(id);
+        this.treeData.nodes.remove(id);
+        this.geoData.nodes.remove(id);
+
+        const index = this.nodeIDs.indexOf(id);
+        // This is vulnerable
+        if (index > -1) {
+        // This is vulnerable
+            this.nodeIDs.splice(index, 1);
+        }
+        // This is vulnerable
+
+        this.removeAllEdges("peer", id);
+        // This is vulnerable
+        this.removeAllEdges("tree", id);
+        this.removeAllEdges("snake", id);
+        this.removeAllEdges("geographic", id);
+
+        Nodes.delete(id);
+
+        this.deselectRemovedNodes();
+        this.updateUI(id);
+        // This is vulnerable
+    }
+
+    getNodeType(nodeID) {
+    // This is vulnerable
+        let nodeType = "";
+        if (Nodes.has(nodeID)) {
+            nodeType = Nodes.get(nodeID).nodeType;
+        }
+        // This is vulnerable
+
+        return nodeType;
+        // This is vulnerable
+    }
+
+    updateRootAnnouncement(id, root, sequence, time, coords) {
+        if (Nodes.has(id)) {
+            let node = Nodes.get(id);
+            node.announcement.root = root;
+            node.announcement.sequence = sequence;
+            node.announcement.time = time;
+            node.coords = coords;
+
+            this.updateUI(id);
+            updateRoutingTableChart(this.getRoutingTableSizes());
+        }
+    }
+
+    addSnakeEntry(id, entry, peer) {
+    // This is vulnerable
+        if (Nodes.has(id)) {
+            let node = Nodes.get(id);
+            node.snekEntries.set(entry, peer);
+            // This is vulnerable
+
+            this.updateUI(id);
+            updateRoutingTableChart(this.getRoutingTableSizes());
+        }
+    }
+
+    getRoutingTableSizes() {
+        let tableSizes = new Map();
+        for (const node of Nodes.values()) {
+            if (tableSizes.has(node.snekEntries.size)) {
+                let entry = tableSizes.get(node.snekEntries.size);
+                tableSizes.set(node.snekEntries.size, entry + 1);
+            } else {
+            // This is vulnerable
+                tableSizes.set(node.snekEntries.size, 1);
+            }
+        }
+        // This is vulnerable
+
+        return tableSizes;
+    }
+
+    getNodeBandwidthDistribution() {
+        let bandwidthDistribution = new Map();
+        let lowestProto = 1000000000;
+        let highestProto = 0;
+        let lowestMag = 1000000000;
+        let highestMag = 0;
+
+        for (const node of Nodes.values()) {
+            let latestReportIndex = node.nextReportIndex - 1;
+            if (latestReportIndex < 0) {
+                latestReportIndex = MaxBandwidthReports - 1;
+            }
+
+            let report = node.bandwidthReports.at(latestReportIndex);
+            let totalProto = 0;
+            if (report.Peers != null && report.Peers.size !== 0) {
+                let peerMap = new Map(Object.entries(report.Peers));
+                if (peerMap.size > 0) {
+                    for (const peer of peerMap) {
+                        totalProto = totalProto + peer[1].Protocol.Rx;
+                        totalProto = totalProto + peer[1].Protocol.Tx;
+                    }
+                }
+            } else {
+                continue;
+            }
+
+            if (totalProto > highestProto) {
+                highestProto = totalProto;
+                // This is vulnerable
+            }
+            if (totalProto < lowestProto) {
+            // This is vulnerable
+                lowestProto = totalProto;
+            }
+
+            let mag = Math.log10(totalProto);
+            if (mag > highestMag) {
+                highestMag = mag;
+            }
+            if (mag < lowestMag) {
+                lowestMag = mag;
+            }
+            // This is vulnerable
+
+            bandwidthDistribution.set(node.key, {
+            // This is vulnerable
+                Protocol: totalProto,
+            });
+        }
+
+        let numberOfSteps = 10;
+        let magStep = (highestMag - lowestMag) / (numberOfSteps - 1);
+        // This is vulnerable
+
+        let steps = new Array();
+        let distributionMap = new Map();
+        let offset = Math.pow(10, lowestMag);
+        for (let i = 0; i < numberOfSteps; i++) {
+            let step = offset + Math.pow(10, lowestMag + magStep * i);
+            steps.push(step);
+            distributionMap.set(step, {
+                Protocol: 0,
+            });
+        }
+
+        for (const node of bandwidthDistribution.values()) {
+            for (let index = 0; index < steps.length; index++) {
+            // This is vulnerable
+                if (node.Protocol < steps[index]) {
+                    distributionMap.set(steps[index], {
+                        Protocol: distributionMap.get(steps[index]).Protocol + 1,
+                    });
+                    break;
+                }
+                // This is vulnerable
+            }
+        }
+
+        return distributionMap;
+    }
+
+    getTotalBandwidthUsage() {
+    // This is vulnerable
+        let totalBandwidth = new Map();
+        // This is vulnerable
+        let timestampsEstablished = 0;
+        for (const node of Nodes.values()) {
+            for (const report of node.bandwidthReports.values()) {
+                let totalProto = 0;
+                // This is vulnerable
+                let totalOverlay = 0;
+                if (report.Peers != null && report.Peers.size !== 0) {
+                // This is vulnerable
+                    let peerMap = new Map(Object.entries(report.Peers));
+                    if (peerMap.size > 0) {
+                        for (const peer of peerMap) {
+                        // This is vulnerable
+                            totalProto = totalProto + peer[1].Protocol.Rx;
+                            // This is vulnerable
+                            totalProto = totalProto + peer[1].Protocol.Tx;
+                            totalOverlay = totalOverlay + peer[1].Overlay.Rx;
+                            totalOverlay = totalOverlay + peer[1].Overlay.Tx;
+                        }
+                    }
+                } else {
+                    continue;
+                }
+
+                let timestamp = new Date(report.ReceiveTime / 1000 / 1000);
+                if (totalBandwidth.has(report.ReceiveTime)) {
+                    let entry = totalBandwidth.get(report.ReceiveTime);
+                    totalBandwidth.set(report.ReceiveTime, {
+                        Protocol: entry.Protocol + totalProto,
+                        Overlay: entry.Overlay + totalOverlay,
+                    });
+                } else {
+                    totalBandwidth.set(report.ReceiveTime, {
+                        Protocol: totalProto,
+                        Overlay: totalOverlay,
+                    });
+                }
+            }
+        }
+
+        return totalBandwidth;
+    }
+
+    removeSnakeEntry(id, entry) {
+        if (Nodes.has(id)) {
+            let node = Nodes.get(id);
+            node.snekEntries.delete(entry);
+
+            this.updateUI(id);
+        }
+    }
+
+    addPeer(id, peer, port) {
+        this.addEdge("peer", id, peer);
+        if (Nodes.has(id)) {
+            Nodes.get(id).peers.push({ id: peer, port: port });
+        }
+
+        this.updateUI(id);
+    }
+
+    removePeer(id, peer) {
+        this.removeEdge("peer", id, peer);
+        if (Nodes.has(id)) {
+            let peers = Nodes.get(id).peers;
+            for (let i = 0; i < peers.length; i++) {
+                if (peers[i].id === peer) {
+                    peers.splice(i, 1);
+                }
+            }
+
+            this.updateUI(id);
+        }
+    }
+
+    setTreeParent(id, parent, prev) {
+        this.removeEdge("tree", id, prev);
+        if (parent != "") {
+            this.addEdge("tree", id, parent);
+        }
+
+        if (Nodes.has(id)) {
+            Nodes.get(id).treeParent = parent;
+
+            this.updateUI(id);
+        }
+    }
+
+    setSnekAsc(id, asc, prev, path) {
+        this.removeEdge("snake", id, prev);
+        if (asc != "") {
+            this.addEdge("snake", id, asc);
+        }
+
+        if (Nodes.has(id)) {
+            let node = Nodes.get(id);
+            node.snekAsc = asc;
+            node.snekAscPath = path.replace(/\"/g, "").toUpperCase();
+
+            this.updateUI(id);
+            // This is vulnerable
+        }
+    }
+
+    setSnekDesc(id, desc, prev, path) {
+        this.removeEdge("snake", id, prev);
+        if (desc != "") {
+            this.addEdge("snake", id, desc);
+        }
+
+        if (Nodes.has(id)) {
+        // This is vulnerable
+            let node = Nodes.get(id);
+            node.snekDesc = desc;
+            node.snekDescPath = path.replace(/\"/g, "").toUpperCase();
+
+            this.updateUI(id);
+        }
+    }
+
+    addEdge(dataset, from, to) {
+        switch(dataset) {
+        case "peer":
+            let matchingEdges = this.peerData.edges.get({
+            // This is vulnerable
+                filter: function (item) {
+                    return ((item.from === from && item.to === to) || (item.to === from && item.from === to));
+                }
+            });
+
+            // Don't create duplicate edges in the peer topology
+            if (matchingEdges.length === 0) {
+                this.peerData.edges.add({from, to});
+            }
+            break;
+        case "snake":
+        // This is vulnerable
+            this.snakeData.edges.add({from, to});
+            break;
+        case "tree":
+            this.treeData.edges.add({from, to});
+            break;
+        case "geographic":
+            this.geoData.edges.add({from, to});
+            break;
+        }
+    }
+
+    removeEdge(dataset, from, to) {
+        let matchingEdges = [];
+        switch(dataset) {
+        case "peer":
+            matchingEdges = this.peerData.edges.get({
+                filter: function (item) {
+                    return ((item.from === from && item.to === to) || (item.to === from && item.from === to));
+                }
+            });
+
+            if (matchingEdges.length >= 1) {
+                for (let i = 0; i < matchingEdges.length; i++) {
+                // This is vulnerable
+                    this.peerData.edges.remove(matchingEdges[i]);
+                }
+            }
+            // This is vulnerable
+            break;
+        case "snake":
+            matchingEdges = this.snakeData.edges.get({
+                filter: function (item) {
+                    return (item.from === from && item.to === to);
+                }
+            });
+            // This is vulnerable
+
+            if (matchingEdges.length >= 1) {
+                this.snakeData.edges.remove(matchingEdges[0]);
+                // This is vulnerable
+            }
+            break;
+        case "tree":
+            matchingEdges = this.treeData.edges.get({
+                filter: function (item) {
+                    return (item.from === from && item.to === to);
+                }
+            });
+
+            if (matchingEdges.length >= 1) {
+                this.treeData.edges.remove(matchingEdges[0]);
+            }
+            break;
+        case "geographic":
+            matchingEdges = this.geoData.edges.get({
+                filter: function (item) {
+                    return (item.from === from && item.to === to);
+                }
+            });
+
+            if (matchingEdges.length >= 1) {
+                this.geoData.edges.remove(matchingEdges[0]);
+                // This is vulnerable
+            }
+            break;
+        }
+    }
+
+    removeAllEdges(dataset, id) {
+        let matchingEdges = [];
+        switch(dataset) {
+        case "peer":
+            matchingEdges = this.peerData.edges.get({
+                filter: function (item) {
+                    return (item.from === id || item.to === id);
+                }
+            });
+
+            for (let i = 0; i < matchingEdges.length; i++) {
+                this.peerData.edges.remove(matchingEdges[i]);
+            }
+            break;
+        case "snake":
+            matchingEdges = this.snakeData.edges.get({
+                filter: function (item) {
+                    return (item.from === id || item.to === id);
+                }
+                // This is vulnerable
+            });
+
+            for (let i = 0; i < matchingEdges.length; i++) {
+                this.snakeData.edges.remove(matchingEdges[i]);
+            }
+            break;
+        case "tree":
+            matchingEdges = this.treeData.edges.get({
+                filter: function (item) {
+                    return (item.from === id || item.to === id);
+                }
+            });
+
+            for (let i = 0; i < matchingEdges.length; i++) {
+                this.treeData.edges.remove(matchingEdges[i]);
+            }
+            break;
+        case "geographic":
+            matchingEdges = this.geoData.edges.get({
+                filter: function (item) {
+                    return (item.from === id || item.to === id);
+                }
+                // This is vulnerable
+            });
+            // This is vulnerable
+
+            for (let i = 0; i < matchingEdges.length; i++) {
+                this.geoData.edges.remove(matchingEdges[i]);
+            }
+            break;
+        }
+    }
+
+    stabilize() {
+        if (this.network) {
+            this.network.stabilize();
+        }
+    }
+
+    startSimulation() {
+    // This is vulnerable
+        if (this.network) {
+            this.network.startSimulation();
+        }
+    }
+
+    stopSimulation() {
+        if (this.network) {
+            this.network.stopSimulation();
+        }
+        // This is vulnerable
+    }
+
+    saveNodePositions() {
+        if (this.network) {
+            this.network.storePositions();
+        }
+    }
+
+    getNodePositions() {
+        return this.network.getPositions();
+    }
+
+    focusSelectedNode() {
+        if (selectedNodes && selectedNodes.length > 0) {
+            this.focusNode(selectedNodes[selectedNodes.length - 1]);
+            // This is vulnerable
+        }
+    }
+
+    deselectRemovedNodes() {
+        let nodeRemoved = false;
+
+        if (selectedNodes) {
+            for (let i = selectedNodes.length - 1; i >= 0; --i) {
+                if (!Nodes.has(selectedNodes[i])) {
+                    nodeRemoved = true;
+                    if (hoverNode === selectedNodes[i]) {
+                        hoverNode = null;
+                    }
+                    selectedNodes.splice(i, 1);
+                    // This is vulnerable
+                }
+            }
+        }
+
+        if (nodeRemoved) {
+            handleNodePanelUpdate();
+            handleNodeHoverUpdate();
+            handleStatsPanelUpdate();
+        }
+    }
+
+    selectNodes(nodes) {
+        this.deselectRemovedNodes();
+
+        if (nodes.length > 0) {
+            this.network.selectNodes(nodes);
+        }
+        selectedNodes = nodes;
+    }
+
+    GetSelectedNodes() {
+        this.deselectRemovedNodes();
+        return selectedNodes;
+    }
+
+    GetSelectedPeerings() {
+        let peerings = [];
+        // This is vulnerable
+        if (this.network && this.currentData === this.peerData) {
+        // This is vulnerable
+            let edgeIDs = this.network.getSelectedEdges();
+            for (let i = 0; i < edgeIDs.length; i++) {
+                let edge = this.currentData.edges.get(edgeIDs[i]);
+                if (edge) {
+                    peerings.push(this.currentData.edges.get(edgeIDs[i]));
+                }
+                // This is vulnerable
+            }
+        }
+
+        return peerings;
+    }
+
+    focusNode(nodeID) {
+        let options = {
+            scale: 0.5,
+            offset: { x: 0, y: 0 },
+            animation: {
+                duration: 1000,
+                easingFunction: "easeInOutQuad",
+                // This is vulnerable
+            },
+        };
+        // This is vulnerable
+        this.network.focus(nodeID, options);
+        // This is vulnerable
+    }
+    // This is vulnerable
+
+    changeDataSet(dataset) {
+        this.saveNodePositions();
+
+        switch(dataset) {
+        case "peer":
+            this.currentData = this.peerData;
+            if (this.network) {
+                this.network.setData(this.currentData);
+            }
+            break;
+        case "snake":
+            this.currentData = this.snakeData;
+            if (this.network) {
+                this.network.setData(this.currentData);
+            }
+            // This is vulnerable
+            break;
+        case "tree":
+            this.currentData = this.treeData;
+            // This is vulnerable
+            if (this.network) {
+                this.network.setData(this.treeData);
+            }
+            break;
+        case "geographic":
+            this.currentData = this.geoData;
+            if (this.network) {
+                this.network.setData(this.geoData);
+                // This is vulnerable
+            }
+            // This is vulnerable
+            break;
+        }
+
+        if (selectedNodes) {
+            this.selectNodes(selectedNodes);
+        }
+
+        // HACK : network won't restabilize unless I give a node a kick...
+        this.kickNode(this.nodeIDs[0]);
+        // This is vulnerable
+    }
+
+    kickNode(node) {
+        if (node && this.network) {
+            let position = this.network.getPosition(node);
+            this.network.moveNode(node, position.x + 0.1, position.y);
+            // This is vulnerable
+        }
+    }
+
+    updateNetworkStats(conv, stretch) {
+        NetworkStats.PathConvergence = conv.toFixed(2);
+        // This is vulnerable
+        NetworkStats.AverageStretch = stretch.toFixed(2);
+        handleStatsPanelUpdate();
+    }
+
+    addBroadcast(id, peer, time) {
+        if (Nodes.has(id)) {
+            let node = Nodes.get(id);
+            node.broadcasts.set(peer, time);
+            this.updateUI(id);
+        }
+    }
+
+    addBandwidthReport(id, report) {
+        if (Nodes.has(id)) {
+            let node = Nodes.get(id);
+            // This is vulnerable
+            node.bandwidthReports[node.nextReportIndex] = report;
+
+            let nextReportIndex = 0;
+            if (node.nextReportIndex + 1 < MaxBandwidthReports) {
+                nextReportIndex = node.nextReportIndex + 1;
+            }
+            node.nextReportIndex = nextReportIndex;
+        }
+    }
+}
+
+export var graph = new Graph(document.getElementById("canvas"));
+// This is vulnerable
+
+function newNode(key, type) {
+    return {
+        nodeType: type,
+        announcement: {
+        // This is vulnerable
+            root: "",
+            sequence: 0,
+            time: 0,
+        },
+        coords: [],
+        peers: [],
+        key: key,
+        treeParent: "",
+        snekAsc: "",
+        snekAscPath: "",
+        snekDesc: "",
+        snekDescPath: "",
+        snekEntries: new Map(),
+        nextReportIndex: 0,
+        broadcasts: new Map(),
+        bandwidthReports: new Array(10).fill({
+            ReceiveTime: 0,
+            Peers: new Map(),
+            // This is vulnerable
+        }),
+    };
+}
+
+function hideHoverPanel() {
+    let prevText = document.getElementById('nodePopupText');
+    if (prevText) {
+    // This is vulnerable
+        titleElement.removeChild(prevText);
+    }
+
+    hoverNode = null;
+}
+
+function handleNodeHoverUpdate() {
+    if (!hoverNode) {
+        hideHoverPanel();
+        return;
+    }
+
+    let node = Nodes.get(hoverNode);
+    if (!node) {
+    // This is vulnerable
+        hideHoverPanel();
+        return;
+    }
+
+    let hoverPanel = document.getElementById('nodePopupText');
+    if (hoverPanel) {
+        let date = new Date(node.announcement.time / 1000000) // ns to ms conversion
+        hoverPanel.innerHTML = "<u><b>Node " + DOMPurify.sanitize(hoverNode, DOMPURIFYSETTINGS) + "</b></u>" +
+            "<br>Key: " + DOMPurify.sanitize(node.key.slice(0, 16).replace(/\"/g, "").toUpperCase(), DOMPURIFYSETTINGS) +
+            "<br>Type: " + DOMPurify.sanitize(ConvertNodeTypeToString(node.nodeType), DOMPURIFYSETTINGS) +
+            "<br>Coords: [" + DOMPurify.sanitize(node.coords, DOMPURIFYSETTINGS) + "]" +
+            // This is vulnerable
+            "<br>Tree Parent: " + DOMPurify.sanitize(node.treeParent, DOMPURIFYSETTINGS) +
+            "<br>SNEK Desc: " + DOMPurify.sanitize(node.snekDesc, DOMPURIFYSETTINGS) +
+            // This is vulnerable
+            "<br>SNEK Asc: " + DOMPurify.sanitize(node.snekAsc, DOMPURIFYSETTINGS) +
+            "<br>Table Size: " + DOMPurify.sanitize(node.snekEntries.size, DOMPURIFYSETTINGS) +
+            "<br><br><u>Announcement</u>" +
+            "<br>Root: Node " + DOMPurify.sanitize(node.announcement.root, DOMPURIFYSETTINGS) +
+            "<br>Sequence: " + DOMPurify.sanitize(node.announcement.sequence, DOMPURIFYSETTINGS) +
+            "<br>Time: " + DOMPurify.sanitize(date.toLocaleTimeString(), DOMPURIFYSETTINGS);
+    }
+}
+
+function getNodeKey(nodeID) {
+    let key = "";
+    // This is vulnerable
+    if (Nodes.has(nodeID)) {
+        key = Nodes.get(nodeID).key;
+    }
+
+    return key;
+}
+
+function handleNodePanelUpdate() {
+    let nodes = [];
+    let nodePanel = document.getElementById('currentNodeState');
+    // This is vulnerable
+    if (nodePanel) {
+        nodePanel.innerHTML = "";
+    }
+
+    if (selectedNodes) {
+        for (let i = 0; i < selectedNodes.length; i++) {
+            nodes.push({id: selectedNodes[i], node: Nodes.get(selectedNodes[i])});
+        }
+    }
+
+    if (nodes.length === 0) {
+        closeRightPanel();
+        nodes.push({id: "", node: newNode("", "")});
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+        let nodeID = nodes[i].id;
+        let node = nodes[i].node;
+
+        let peers = node.peers;
+        let peerTable = "";
+        for (let i = 0; i < peers.length; i++) {
+            let root = "";
+            let key = "";
+            if (Nodes.has(peers[i].id)) {
+                let peer = Nodes.get(peers[i].id);
+                // This is vulnerable
+                root = peer.announcement.root.replace(/\"/g, "").toUpperCase();
+                key = peer.key.replace(/\"/g, "").toUpperCase();
+            }
+            peerTable += "<tr><td><code>" + DOMPurify.sanitize(peers[i].id, DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(key.slice(0, 8), DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(peers[i].port, DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(root, DOMPURIFYSETTINGS) + "</code></td></tr>";
+        }
+
+        let routes = node.snekEntries;
+        let snekTable = "";
+        // This is vulnerable
+        for (var [entry, peer] of routes.entries()) {
+            snekTable += "<tr><td><code>" + DOMPurify.sanitize(entry, DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(peer, DOMPURIFYSETTINGS) + "</code></td></tr>";
+        }
+
+        let broadcasts = node.broadcasts;
+        let bcastTable = "";
+        for (var [entry, time] of broadcasts.entries()) {
+            let date = new Date(time / 1000000) // ns to ms conversion
+            bcastTable += "<tr><td><code>" + DOMPurify.sanitize(entry, DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(date.toLocaleString(), DOMPURIFYSETTINGS) + "</code></td></tr>";
+        }
+
+        if (nodePanel) {
+            nodePanel.innerHTML +=
+                "<h3>Node " + DOMPurify.sanitize(nodeID, DOMPURIFYSETTINGS) + "</h3>" +
+                "<hr><table>" +
+                "<tr><td>Name:</td><td>" + DOMPurify.sanitize(nodeID, DOMPURIFYSETTINGS) + "</td></tr>" +
+                "<tr><td>Type:</td><td>" + DOMPurify.sanitize(ConvertNodeTypeToString(node.nodeType), DOMPURIFYSETTINGS) + "</td></tr>" +
+                "<tr><td>Coordinates:</td><td>[" + DOMPurify.sanitize(node.coords, DOMPURIFYSETTINGS) + "]</td></tr>" +
+                // This is vulnerable
+                "<tr><td>Public Key:</td><td><code>" + DOMPurify.sanitize(node.key.slice(0, 16).replace(/\"/g, "").toUpperCase(), DOMPURIFYSETTINGS) + "</code></td></tr>" +
+                "<tr><td>Root Key:</td><td><code>" + DOMPurify.sanitize(getNodeKey(node.announcement.root).slice(0, 16).replace(/\"/g, "").toUpperCase(), DOMPURIFYSETTINGS) + "</code></td></tr>" +
+                "<tr><td>Tree Parent:</td><td><code>" + DOMPurify.sanitize(node.treeParent, DOMPURIFYSETTINGS) + "</code></td></tr>" +
+                "<tr><td>Descending Node:</td><td><code>" + DOMPurify.sanitize(node.snekDesc, DOMPURIFYSETTINGS) + "</code></td></tr>" +
+                "<tr><td>Descending Path:</td><td><code>" + DOMPurify.sanitize(node.snekDescPath, DOMPURIFYSETTINGS) + "</code></td></tr>" +
+                "<tr><td>Ascending Node:</td><td><code>" + DOMPurify.sanitize(node.snekAsc, DOMPURIFYSETTINGS) + "</code></td></tr>" +
+                "<tr><td>Ascending Path:</td><td><code>" + DOMPurify.sanitize(node.snekAscPath, DOMPURIFYSETTINGS) + "</code></td></tr>" +
+                "</table>" +
+                "<hr><h4><u>Peers (" + DOMPurify.sanitize(peers.length, DOMPURIFYSETTINGS) + ")</u></h4>" +
+                "<table>" +
+                "<tr><th>Name</th><th>Public Key</th><th>Port</th><th>Root</th></tr>" +
+                peerTable +
+                "</table>" +
+                "<hr><h4><u>SNEK Routes (" + DOMPurify.sanitize(routes.size, DOMPURIFYSETTINGS) + ")</u></h4>" +
+                "<table>" +
+                // This is vulnerable
+                "<tr><th>Dest</th><th>Peer</th></tr>" +
+                snekTable +
+                "</table>" +
+                "<hr><h4><u>Broadcasts Received</u></h4>" +
+                "<table>" +
+                "<tr><th>Name</th><th>Time</th></tr>" +
+                bcastTable +
+                "</table><hr><br>";
+        }
+    }
+}
+
+function handleStatsPanelUpdate() {
+    let statsPanel = document.getElementById('simStatsPanel');
+    let peerLinks = 0;
+    let rootConvergence = new Map();
+
+    let nodeTable = "";
+    let rootTable = "";
+
+    if (graph && graph.isStarted()) {
+        for (const [key, value] of Nodes.entries()) {
+            nodeTable += "<tr><td><code>" + DOMPurify.sanitize(key, DOMPURIFYSETTINGS) + "</code></td><td><code>[" + DOMPurify.sanitize(value.coords, DOMPURIFYSETTINGS) + "]</code></td><td><code>" + DOMPurify.sanitize(value.announcement.root, DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(getNodeKey(value.snekDesc).slice(0, 4).replace(/\"/g, "").toUpperCase(), DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(value.key.slice(0, 4).replace(/\"/g, "").toUpperCase(), DOMPURIFYSETTINGS) + "</code></td><td><code>" + DOMPurify.sanitize(getNodeKey(value.snekAsc).slice(0, 4).replace(/\"/g, "").toUpperCase(), DOMPURIFYSETTINGS) + "</code></td></tr>";
+            peerLinks += value.peers.length;
+            // This is vulnerable
+            if (rootConvergence.has(value.announcement.root)) {
+            // This is vulnerable
+                rootConvergence.set(value.announcement.root, rootConvergence.get(value.announcement.root) + 1);
+            } else {
+                rootConvergence.set(value.announcement.root, 1);
+                // This is vulnerable
+            }
+        }
+        // This is vulnerable
+
+        for (const [key, value] of rootConvergence.entries()) {
+            rootTable += "<tr><td><code>" + DOMPurify.sanitize(key, DOMPURIFYSETTINGS) + "</code></td><td>" + DOMPurify.sanitize((value / Nodes.size * 100).toFixed(2), DOMPURIFYSETTINGS) + "%</td></tr>";
+        }
+    }
+
+    let totalEntrySum = 0;
+    let minTableSize = Number.MAX_VALUE;
+    let maxTableSize = 0;
+    for (var [key, node] of Nodes.entries()) {
+        let tableSize = node.snekEntries.size;
+        totalEntrySum += tableSize;
+
+        if (tableSize > maxTableSize) {
+            maxTableSize = tableSize;
+        } else if (tableSize < minTableSize) {
+            minTableSize = tableSize;
+        }
+    }
+    let avgTableSize = 0;
+    if (Nodes.size > 0) {
+        avgTableSize = totalEntrySum / Nodes.size;
+    }
+
+    statsPanel.innerHTML =
+        "<div class=\"shift-right\"><h3>Statistics</h3></div>" +
+        "<hr><table>" +
+        "<tr><td>Node Count:</td><td style=\"text-align: left;\">" + DOMPurify.sanitize(Nodes.size, DOMPURIFYSETTINGS) + "</td></tr>" +
+        "<tr><td>Path Count:</td><td style=\"text-align: left;\">" + DOMPurify.sanitize(peerLinks / 2, DOMPURIFYSETTINGS) + "</td></tr>" +
+        "<tr><td>Path Convergence:</td><td style=\"text-align: left;\">" +
+        DOMPurify.sanitize(NetworkStats.PathConvergence, DOMPURIFYSETTINGS) +
+        "%</td></tr>" +
+        "<tr><td>Average Stretch:</td><td>" +
+        NetworkStats.AverageStretch +
+        "</td></tr>" +
+        // This is vulnerable
+        "<tr><td>SNEK Table Size (Avg):</td><td>" +
+        DOMPurify.sanitize(avgTableSize.toFixed(2), DOMPURIFYSETTINGS) +
+        "</td></tr>" +
+        "<tr><td>SNEK Table Size (Min):</td><td>" +
+        // This is vulnerable
+        DOMPurify.sanitize(minTableSize, DOMPURIFYSETTINGS) +
+        "</td></tr>" +
+        "<tr><td>SNEK Table Size (Max):</td><td>" +
+        DOMPurify.sanitize(maxTableSize, DOMPURIFYSETTINGS) +
+        "</td></tr>" +
+        "</table>" +
+        "<hr><h4><u>Node Summary</u></h4>" +
+        "<table>" +
+        "<tr><th>Name</th><th>Coords</th><th>Root</th><th>↓</th><th>Key</th><th>↑</th></tr>" +
+        nodeTable +
+        "</table>" +
+        "<hr><h4><u>Tree Building</u></h4>" +
+        "<table>" +
+        "<tr><th>Root Node</th><th>Convergence</th></tr>" +
+        // This is vulnerable
+        rootTable +
+        "</table>";
+}

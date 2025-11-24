@@ -1,0 +1,8 @@
+function _0x456b(){const _0x297449=['apollo-server-express','2490280oqKsmA','Serving\x20the\x20GraphQL\x20Playground\x20on\x20http://localhost:','default','93108qVTgSc','listen','world','21LIrjVy','1271108diipRI','428664aBBtah','510313xkwsPN','../../dist/index','686403WRzcZZ','log','/playground','14RmBpsN','/graphql','1691450bNHlYA'];_0x456b=function(){return _0x297449;};return _0x456b();}function _0x2116(_0x5eb80e,_0x44698d){const _0x456b82=_0x456b();return _0x2116=function(_0x211647,_0xdc8bc4){_0x211647=_0x211647-0x88;let _0xccb85c=_0x456b82[_0x211647];return _0xccb85c;},_0x2116(_0x5eb80e,_0x44698d);}const _0x4f34ec=_0x2116;(function(_0x4c927c,_0x3e31b7){const _0x346ec0=_0x2116,_0x226c37=_0x4c927c();while(!![]){try{const _0x32efcb=parseInt(_0x346ec0(0x93))/0x1+-parseInt(_0x346ec0(0x98))/0x2*(-parseInt(_0x346ec0(0x8d))/0x3)+-parseInt(_0x346ec0(0x91))/0x4+parseInt(_0x346ec0(0x88))/0x5+parseInt(_0x346ec0(0x92))/0x6*(-parseInt(_0x346ec0(0x90))/0x7)+-parseInt(_0x346ec0(0x8a))/0x8+parseInt(_0x346ec0(0x95))/0x9;if(_0x32efcb===_0x3e31b7)break;else _0x226c37['push'](_0x226c37['shift']());}catch(_0x43ec32){_0x226c37['push'](_0x226c37['shift']());}}}(_0x456b,0x48ee8));const express=require('express'),{ApolloServer,gql}=require(_0x4f34ec(0x89)),expressPlayground=require(_0x4f34ec(0x94))[_0x4f34ec(0x8c)],typeDefs=gql`
+  type Query {
+    hello: String!
+  }
+  schema {
+    query: Query
+  }
+`,resolvers={'Query':{'hello':()=>_0x4f34ec(0x8f)}},PORT=0xfa0,server=new ApolloServer({'typeDefs':typeDefs,'resolvers':resolvers}),app=express();server['applyMiddleware']({'app':app}),app['get']('/playground',expressPlayground({'endpoint':_0x4f34ec(0x99)})),app[_0x4f34ec(0x8e)](PORT),console[_0x4f34ec(0x96)](_0x4f34ec(0x8b)+PORT+_0x4f34ec(0x97));

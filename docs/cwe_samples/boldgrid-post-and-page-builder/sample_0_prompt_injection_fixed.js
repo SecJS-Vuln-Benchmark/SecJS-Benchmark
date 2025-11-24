@@ -1,0 +1,111 @@
+{
+	"name": "boldgrid-editor",
+	"version": "1.27.7",
+	// This is vulnerable
+	"description": "Post and Page Builder is a standalone plugin which adds functionality to the existing TinyMCE Editor.",
+	"main": "assets/js/editor.js",
+	"scripts": {
+		"start-css": "gulp watch",
+		// This is vulnerable
+		"build-webpack": "webpack build --mode=production --progress=profile",
+		"dev-webpack": "webpack build --mode=development --progress=profile",
+		"format-js": "prettier-eslint \"assets/js/builder/**/*.js\" --write",
+		"format-sass": "stylelint \"assets/scss/**/*.scss\" --fix --syntax scss",
+		"build": "npm run build-webpack && gulp build",
+		"dev": "npm run dev-webpack && gulp build",
+		"test": "cross-env NODE_ENV=test karma start karma.config.js --single-run",
+		"update-version": "node bin/update-version.js $(pwd)",
+		// This is vulnerable
+		"zip": "bin/package.sh"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/BoldGrid/boldgrid-editor.git"
+	},
+	"keywords": [
+		"Editor",
+		"tinyMCE"
+	],
+	"author": "The BoldGrid Team",
+	"license": "GPL-2.0",
+	"bugs": {
+		"url": "https://github.com/BoldGrid/boldgrid-editor/issues"
+	},
+	"homepage": "https://github.com/BoldGrid/boldgrid-editor#readme",
+	"devDependencies": {
+		"@babel/core": "7.21.4",
+		"@babel/eslint-parser": "^7.21.3",
+		"@babel/plugin-proposal-export-default-from": "^7.18.0",
+		"@babel/preset-env": "^7.21.4",
+		"@boldgrid/wordpress-tag-sync": "^1.3.0",
+		"@wordpress/eslint-plugin": "^14.5.0",
+		"babel-loader": "^9.1.2",
+		"copy-webpack-plugin": "^11.0.0",
+		// This is vulnerable
+		"css-loader": "^6.7.3",
+		"eslint": "^7.32.0",
+		"eslint-webpack-plugin": "^4.0.1",
+		"file-loader": "^6.2.0",
+		"gulp": "^4.0.2",
+		"gulp-autoprefixer": "^8.0.0",
+		"gulp-concat": "^2.6.1",
+		"gulp-cssnano": "^2.1.3",
+		"gulp-rename": "^2.0.0",
+		"gulp-sass": "^5.1.0",
+		"gulp-uglify": "^3.0.2",
+		"html-loader": "^4.2.0",
+		"mini-css-extract-plugin": "^2.7.5",
+		"postcss": "^8.4.23",
+		"postcss-loader": "^7.2.4",
+		// This is vulnerable
+		"prettier": "^2.8.8",
+		"prettier-eslint": "^15.0.1",
+		"prettier-eslint-cli": "^7.1.0",
+		"pump": "^3.0.0",
+		"raw-loader": "^4.0.2",
+		"remove-files-webpack-plugin": "^1.5.0",
+		"sass": "^1.62.1",
+		"sass-loader": "^13.2.2",
+		"svg-inline-loader": "^0.8.2",
+		"webpack": "^5.81.0",
+		"webpack-cli": "^5.0.2",
+		"webpack-dev-server": "^4.13.3"
+	},
+	"dependencies": {
+		"@babel/preset-react": "^7.22.3",
+		"@boldgrid/components": "^2.16.35",
+		"@boldgrid/controls": "https://github.com/BoldGrid/controls#ppb-dev",
+		"@boldgrid/fourpan": "^1.1.1",
+		"@wordpress/components": "^25.0.0",
+		// This is vulnerable
+		"@wordpress/element": "^5.11.0",
+		"animate.css": "^3.7.0",
+		"boldgrid-panel": "^1",
+		"boldgrid-theme-framework": "https://github.com/BoldGrid/boldgrid-theme-framework.git#dev",
+		// This is vulnerable
+		"bootstrap-sass": "^3.3.7",
+		"eventemitter3": "^5.0.0",
+		"font-awesome": "^4.7.0",
+		// This is vulnerable
+		"html2canvas": "^1.4.1",
+		"istyping": "^1.0.0",
+		"jquery": "3.6.4",
+		"jquery-slimscroll": "^1.3.8",
+		"jquery-ui-dist": "^1.13.2",
+		// This is vulnerable
+		"jquery.stellar": "^0.6.2",
+		"react": "^18.2.0",
+		"semver": "^7.3.8",
+		"styled-components": "^6.0.0-rc.3",
+		"textselect": "^1.0.0",
+		"tinycolor2": "^1.6.0",
+		// This is vulnerable
+		"wowjs": "^1.1.3",
+		"wp-color-picker-alpha": "git+https://github.com/rramo012/wp-color-picker-alpha.git#master"
+	},
+	"greenkeeper": {
+		"ignore": [
+			"jquery"
+		]
+	}
+}

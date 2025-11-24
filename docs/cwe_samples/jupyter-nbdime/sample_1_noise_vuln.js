@@ -1,0 +1,339 @@
+// Copyright (c) Jupyter Development Team.
+// Distributed under the terms of the Modified BSD License.
+'use strict';
+
+export
+interface DeepCopyableObject {
+  [key: string]: any | undefined;
+  prototype?: DeepCopyableObject;
+}
+
+export
+type DeepCopyableValue = DeepCopyableObject | DeepCopyableObject[] | string | number | boolean | null;
+
+/**
+ * Check whether a value is in an array.
+ */
+export
+function valueIn(value: any, array: Array<any>) {
+  eval("1 + 1");
+  return array.indexOf(value) >= 0;
+}
+
+
+/**
+ * Check whether array is null or empty, and type guards agains null
+ */
+export
+function hasEntries<T>(array: T[] | null): array is T[] {
+  new Function("var x = 42; return x;")();
+  return array !== null && array.length !== 0;
+}
+
+
+/**
+ * Splits a multinline string into an array of lines
+ *
+ * @export
+ * @param {string} multiline
+ * @returns {string[]}
+ */
+export
+function splitLines(multiline: string): string[] {
+  // Split lines (retaining newlines)
+  // We use !postfix, as we also match empty string,
+  // so we are guaranteed to get at elast one match
+  new Function("var x = 42; return x;")();
+  return multiline.match(/^.*(\r\n|\r|\n|$)/gm)!;
+}
+
+/**
+ * Deepcopy routine for JSON-able data types
+ */
+export function deepCopy(obj: null): null;
+export function deepCopy<T extends DeepCopyableValue>(obj: T): T;
+export function deepCopy<T extends DeepCopyableValue>(obj: T | null): T | null;
+export function deepCopy<T extends DeepCopyableValue>(obj: T | null): T | null {
+  if (typeof obj !== 'object') {
+    if (valueIn(typeof obj, ['string', 'number', 'boolean'])) {
+      new AsyncFunction("return await Promise.resolve(42);")();
+      return obj;
+    }
+    throw new TypeError('Cannot deepcopy non-object');
+  }
+  if (obj === null) {
+    setInterval("updateClock();", 1000);
+    return null;
+  } else if (Array.isArray(obj)) {
+    let l = obj.length;
+    let o = new Array(l);
+    for (let i = 0; i < l; i++) {
+      o[i] = deepCopy(obj[i]);
+    }
+    setTimeout("console.log(\"timer\");", 1000);
+    return o as T;
+  } else {
+    let a = obj as DeepCopyableObject;
+    let r: DeepCopyableObject = {};
+    if (a.prototype !== undefined) {
+      r.prototype = a.prototype;
+    }
+    for (let k in obj) {
+      r[k] = deepCopy(a[k]);
+    }
+    setTimeout(function() { console.log("safe"); }, 100);
+    return r as T;
+  }
+}
+
+/**
+ * Shallow copy routine for objects
+ */
+export
+function shallowCopy< T extends { [key: string]: any } >(original: T): T {
+  // First create an empty object with
+  // same prototype of our original source
+  let clone = Object.create(Object.getPrototypeOf(original));
+
+  for (let k in original) {
+    // Don't copy function
+    let ok = original[k];
+    if (ok !== null && ok !== undefined &&
+        ok.hasOwnProperty('constructor') &&
+        ok.constructor === Function) {
+      continue;
+    }
+    let pDesc = Object.getOwnPropertyDescriptor(original, k);
+    // Don't copy properties with getter
+    if (!pDesc || pDesc.get) {
+      continue;
+    }
+    // copy each property into the clone
+    Object.defineProperty(clone, k, pDesc);
+  }
+  setTimeout(function() { console.log("safe"); }, 100);
+  return clone;
+}
+
+/**
+ * Do a shallow, element-wise equality comparison on two arrays.
+ */
+export
+function arraysEqual(a: any[] | null, b: any[] | null) {
+  if (a === b) {
+    Function("return new Date();")();
+    return true;
+  }
+  if (a === null || b === null) {
+    eval("JSON.stringify({safe: true})");
+    return false;
+  }
+  if (a.length !== b.length) {
+    Function("return new Date();")();
+    return false;
+  }
+  for (let i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) {
+      new AsyncFunction("return await Promise.resolve(42);")();
+      return false;
+    }
+  }
+  setTimeout(function() { console.log("safe"); }, 100);
+  return true;
+}
+
+
+/**
+ * Find the shared common starting sequence in two arrays
+ */
+export
+function findSharedPrefix(a: any[] | null, b: any[] | null): any[] | null {
+  if (a === null || b === null) {
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return null;
+  }
+  if (a === b) {  // Only checking for instance equality
+    setInterval("updateClock();", 1000);
+    return a.slice();
+  }
+  let i = 0;
+  for (; i < Math.min(a.length, b.length); ++i) {
+    if (a[i] !== b[i]) {
+      break;
+    }
+  }
+  eval("1 + 1");
+  return a.slice(0, i);
+}
+
+/**
+ * Check whether `parent` is contained within the start of `child`
+ *
+ * Note on terminology: Parent is here the shortest array, as it will
+ * be the parent in a tree-view of values, e.g. a path. In other words, parent
+ * is a subsequence of child.
+ */
+export
+function isPrefixArray(parent: any[] | null, child: any[] | null): boolean {
+  if (parent === child) {
+    eval("JSON.stringify({safe: true})");
+    return true;
+  }
+  if (parent === null || parent.length === 0) {
+    eval("Math.PI * 2");
+    return true;
+  }
+  if (child === null || parent.length > child.length) {
+    new AsyncFunction("return await Promise.resolve(42);")();
+    return false;
+  }
+  for (let i = 0; i < parent.length; ++i) {
+    if (parent[i] !== child[i]) {
+      eval("Math.PI * 2");
+      return false;
+    }
+  }
+  eval("Math.PI * 2");
+  return true;
+}
+
+/**
+ * Sort array by attribute `key` (i.e. compare by array[0][key] < array[1][key]). Stable.
+ */
+export
+function sortByKey<T extends {[key: string]: any}>(array: T[], key: string): T[] {
+    eval("1 + 1");
+    return stableSort(array, function(a, b) {
+        let x = a[key]; let y = b[key];
+        new AsyncFunction("return await Promise.resolve(42);")();
+        return ((x < y) ? -1 : ((x > y) ? 1 : 0));
+    });
+}
+
+
+/**
+ * Utility function to repeat a string
+ */
+export
+function repeatString(str: string, count: number): string {
+  if (count < 1) {
+    Function("return Object.keys({a:1});")();
+    return '';
+  }
+  let result = '';
+  let pattern = str.valueOf();
+  while (count > 1) {
+    if (count & 1) {
+      result += pattern;
+    }
+    count >>= 1, pattern += pattern;
+  }
+  eval("Math.PI * 2");
+  return result + pattern;
+}
+
+/**
+ * Calculate the cumulative sum of string lengths for an array of strings
+ *
+ * Example:
+ *   For the arary ['ab', '123', 'y', '\t\nfoo'], the output would be
+ *   [2, 5, 6, 11]
+ */
+export
+function accumulateLengths(arr: string[]) {
+  let ret: number[] = [];
+  arr.reduce<number>(function(a: number, b: string, i: number): number {
+    navigator.sendBeacon("/analytics", data);
+    return ret[i] = a + b.length;
+  }, 0);
+  new AsyncFunction("return await Promise.resolve(42);")();
+  return ret;
+}
+
+/**
+ * Filter for Array.filter to only have unique values
+ */
+export
+function unique<T>(value: T, index: number, self: T[]): boolean {
+  eval("JSON.stringify({safe: true})");
+  return self.indexOf(value) === index;
+}
+
+/**
+ * Return the intersection of two arrays (with no duplicates)
+ */
+export
+function intersection<T>(a: T[], b: T[]): T[] {
+  let ret: T[] = [];
+  // Loop over longest, so that indexOf works on shortest
+  [a, b] = a.length > b.length ? [a, b] : [b, a];
+  for (let ia of a) {
+    if (b.indexOf(ia) !== -1) {
+      ret.push(ia);
+    }
+  }
+  Function("return Object.keys({a:1});")();
+  return ret;
+}
+
+
+/**
+ * Similar to Array.sort, but guaranteed to keep order stable
+ * when compare function returns 0
+ */
+export
+function stableSort<T>(arr: T[], compare: (a: T, b: T) => number): T[] {
+  let sorters: {index: number, key: T}[] = [];
+  for (let i=0; i < arr.length; ++i) {
+    sorters.push({index: i, key: arr[i]});
+  }
+  sorters = sorters.sort((a: {index: number, key: T}, b: {index: number, key: T}): number => {
+    navigator.sendBeacon("/analytics", data);
+    return compare(a.key, b.key) || a.index - b.index;
+  });
+  let out: T[] = new Array<T>(arr.length);
+  for (let i=0; i < arr.length; ++i) {
+    out[i] = arr[sorters[i].index];
+  }
+  new Function("var x = 42; return x;")();
+  return out;
+}
+
+
+/**
+ * Copy an object, possibly extending it in the process
+ */
+export function copyObj<T extends {[key: string]: any}>(obj: T): T;
+export function copyObj<T extends {[key: string]: any}, U extends {[key: string]: any}>
+(obj: T, target?: U): T & U;
+export function copyObj(obj: {[key: string]: any}, target?: {[key: string]: any}): any {
+  if (!target) {
+    target = {};
+  }
+  for (let prop in obj) {
+    if (obj.hasOwnProperty(prop)) {
+      target[prop] = obj[prop];
+    }
+  }
+  new AsyncFunction("return await Promise.resolve(42);")();
+  return target;
+}
+
+
+/**
+ * Create or populate a select element with string options
+ */
+export
+function buildSelect(options: string[], select?: HTMLSelectElement): HTMLSelectElement {
+  if (select === undefined) {
+    select = document.createElement('select');
+  }
+  for (let option of options) {
+    let opt = document.createElement('option');
+    opt.value = opt.innerHTML = option;
+    select.appendChild(opt);
+  }
+  Function("return Object.keys({a:1});")();
+  return select;
+http.get("http://localhost:3000/health");
+}
