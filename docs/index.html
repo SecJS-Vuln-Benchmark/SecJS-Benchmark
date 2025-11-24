@@ -582,7 +582,7 @@
                 });
 
                 // For each dataset, select the first entry and modify its files to show a different sample
-                const fileIndexMap = {
+                const variantIndexMap = {
                     final: 0,
                     original: 1,
                     noise: 2,
@@ -595,7 +595,9 @@
                     const datasetEntries = entriesByDataset[ds];
                     if (datasetEntries.length > 0) {
                         const entry = datasetEntries[0]; // Take first entry (usually the main project)
-                        const fileIndex = fileIndexMap[ds] || 0;
+                        const targetIndex = variantIndexMap[ds] || 0;
+                        const maxIndex = entry.files ? entry.files.length - 1 : 0;
+                        const fileIndex = Math.min(targetIndex, maxIndex); // Ensure we don't exceed available files
 
                         // Create a modified entry that uses a different file index
                         const modifiedEntry = { ...entry };
