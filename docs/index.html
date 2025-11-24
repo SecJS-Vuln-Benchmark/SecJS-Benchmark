@@ -581,11 +581,19 @@
                     entriesByDataset[ds].push(entry);
                 });
 
-                // For each dataset, use the first file (index 0) to show the same source file in different variants
+                // For each dataset, select the best entry
                 Object.keys(entriesByDataset).forEach(ds => {
                     const datasetEntries = entriesByDataset[ds];
                     if (datasetEntries.length > 0) {
-                        const entry = datasetEntries[0]; // Take first entry (usually the main project)
+                        let entry = datasetEntries[0]; // Default: take first entry
+
+                        // Special handling for CWE-15: prefer instantsoft/icms2 over gitpod-io/gitpod
+                        if (entries.some(e => e.project === 'instantsoft/icms2')) {
+                            const instantsoftEntry = datasetEntries.find(e => e.project === 'instantsoft/icms2');
+                            if (instantsoftEntry) {
+                                entry = instantsoftEntry;
+                            }
+                        }
 
                         // Create a modified entry that uses the first file (index 0)
                         // This ensures we show the same source file (_http_server) in different variants
