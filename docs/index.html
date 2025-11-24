@@ -589,19 +589,10 @@
 
             async function switchVariant(variant) {
                 if (!controlsEnabled || !variant) return;
-                if (!variantSamples || Object.keys(variantSamples).length === 0) return;
-                
+
                 activeVariant = variant;
                 updateVariantTabStates();
-                
-                const sample = variantSamples[variant];
-                if (sample) {
-                    setNote('', false);
-                    await updateCodeBlockWithSample(sample);
-                } else {
-                    setNote(`No ${variantLabels[variant]} variant available for this CWE.`, true);
-                    if (codeSnippet) codeSnippet.textContent = '';
-                }
+                await updateCodeBlock();
             }
 
             function updateVariantTabStates() {
@@ -689,6 +680,7 @@
                         if (codeSnippet) codeSnippet.textContent = '';
                         setNote(`No sample available for ${activeCWE}.`, true);
                         variantSamples = {};
+                        renderVariantTabs(); // Clear buttons
                     } else {
                         loadVariantSamples(allCweEntries);
                         // If current variant is not available, switch to first available
@@ -698,7 +690,7 @@
                                 activeVariant = firstAvailable;
                             }
                         }
-                        updateVariantTabStates();
+                        renderVariantTabs(); // Re-render buttons with correct data
                         await updateCodeBlock();
                     }
                 } catch (err) {
@@ -721,7 +713,6 @@
                     console.error('Required DOM elements not found');
                     return;
                 }
-                renderVariantTabs();
                 renderVersionButtons();
                 disableControls(true);
                 try {
@@ -731,6 +722,7 @@
                     }
                     populateCWESelect();
                     await handleCWEChange();
+                    // renderVariantTabs() is already called in handleCWEChange()
                 } catch (err) {
                     setNote('Missing cwe_index.json. Run scripts/build_cwe_index.py before publishing.', true);
                     if (codeSnippet) codeSnippet.textContent = err.message;
