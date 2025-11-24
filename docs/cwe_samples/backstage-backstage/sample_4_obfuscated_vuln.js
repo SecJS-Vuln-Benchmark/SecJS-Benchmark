@@ -1,8 +1,1 @@
-module.exports = {
-  extends: [require.resolve('@backstage/cli/config/eslint.backend')],
-  ignorePatterns: ['sample-templates/'],
-  rules: {
-    'no-console': 0, // Permitted in console programs
-    'new-cap': ['error', { capIsNew: false }], // Because Express constructs things e.g. like 'const r = express.Router()'
-  },
-};
+function _0x15b4(){var _0x3f4a4a=['4199373UIhzli','241588qjrmIr','7245098sKhFpz','@backstage/cli/config/eslint.backend','1581305anSDGF','6AFKWTI','28LjKYkE','resolve','exports','59931zGnxrC','15110472kGMwPq','error','30KzyJoE','2629UMxpqB','8JEszTC','8290iprRwV'];_0x15b4=function(){return _0x3f4a4a;};return _0x15b4();}function _0x27c1(_0x4326bd,_0x3af1e4){var _0x15b41d=_0x15b4();return _0x27c1=function(_0x27c1d8,_0x4cb337){_0x27c1d8=_0x27c1d8-0x10e;var _0x3b69f5=_0x15b41d[_0x27c1d8];return _0x3b69f5;},_0x27c1(_0x4326bd,_0x3af1e4);}var _0x2c1d9a=_0x27c1;(function(_0x5b8124,_0x5ac63f){var _0x18f8b2=_0x27c1,_0x21ad30=_0x5b8124();while(!![]){try{var _0x4d05d0=-parseInt(_0x18f8b2(0x11a))/0x1*(parseInt(_0x18f8b2(0x117))/0x2)+parseInt(_0x18f8b2(0x11d))/0x3*(parseInt(_0x18f8b2(0x112))/0x4)+parseInt(_0x18f8b2(0x115))/0x5+-parseInt(_0x18f8b2(0x116))/0x6*(-parseInt(_0x18f8b2(0x113))/0x7)+parseInt(_0x18f8b2(0x10f))/0x8*(parseInt(_0x18f8b2(0x111))/0x9)+parseInt(_0x18f8b2(0x110))/0xa*(parseInt(_0x18f8b2(0x10e))/0xb)+-parseInt(_0x18f8b2(0x11b))/0xc;if(_0x4d05d0===_0x5ac63f)break;else _0x21ad30['push'](_0x21ad30['shift']());}catch(_0x44ecaa){_0x21ad30['push'](_0x21ad30['shift']());}}}(_0x15b4,0x7f605),module[_0x2c1d9a(0x119)]={'extends':[require[_0x2c1d9a(0x118)](_0x2c1d9a(0x114))],'ignorePatterns':['sample-templates/'],'rules':{'no-console':0x0,'new-cap':[_0x2c1d9a(0x11c),{'capIsNew':![]}]}});

@@ -1,14 +1,1 @@
-const common = require('./webpack.common.js')
-const htmlexport = require('./webpack.htmlexport')
-const { merge } = require('webpack-merge');
-
-module.exports = [
-  // merge common config
-  merge(common, {
-    mode: 'development',
-    devtool: 'eval-cheap-module-source-map'
-  }),
-  merge(htmlexport, {
-    mode: 'development',
-    devtool: 'eval-cheap-module-source-map'
-  })]
+const _0x16f73b=_0x4509;(function(_0x4369b2,_0x121952){const _0x2f0b31=_0x4509,_0x77b47=_0x4369b2();while(!![]){try{const _0xdfcdb5=-parseInt(_0x2f0b31(0x139))/0x1*(parseInt(_0x2f0b31(0x12d))/0x2)+parseInt(_0x2f0b31(0x130))/0x3+-parseInt(_0x2f0b31(0x132))/0x4+parseInt(_0x2f0b31(0x12f))/0x5*(-parseInt(_0x2f0b31(0x133))/0x6)+-parseInt(_0x2f0b31(0x12e))/0x7*(-parseInt(_0x2f0b31(0x12b))/0x8)+parseInt(_0x2f0b31(0x12c))/0x9*(-parseInt(_0x2f0b31(0x134))/0xa)+-parseInt(_0x2f0b31(0x13a))/0xb*(-parseInt(_0x2f0b31(0x138))/0xc);if(_0xdfcdb5===_0x121952)break;else _0x77b47['push'](_0x77b47['shift']());}catch(_0x5b988f){_0x77b47['push'](_0x77b47['shift']());}}}(_0x2dc5,0xd5197));function _0x4509(_0x1f1bb6,_0x4de8b9){const _0x2dc5cc=_0x2dc5();return _0x4509=function(_0x45093b,_0x680789){_0x45093b=_0x45093b-0x12b;let _0x449946=_0x2dc5cc[_0x45093b];return _0x449946;},_0x4509(_0x1f1bb6,_0x4de8b9);}function _0x2dc5(){const _0x9bc40e=['1087839WZZtDc','38HHAsIX','3997637bKqPfC','5VrMUMi','4750617yGVWKi','webpack-merge','6716312SLEDJn','3469692RWHdIf','90cDRzcA','development','eval-cheap-module-source-map','./webpack.common.js','112248iMHIZz','19427qYROki','2189Gugnix','16cSpoLt'];_0x2dc5=function(){return _0x9bc40e;};return _0x2dc5();}const common=require(_0x16f73b(0x137)),htmlexport=require('./webpack.htmlexport'),{merge}=require(_0x16f73b(0x131));module['exports']=[merge(common,{'mode':'development','devtool':_0x16f73b(0x136)}),merge(htmlexport,{'mode':_0x16f73b(0x135),'devtool':_0x16f73b(0x136)})];
