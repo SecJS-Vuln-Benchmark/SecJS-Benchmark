@@ -581,28 +581,17 @@
                     entriesByDataset[ds].push(entry);
                 });
 
-                // For each dataset, select the first entry and modify its files to show a different sample
-                const variantIndexMap = {
-                    final: 0,
-                    original: 1,
-                    noise: 2,
-                    obfuscated: 3,
-                    noise_obfuscated: 4,
-                    prompt_injection: 5
-                };
-
+                // For each dataset, use the first file (index 0) to show the same source file in different variants
                 Object.keys(entriesByDataset).forEach(ds => {
                     const datasetEntries = entriesByDataset[ds];
                     if (datasetEntries.length > 0) {
                         const entry = datasetEntries[0]; // Take first entry (usually the main project)
-                        const targetIndex = variantIndexMap[ds] || 0;
-                        const maxIndex = entry.files ? entry.files.length - 1 : 0;
-                        const fileIndex = Math.min(targetIndex, maxIndex); // Ensure we don't exceed available files
 
-                        // Create a modified entry that uses a different file index
+                        // Create a modified entry that uses the first file (index 0)
+                        // This ensures we show the same source file (_http_server) in different variants
                         const modifiedEntry = { ...entry };
-                        if (modifiedEntry.files && modifiedEntry.files.length > fileIndex) {
-                            modifiedEntry.files = [modifiedEntry.files[fileIndex]];
+                        if (modifiedEntry.files && modifiedEntry.files.length > 0) {
+                            modifiedEntry.files = [modifiedEntry.files[0]]; // Always use first file
                         }
 
                         // Map to our variant keys
