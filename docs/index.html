@@ -488,10 +488,8 @@
                 if (cweSelect) cweSelect.disabled = disabled;
                 if (variantTabs) {
                     Array.from(variantTabs.querySelectorAll('button')).forEach(btn => {
-                        // Don't use disabled attribute, just visual feedback
                         btn.style.opacity = disabled ? '0.5' : '1';
                         btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
-                        btn.style.pointerEvents = disabled ? 'none' : 'auto';
                     });
                 }
                 if (versionToggle) {
@@ -571,10 +569,7 @@
 
             function loadVariantSamples(entries) {
                 variantSamples = {};
-                if (!entries || !entries.length) {
-                    console.log('loadVariantSamples: no entries');
-                    return;
-                }
+                if (!entries || !entries.length) return;
                 
                 entries.forEach(entry => {
                     const ds = (entry.dataset || '').toLowerCase().trim();
@@ -590,21 +585,16 @@
                         variantSamples.prompt_injection = entry;
                     }
                 });
-                console.log('loadVariantSamples: loaded variants:', Object.keys(variantSamples));
             }
 
             async function switchVariant(variant) {
-                if (!controlsEnabled) {
-                    console.log('switchVariant: controls disabled, ignoring');
-                    return;
-                }
-                console.log('switchVariant called:', variant);
-                console.log('Available variants:', Object.keys(variantSamples));
+                if (!controlsEnabled || !variant) return;
+                if (!variantSamples || Object.keys(variantSamples).length === 0) return;
+                
                 activeVariant = variant;
                 updateVariantTabStates();
                 
                 const sample = variantSamples[variant];
-                console.log('Sample for variant:', variant, sample ? 'found' : 'not found');
                 if (sample) {
                     setNote('', false);
                     await updateCodeBlockWithSample(sample);
@@ -637,12 +627,10 @@
                         e.preventDefault();
                         e.stopPropagation();
                         const v = this.getAttribute('data-variant');
-                        console.log('Variant button clicked:', v);
                         switchVariant(v);
                     });
                     variantTabs.appendChild(btn);
                 });
-                console.log('renderVariantTabs: rendered', Object.keys(variantLabels).length, 'buttons');
             }
 
             async function updateCodeBlockWithSample(sample) {
@@ -687,19 +675,15 @@
                 if (!activeCWE) return;
                 const meta = manifest[activeCWE];
                 if (!meta) return;
-                console.log('handleCWEChange: loading CWE', activeCWE);
                 try {
                     disableControls(true);
                     if (!shardCache.has(activeCWE)) {
                         const shardPath = normalizePath(meta.file);
-                        console.log('handleCWEChange: fetching shard', shardPath);
                         const data = await fetchJSON(shardPath);
                         allCweEntries = Array.isArray(data) ? data : [];
                         shardCache.set(activeCWE, allCweEntries);
-                        console.log('handleCWEChange: loaded', allCweEntries.length, 'entries');
                     } else {
                         allCweEntries = shardCache.get(activeCWE) || [];
-                        console.log('handleCWEChange: using cached', allCweEntries.length, 'entries');
                     }
                     if (!allCweEntries.length) {
                         if (codeSnippet) codeSnippet.textContent = '';
@@ -712,20 +696,17 @@
                             const firstAvailable = Object.keys(variantSamples)[0];
                             if (firstAvailable) {
                                 activeVariant = firstAvailable;
-                                console.log('Switched to first available variant:', firstAvailable);
                             }
                         }
                         updateVariantTabStates();
                         await updateCodeBlock();
                     }
                 } catch (err) {
-                    console.error('handleCWEChange error:', err);
                     setNote('Unable to load the CWE shard. Run scripts/build_cwe_index.py before publishing.', true);
                     if (codeSnippet) codeSnippet.textContent = err.message;
                     variantSamples = {};
                 } finally {
                     disableControls(false);
-                    console.log('handleCWEChange: controls enabled');
                 }
             }
 
