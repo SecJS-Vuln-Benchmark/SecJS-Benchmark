@@ -103,6 +103,8 @@
             color: var(--text-primary);
         }
         .variant-tabs { display: flex; gap: 8px; margin: 20px 0 16px; flex-wrap: wrap; justify-content: center; }
+        .cwe-description { max-width: 800px; margin: 0 auto; }
+        .cwe-description h4 { color: var(--primary) !important; }
         .variant-tabs button {
             padding: 10px 20px;
             border-radius: 10px;
@@ -246,7 +248,7 @@
         <div class="container">
             <h2 class="section-title">B. Demo</h2>
             <p style="text-align:center; max-width:800px; margin:0 auto 24px; color: var(--muted); font-size:0.95rem;">
-                Due to the large dataset size (over 1 TB), we can only display one case per CWE type. Select a CWE to view its five variants (Original, Noise, Obfuscated, Noise+Obf, Prompt Injection) with both vulnerable and fixed versions.
+                Due to the large dataset size (over 1 TB), we can only display one case per CWE type. Select a CWE to view its five variants (Original, Noise, Obfuscated, Noise+Obf, Prompt Injection) with both vulnerable and fixed versions. Due to file size limitations, we only display the vulnerable code files here; the complete projects are available via the GitHub links in the CWE descriptions below.
             </p>
 
             <div class="demo-selects">
@@ -254,6 +256,11 @@
                     <label for="cweSelect">CWE Type</label>
                     <select id="cweSelect"></select>
                 </div>
+            </div>
+
+            <div id="cweDescription" class="cwe-description" style="display: none; margin: 20px 0; padding: 16px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid var(--primary);">
+                <h4 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 1.1rem;">CWE Description</h4>
+                <div id="cweDescContent"></div>
             </div>
 
             <div class="variant-tabs" id="variantTabs"></div>
@@ -618,6 +625,74 @@
                 });
             }
 
+            function displayCWEInfo(entries) {
+                const cweDescription = document.getElementById('cweDescription');
+                const cweDescContent = document.getElementById('cweDescContent');
+
+                if (!cweDescription || !cweDescContent || !entries || !entries.length) {
+                    if (cweDescription) cweDescription.style.display = 'none';
+                    return;
+                }
+
+                // Get information from the first entry (they should have consistent metadata)
+                const entry = entries[0];
+                const project = entry.project || '';
+                const cveIds = entry.cve_ids || '';
+                const summary = entry.summary || '';
+                const publishDate = entry.publish_date || '';
+                const severity = entry.severity || '';
+                const projectType = entry.project_type || '';
+
+                // Generate GitHub repository link
+                let repoLink = '';
+                if (project) {
+                    const projectParts = project.split('/');
+                    if (projectParts.length === 2) {
+                        const [org, repo] = projectParts;
+                        repoLink = `https://github.com/${org}/${repo}`;
+                    }
+                }
+
+                // Build description HTML
+                let html = '';
+
+                // CVE Information
+                if (cveIds) {
+                    html += `<p><strong>CVE IDs:</strong> ${cveIds}</p>`;
+                }
+
+                // Project Information
+                if (project) {
+                    html += `<p><strong>Project:</strong> ${project}`;
+                    if (projectType) {
+                        html += ` (${projectType})`;
+                    }
+                    html += '</p>';
+                }
+
+                // Repository Link
+                if (repoLink) {
+                    html += `<p><strong>Repository:</strong> <a href="${repoLink}" target="_blank" rel="noopener noreferrer">${repoLink}</a></p>`;
+                }
+
+                // Publish Date and Severity
+                if (publishDate || severity) {
+                    html += '<p><strong>Details:</strong> ';
+                    if (publishDate) html += `Published: ${publishDate}`;
+                    if (publishDate && severity) html += ' | ';
+                    if (severity) html += `Severity: ${severity}`;
+                    html += '</p>';
+                }
+
+                // Summary
+                if (summary) {
+                    html += `<p><strong>Description:</strong> ${summary}</p>`;
+                }
+
+                cweDescContent.innerHTML = html;
+                cweDescription.style.display = 'block';
+            }
+
             async function switchVariant(variant) {
                 console.log('🔄 switchVariant called with:', variant);
                 console.log('📊 Available variantSamples:', Object.keys(variantSamples));
@@ -711,7 +786,12 @@
             async function handleCWEChange() {
                 if (!cweSelect) return;
                 activeCWE = cweSelect.value;
-                if (!activeCWE) return;
+                if (!activeCWE) {
+                    // Hide CWE description when no CWE is selected
+                    const cweDescription = document.getElementById('cweDescription');
+                    if (cweDescription) cweDescription.style.display = 'none';
+                    return;
+                }
                 const meta = manifest[activeCWE];
                 if (!meta) return;
                 try {
@@ -731,6 +811,8 @@
                         renderVariantTabs(); // Clear buttons
                     } else {
                         loadVariantSamples(allCweEntries);
+                        // Display CWE description
+                        displayCWEInfo(allCweEntries);
                         // If current variant is not available, switch to first available
                         if (!variantSamples[activeVariant]) {
                             const firstAvailable = Object.keys(variantSamples)[0];
@@ -762,6 +844,9 @@
                     return;
                 }
                 renderVersionButtons();
+                // Hide CWE description initially
+                const cweDescription = document.getElementById('cweDescription');
+                if (cweDescription) cweDescription.style.display = 'none';
                 disableControls(true);
                 try {
                     manifest = await fetchJSON(manifestUrl);
