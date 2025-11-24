@@ -588,7 +588,7 @@
             }
 
             async function switchVariant(variant) {
-                if (!controlsEnabled || !variant) return;
+                if (!controlsEnabled || !variant || !variantSamples[variant]) return;
 
                 activeVariant = variant;
                 updateVariantTabStates();
@@ -601,7 +601,11 @@
                 buttons.forEach(btn => {
                     const variant = Object.keys(variantLabels).find(v => variantLabels[v] === btn.textContent);
                     if (variant) {
-                        btn.className = variant === activeVariant ? 'active' : '';
+                        const hasData = variantSamples[variant];
+                        btn.className = (variant === activeVariant && hasData) ? 'active' : '';
+                        btn.disabled = !hasData;
+                        btn.style.opacity = hasData ? '1' : '0.3';
+                        btn.style.cursor = hasData ? 'pointer' : 'not-allowed';
                     }
                 });
             }
@@ -612,8 +616,14 @@
                 Object.keys(variantLabels).forEach(variant => {
                     const btn = document.createElement('button');
                     btn.textContent = variantLabels[variant];
-                    btn.className = variant === activeVariant ? 'active' : '';
-                    btn.onclick = () => switchVariant(variant);
+                    const hasData = variantSamples[variant];
+                    btn.className = (variant === activeVariant && hasData) ? 'active' : '';
+                    btn.disabled = !hasData;
+                    btn.style.opacity = hasData ? '1' : '0.3';
+                    btn.style.cursor = hasData ? 'pointer' : 'not-allowed';
+                    if (hasData) {
+                        btn.onclick = () => switchVariant(variant);
+                    }
                     variantTabs.appendChild(btn);
                 });
             }
