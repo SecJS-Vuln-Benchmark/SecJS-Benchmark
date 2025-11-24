@@ -583,11 +583,12 @@
 
                 // For each dataset, select the first entry and modify its files to show a different sample
                 const fileIndexMap = {
-                    original: 0,
-                    noise: 1,
-                    obfuscated: 2,
-                    noise_obfuscated: 3,
-                    prompt_injection: 4
+                    final: 0,
+                    original: 1,
+                    noise: 2,
+                    obfuscated: 3,
+                    noise_obfuscated: 4,
+                    prompt_injection: 5
                 };
 
                 Object.keys(entriesByDataset).forEach(ds => {
@@ -603,7 +604,7 @@
                         }
 
                         // Map to our variant keys
-                        if (ds === 'original' || ds === 'final') {
+                        if (ds === 'final' || ds === 'original') {
                             variantSamples.original = modifiedEntry;
                         } else if (ds === 'noise') {
                             variantSamples.noise = modifiedEntry;
@@ -619,11 +620,20 @@
             }
 
             async function switchVariant(variant) {
-                if (!controlsEnabled || !variant || !variantSamples[variant]) return;
+                console.log('🔄 switchVariant called with:', variant);
+                console.log('📊 Available variantSamples:', Object.keys(variantSamples));
+                console.log('🎯 Current activeVariant:', activeVariant);
+
+                if (!controlsEnabled || !variant || !variantSamples[variant]) {
+                    console.log('❌ switchVariant blocked:', {controlsEnabled, variant, hasSample: !!variantSamples[variant]});
+                    return;
+                }
 
                 activeVariant = variant;
+                console.log('✅ Set activeVariant to:', activeVariant);
                 updateVariantTabStates();
                 await updateCodeBlock();
+                console.log('🎉 switchVariant completed');
             }
 
             function updateVariantTabStates() {
@@ -686,10 +696,14 @@
             }
 
             async function updateCodeBlock() {
+                console.log('📝 updateCodeBlock called for activeVariant:', activeVariant);
                 const sample = variantSamples[activeVariant];
+                console.log('📄 Sample found:', !!sample);
                 if (sample) {
+                    console.log('📄 Sample details:', {dataset: sample.dataset, filesCount: sample.files?.length});
                     await updateCodeBlockWithSample(sample);
                 } else {
+                    console.log('❌ No sample found for variant:', activeVariant);
                     if (codeSnippet) codeSnippet.textContent = '';
                     setNote('', false);
                 }
