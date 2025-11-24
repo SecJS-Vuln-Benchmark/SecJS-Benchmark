@@ -435,7 +435,7 @@
             const textCache = new Map();
             let manifest = {};
             let activeCWE = '';
-            let activeVariant = 'original';
+            let activeVariant = 'original'; // Will be updated based on available variants
             let activeVersion = 'vuln';
             let variantSamples = {}; // Store samples for each variant: {original: sample, noise: sample, ...}
             let allCweEntries = [];
@@ -613,13 +613,7 @@
                     const btn = document.createElement('button');
                     btn.textContent = variantLabels[variant];
                     btn.className = variant === activeVariant ? 'active' : '';
-                    btn.setAttribute('data-variant', variant);
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const v = this.getAttribute('data-variant');
-                        switchVariant(v);
-                    });
+                    btn.onclick = () => switchVariant(variant);
                     variantTabs.appendChild(btn);
                 });
             }
