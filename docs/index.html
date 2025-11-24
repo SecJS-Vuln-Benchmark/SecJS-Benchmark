@@ -570,19 +570,50 @@
             function loadVariantSamples(entries) {
                 variantSamples = {};
                 if (!entries || !entries.length) return;
-                
+
+                // Group entries by dataset
+                const entriesByDataset = {};
                 entries.forEach(entry => {
                     const ds = (entry.dataset || '').toLowerCase().trim();
-                    if (ds === 'original' || ds === 'final') {
-                        variantSamples.original = entry;
-                    } else if (ds === 'noise') {
-                        variantSamples.noise = entry;
-                    } else if (ds === 'obfuscated') {
-                        variantSamples.obfuscated = entry;
-                    } else if (ds === 'noise_obfuscated') {
-                        variantSamples.noise_obfuscated = entry;
-                    } else if (ds === 'prompt_injection') {
-                        variantSamples.prompt_injection = entry;
+                    if (!entriesByDataset[ds]) {
+                        entriesByDataset[ds] = [];
+                    }
+                    entriesByDataset[ds].push(entry);
+                });
+
+                // For each dataset, select the first entry and modify its files to show a different sample
+                const fileIndexMap = {
+                    original: 0,
+                    noise: 1,
+                    obfuscated: 2,
+                    noise_obfuscated: 3,
+                    prompt_injection: 4
+                };
+
+                Object.keys(entriesByDataset).forEach(ds => {
+                    const datasetEntries = entriesByDataset[ds];
+                    if (datasetEntries.length > 0) {
+                        const entry = datasetEntries[0]; // Take first entry (usually the main project)
+                        const fileIndex = fileIndexMap[ds] || 0;
+
+                        // Create a modified entry that uses a different file index
+                        const modifiedEntry = { ...entry };
+                        if (modifiedEntry.files && modifiedEntry.files.length > fileIndex) {
+                            modifiedEntry.files = [modifiedEntry.files[fileIndex]];
+                        }
+
+                        // Map to our variant keys
+                        if (ds === 'original' || ds === 'final') {
+                            variantSamples.original = modifiedEntry;
+                        } else if (ds === 'noise') {
+                            variantSamples.noise = modifiedEntry;
+                        } else if (ds === 'obfuscated') {
+                            variantSamples.obfuscated = modifiedEntry;
+                        } else if (ds === 'noise_obfuscated') {
+                            variantSamples.noise_obfuscated = modifiedEntry;
+                        } else if (ds === 'prompt_injection') {
+                            variantSamples.prompt_injection = modifiedEntry;
+                        }
                     }
                 });
             }
