@@ -227,6 +227,68 @@
             margin-top: 16px;
         }
         footer { text-align: center; padding: 30px 0 60px; color: var(--muted); font-size: 0.9rem; }
+
+        /* Interactive Controls */
+        .interactive-controls {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(15, 23, 42, 0.05);
+        }
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .metric-btn, .split-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .metric-btn:hover, .split-btn:hover {
+            background: #f1f5f9;
+        }
+        .metric-btn.active, .split-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .model-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .model-checkbox input[type="checkbox"] {
+            margin: 0;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            .interactive-controls {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .model-checkboxes {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+
+        /* Score color coding */
+        .score-excellent { background-color: rgba(34, 197, 94, 0.1); color: #16a34a; font-weight: 600; }
+        .score-good { background-color: rgba(59, 130, 246, 0.1); color: #2563eb; font-weight: 600; }
+        .score-average { background-color: rgba(234, 179, 8, 0.1); color: #d97706; font-weight: 600; }
+        .score-poor { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; font-weight: 600; }
         @media (max-width: 768px) {
             .code-meta { flex-direction: column; }
             .case-study { padding: 28px; }
@@ -315,7 +377,7 @@
 
     <section id="case-study">
         <div class="container">
-            <h2 class="section-title">C. Case Study</h2>
+            <h2 class="section-title">C. Motivating Example</h2>
             <div class="case-study">
                 <h3>CVE-2021-25941 Case Study (deep-override)</h3>
                 <p>
@@ -355,11 +417,49 @@
 
     <section id="results-full">
         <div class="container">
-            <h2 class="section-title">D. Full LLM Evaluation Table</h2>
+            <h2 class="section-title">D. Interactive LLM Evaluation Results</h2>
             <p style="text-align:center; color: var(--muted); max-width:960px; margin:0 auto 24px;">
-                Complete Precision / Recall / F1 / VD-S scores from the SecJS paper (Table RQ1). “Full” denotes the complete split; “DN” denotes the denoised split.
+                Complete Precision / Recall / F1 / VD-S scores from the SecJS paper (Table RQ1). "Full" denotes the complete split; "DN" denotes the denoised split. Use the controls below to filter and explore the results.
             </p>
-            <div class="table-scroll">
+
+            <!-- Interactive Controls -->
+            <div class="interactive-controls" style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; justify-content: center;">
+                <!-- Metric Selector -->
+                <div class="control-group">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--muted); font-size: 0.9rem;">Select Metric</label>
+                    <div class="metric-buttons" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="metric-btn active" data-metric="F1">F1 Score</button>
+                        <button class="metric-btn" data-metric="Precision">Precision</button>
+                        <button class="metric-btn" data-metric="Recall">Recall</button>
+                        <button class="metric-btn" data-metric="VD-S">VD-S Score</button>
+                    </div>
+                </div>
+
+                <!-- Dataset Split Selector -->
+                <div class="control-group">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--muted); font-size: 0.9rem;">Dataset Split</label>
+                    <div class="split-buttons" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="split-btn active" data-split="Full">Full Split</button>
+                        <button class="split-btn" data-split="DN">Denoised</button>
+                    </div>
+                </div>
+
+                <!-- Model Filter -->
+                <div class="control-group">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--muted); font-size: 0.9rem;">Filter Models</label>
+                    <div class="model-checkboxes" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <label class="model-checkbox"><input type="checkbox" checked data-model="GPT-5"> GPT-5</label>
+                        <label class="model-checkbox"><input type="checkbox" checked data-model="GPT-5-Mini"> GPT-5-Mini</label>
+                        <label class="model-checkbox"><input type="checkbox" checked data-model="GPT-5-Codex"> GPT-5-Codex</label>
+                        <label class="model-checkbox"><input type="checkbox" checked data-model="DeepSeek-v3.1"> DeepSeek</label>
+                        <label class="model-checkbox"><input type="checkbox" checked data-model="Gemini-2.5-Pro"> Gemini-2.5</label>
+                        <label class="model-checkbox"><input type="checkbox" checked data-model="Gemini-Flash"> Gemini-Flash</label>
+                        <label class="model-checkbox"><input type="checkbox" checked data-model="Claude-4.5"> Claude-4.5</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-scroll" id="resultsTableContainer">
                 <table class="results-table">
                     <thead>
                         <tr>
@@ -420,40 +520,6 @@
         </div>
     </section>
 
-    <section id="results">
-        <div class="container">
-            <h2 class="section-title">E. LLM Evaluation Results (Summary)</h2>
-            <p style="text-align:center; max-width:900px; margin:0 auto 20px; color: var(--muted);">
-                Project-level F1 scores (Full split, %) reproduced from Table&nbsp;RQ1 of the paper. Each column shows how the same model behaves on a different dataset variant.
-            </p>
-            <div class="table-scroll">
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th>Model</th>
-                            <th>Original</th>
-                            <th>Noise</th>
-                            <th>Obfuscated</th>
-                            <th>Noise+Obf</th>
-                            <th>Prompt Injection</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>GPT-5</td><td>32.1</td><td>17.2</td><td>22.9</td><td>17.8</td><td>25.7</td></tr>
-                        <tr><td>GPT-5-Mini</td><td>29.8</td><td>13.1</td><td>25.6</td><td>10.9</td><td>25.4</td></tr>
-                        <tr><td>GPT-5-Codex</td><td>34.7</td><td>15.2</td><td>26.7</td><td>9.8</td><td>27.2</td></tr>
-                        <tr><td>DeepSeek-v3.1</td><td>26.3</td><td>5.8</td><td>22.4</td><td>4.2</td><td>27.5</td></tr>
-                        <tr><td>Gemini-2.5-Pro</td><td>36.6</td><td>20.0</td><td>33.5</td><td>17.0</td><td>34.9</td></tr>
-                        <tr><td>Gemini-Flash</td><td>30.1</td><td>17.3</td><td>26.1</td><td>13.1</td><td>30.2</td></tr>
-                        <tr><td>Claude-4.5</td><td>35.9</td><td>4.2</td><td>17.2</td><td>3.9</td><td>27.1</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <p style="text-align:center; max-width:900px; margin:16px auto 0; color: var(--muted); font-size:0.9rem;">
-                Scores illustrate how robustness drops once noise, obfuscation, or prompt injection is applied—highlighting the need for all three SecJS principles.
-            </p>
-        </div>
-    </section>
 
     <footer>
         SecJS Benchmark · GitHub: <a href="https://github.com/SecJS-Vuln-Benchmark/SecJS-Benchmark" target="_blank">SecJS-Benchmark</a>
@@ -478,6 +544,12 @@
             let allCweEntries = [];
             let controlsEnabled = true;
             let codeExpanded = false; // Track if code is expanded or collapsed (default: collapsed)
+
+            // Interactive table data and state
+            let evaluationData = {};
+            let currentMetric = 'F1';
+            let currentSplit = 'Full';
+            let selectedModels = ['GPT-5', 'GPT-5-Mini', 'GPT-5-Codex', 'DeepSeek-v3.1', 'Gemini-2.5-Pro', 'Gemini-Flash', 'Claude-4.5'];
 
             const variantLabels = {
                 original: 'Original',
@@ -554,6 +626,122 @@
                         btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
                     });
                 }
+            }
+
+            // Interactive table functions
+            function initializeEvaluationData() {
+                // Parse the evaluation data from the HTML table
+                const table = document.querySelector('#resultsTableContainer .results-table');
+                if (!table) return;
+
+                evaluationData = {};
+
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    const model = cells[0].textContent.trim();
+
+                    evaluationData[model] = {
+                        'Precision': {
+                            'Full': { 'Original': cells[1].textContent, 'Noise': cells[3].textContent, 'Obfuscated': cells[5].textContent, 'Noise+Obf': cells[7].textContent, 'Prompt Injection': cells[9].textContent },
+                            'DN': { 'Original': cells[2].textContent, 'Noise': cells[4].textContent, 'Obfuscated': cells[6].textContent, 'Noise+Obf': cells[8].textContent, 'Prompt Injection': cells[10].textContent }
+                        },
+                        'Recall': {
+                            'Full': { 'Original': cells[11].textContent, 'Noise': cells[13].textContent, 'Obfuscated': cells[15].textContent, 'Noise+Obf': cells[17].textContent, 'Prompt Injection': cells[19].textContent },
+                            'DN': { 'Original': cells[12].textContent, 'Noise': cells[14].textContent, 'Obfuscated': cells[16].textContent, 'Noise+Obf': cells[18].textContent, 'Prompt Injection': cells[20].textContent }
+                        },
+                        'F1': {
+                            'Full': { 'Original': cells[21].textContent, 'Noise': cells[23].textContent, 'Obfuscated': cells[25].textContent, 'Noise+Obf': cells[27].textContent, 'Prompt Injection': cells[29].textContent },
+                            'DN': { 'Original': cells[22].textContent, 'Noise': cells[24].textContent, 'Obfuscated': cells[26].textContent, 'Noise+Obf': cells[28].textContent, 'Prompt Injection': cells[30].textContent }
+                        },
+                        'VD-S': {
+                            'Full': { 'Original': cells[31].textContent, 'Noise': cells[33].textContent, 'Obfuscated': cells[35].textContent, 'Noise+Obf': cells[37].textContent, 'Prompt Injection': cells[39].textContent },
+                            'DN': { 'Original': cells[32].textContent, 'Noise': cells[34].textContent, 'Obfuscated': cells[36].textContent, 'Noise+Obf': cells[38].textContent, 'Prompt Injection': cells[40].textContent }
+                        }
+                    };
+                });
+            }
+
+            function updateInteractiveTable() {
+                const container = document.getElementById('resultsTableContainer');
+                if (!container || !Object.keys(evaluationData).length) return;
+
+                let html = '<table class="results-table"><thead><tr><th>Model</th>';
+                const variants = ['Original', 'Noise', 'Obfuscated', 'Noise+Obf', 'Prompt Injection'];
+
+                variants.forEach(variant => {
+                    html += `<th>${variant}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+
+                selectedModels.forEach(model => {
+                    if (!evaluationData[model]) return;
+
+                    html += `<tr><td>${model}</td>`;
+                    variants.forEach(variant => {
+                        const value = evaluationData[model][currentMetric][currentSplit][variant];
+                        const score = parseFloat(value);
+                        let colorClass = '';
+
+                        // Color coding based on performance
+                        if (currentMetric === 'VD-S') {
+                            // For VD-S, lower is better (green for low, red for high)
+                            if (score < 60) colorClass = 'score-excellent';
+                            else if (score < 70) colorClass = 'score-good';
+                            else if (score < 80) colorClass = 'score-average';
+                            else colorClass = 'score-poor';
+                        } else {
+                            // For other metrics, higher is better
+                            if (score > 35) colorClass = 'score-excellent';
+                            else if (score > 25) colorClass = 'score-good';
+                            else if (score > 15) colorClass = 'score-average';
+                            else colorClass = 'score-poor';
+                        }
+
+                        html += `<td class="${colorClass}">${value}</td>`;
+                    });
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            }
+
+            function setupInteractiveControls() {
+                // Metric buttons
+                document.querySelectorAll('.metric-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        currentMetric = e.target.dataset.metric;
+                        updateInteractiveTable();
+                    });
+                });
+
+                // Split buttons
+                document.querySelectorAll('.split-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.split-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        currentSplit = e.target.dataset.split;
+                        updateInteractiveTable();
+                    });
+                });
+
+                // Model checkboxes
+                document.querySelectorAll('.model-checkbox input').forEach(checkbox => {
+                    checkbox.addEventListener('change', (e) => {
+                        const model = e.target.dataset.model;
+                        if (e.target.checked) {
+                            if (!selectedModels.includes(model)) {
+                                selectedModels.push(model);
+                            }
+                        } else {
+                            selectedModels = selectedModels.filter(m => m !== model);
+                        }
+                        updateInteractiveTable();
+                    });
+                });
             }
 
             async function fetchJSON(url) {
@@ -902,6 +1090,12 @@
                 // Hide CWE description initially
                 const cweDescription = document.getElementById('cweDescription');
                 if (cweDescription) cweDescription.style.display = 'none';
+
+                // Initialize interactive evaluation table
+                initializeEvaluationData();
+                setupInteractiveControls();
+                updateInteractiveTable();
+
                 disableControls(true);
                 try {
                     manifest = await fetchJSON(manifestUrl);
