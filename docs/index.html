@@ -570,6 +570,11 @@
             }
 
             function setNote(message, isError = false) {
+                if (!datasetNote) {
+                    console.warn('Dataset note element not found');
+                    return;
+                }
+
                 if (!isError || !message) {
                     datasetNote.textContent = '';
                     datasetNote.classList.remove('is-visible');
@@ -630,41 +635,149 @@
 
             // Interactive table functions
             function initializeEvaluationData() {
-                // Parse the evaluation data from the HTML table
-                const table = document.querySelector('#resultsTableContainer .results-table');
-                if (!table) return;
-
-                evaluationData = {};
-
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    const model = cells[0].textContent.trim();
-
-                    evaluationData[model] = {
+                // Hard-coded evaluation data for better reliability
+                evaluationData = {
+                    'GPT-5': {
                         'Precision': {
-                            'Full': { 'Original': cells[1].textContent, 'Noise': cells[3].textContent, 'Obfuscated': cells[5].textContent, 'Noise+Obf': cells[7].textContent, 'Prompt Injection': cells[9].textContent },
-                            'DN': { 'Original': cells[2].textContent, 'Noise': cells[4].textContent, 'Obfuscated': cells[6].textContent, 'Noise+Obf': cells[8].textContent, 'Prompt Injection': cells[10].textContent }
+                            'Full': { 'Original': '37.3', 'Noise': '20.0', 'Obfuscated': '33.3', 'Noise+Obf': '23.6', 'Prompt Injection': '32.0' },
+                            'DN': { 'Original': '37.8', 'Noise': '20.2', 'Obfuscated': '33.0', 'Noise+Obf': '23.6', 'Prompt Injection': '32.4' }
                         },
                         'Recall': {
-                            'Full': { 'Original': cells[11].textContent, 'Noise': cells[13].textContent, 'Obfuscated': cells[15].textContent, 'Noise+Obf': cells[17].textContent, 'Prompt Injection': cells[19].textContent },
-                            'DN': { 'Original': cells[12].textContent, 'Noise': cells[14].textContent, 'Obfuscated': cells[16].textContent, 'Noise+Obf': cells[18].textContent, 'Prompt Injection': cells[20].textContent }
+                            'Full': { 'Original': '28.1', 'Noise': '15.0', 'Obfuscated': '17.4', 'Noise+Obf': '14.3', 'Prompt Injection': '21.5' },
+                            'DN': { 'Original': '27.5', 'Noise': '14.7', 'Obfuscated': '16.6', 'Noise+Obf': '13.9', 'Prompt Injection': '20.8' }
                         },
                         'F1': {
-                            'Full': { 'Original': cells[21].textContent, 'Noise': cells[23].textContent, 'Obfuscated': cells[25].textContent, 'Noise+Obf': cells[27].textContent, 'Prompt Injection': cells[29].textContent },
-                            'DN': { 'Original': cells[22].textContent, 'Noise': cells[24].textContent, 'Obfuscated': cells[26].textContent, 'Noise+Obf': cells[28].textContent, 'Prompt Injection': cells[30].textContent }
+                            'Full': { 'Original': '32.1', 'Noise': '17.2', 'Obfuscated': '22.9', 'Noise+Obf': '17.8', 'Prompt Injection': '25.7' },
+                            'DN': { 'Original': '31.8', 'Noise': '17.0', 'Obfuscated': '22.1', 'Noise+Obf': '17.5', 'Prompt Injection': '25.3' }
                         },
                         'VD-S': {
-                            'Full': { 'Original': cells[31].textContent, 'Noise': cells[33].textContent, 'Obfuscated': cells[35].textContent, 'Noise+Obf': cells[37].textContent, 'Prompt Injection': cells[39].textContent },
-                            'DN': { 'Original': cells[32].textContent, 'Noise': cells[34].textContent, 'Obfuscated': cells[36].textContent, 'Noise+Obf': cells[38].textContent, 'Prompt Injection': cells[40].textContent }
+                            'Full': { 'Original': '57.2', 'Noise': '61.9', 'Obfuscated': '77.2', 'Noise+Obf': '76.6', 'Prompt Injection': '78.5' },
+                            'DN': { 'Original': '58.1', 'Noise': '62.5', 'Obfuscated': '77.8', 'Noise+Obf': '77.2', 'Prompt Injection': '79.2' }
                         }
-                    };
-                });
+                    },
+                    'GPT-5-Mini': {
+                        'Precision': {
+                            'Full': { 'Original': '34.1', 'Noise': '13.8', 'Obfuscated': '34.7', 'Noise+Obf': '12.0', 'Prompt Injection': '26.9' },
+                            'DN': { 'Original': '34.1', 'Noise': '13.3', 'Obfuscated': '35.7', 'Noise+Obf': '11.9', 'Prompt Injection': '26.6' }
+                        },
+                        'Recall': {
+                            'Full': { 'Original': '26.4', 'Noise': '12.5', 'Obfuscated': '20.2', 'Noise+Obf': '10.1', 'Prompt Injection': '24.1' },
+                            'DN': { 'Original': '25.7', 'Noise': '11.7', 'Obfuscated': '20.2', 'Noise+Obf': '10.0', 'Prompt Injection': '23.2' }
+                        },
+                        'F1': {
+                            'Full': { 'Original': '29.8', 'Noise': '13.1', 'Obfuscated': '25.6', 'Noise+Obf': '10.9', 'Prompt Injection': '25.4' },
+                            'DN': { 'Original': '29.3', 'Noise': '12.5', 'Obfuscated': '25.8', 'Noise+Obf': '10.9', 'Prompt Injection': '24.8' }
+                        },
+                        'VD-S': {
+                            'Full': { 'Original': '73.6', 'Noise': '56.2', 'Obfuscated': '79.8', 'Noise+Obf': '59.4', 'Prompt Injection': '75.9' },
+                            'DN': { 'Original': '74.3', 'Noise': '57.0', 'Obfuscated': '79.8', 'Noise+Obf': '60.0', 'Prompt Injection': '76.8' }
+                        }
+                    },
+                    'GPT-5-Codex': {
+                        'Precision': {
+                            'Full': { 'Original': '43.0', 'Noise': '18.8', 'Obfuscated': '43.4', 'Noise+Obf': '12.4', 'Prompt Injection': '38.1' },
+                            'DN': { 'Original': '43.7', 'Noise': '18.0', 'Obfuscated': '44.8', 'Noise+Obf': '11.8', 'Prompt Injection': '39.2' }
+                        },
+                        'Recall': {
+                            'Full': { 'Original': '29.1', 'Noise': '12.8', 'Obfuscated': '19.3', 'Noise+Obf': '8.1', 'Prompt Injection': '21.2' },
+                            'DN': { 'Original': '28.9', 'Noise': '12.0', 'Obfuscated': '19.3', 'Noise+Obf': '7.7', 'Prompt Injection': '20.9' }
+                        },
+                        'F1': {
+                            'Full': { 'Original': '34.7', 'Noise': '15.2', 'Obfuscated': '26.7', 'Noise+Obf': '9.8', 'Prompt Injection': '27.2' },
+                            'DN': { 'Original': '34.8', 'Noise': '14.4', 'Obfuscated': '27.0', 'Noise+Obf': '9.3', 'Prompt Injection': '27.2' }
+                        },
+                        'VD-S': {
+                            'Full': { 'Original': '70.9', 'Noise': '62.7', 'Obfuscated': '80.7', 'Noise+Obf': '59.0', 'Prompt Injection': '78.8' },
+                            'DN': { 'Original': '71.1', 'Noise': '63.5', 'Obfuscated': '80.7', 'Noise+Obf': '59.8', 'Prompt Injection': '79.1' }
+                        }
+                    },
+                    'DeepSeek-v3.1': {
+                        'Precision': {
+                            'Full': { 'Original': '31.0', 'Noise': '6.3', 'Obfuscated': '32.7', 'Noise+Obf': '4.7', 'Prompt Injection': '27.9' },
+                            'DN': { 'Original': '30.6', 'Noise': '5.9', 'Obfuscated': '32.4', 'Noise+Obf': '4.6', 'Prompt Injection': '28.2' }
+                        },
+                        'Recall': {
+                            'Full': { 'Original': '22.8', 'Noise': '5.4', 'Obfuscated': '17.0', 'Noise+Obf': '3.8', 'Prompt Injection': '27.2' },
+                            'DN': { 'Original': '21.6', 'Noise': '5.0', 'Obfuscated': '16.9', 'Noise+Obf': '3.6', 'Prompt Injection': '27.1' }
+                        },
+                        'F1': {
+                            'Full': { 'Original': '26.3', 'Noise': '5.8', 'Obfuscated': '22.4', 'Noise+Obf': '4.2', 'Prompt Injection': '27.5' },
+                            'DN': { 'Original': '25.3', 'Noise': '5.4', 'Obfuscated': '22.2', 'Noise+Obf': '4.0', 'Prompt Injection': '27.7' }
+                        },
+                        'VD-S': {
+                            'Full': { 'Original': '77.0', 'Noise': '64.8', 'Obfuscated': '83.0', 'Noise+Obf': '50.0', 'Prompt Injection': '72.7' },
+                            'DN': { 'Original': '78.4', 'Noise': '65.5', 'Obfuscated': '83.1', 'Noise+Obf': '50.8', 'Prompt Injection': '72.9' }
+                        }
+                    },
+                    'Gemini-2.5-Pro': {
+                        'Precision': {
+                            'Full': { 'Original': '34.9', 'Noise': '19.7', 'Obfuscated': '34.1', 'Noise+Obf': '16.2', 'Prompt Injection': '33.7' },
+                            'DN': { 'Original': '35.2', 'Noise': '20.0', 'Obfuscated': '34.1', 'Noise+Obf': '15.6', 'Prompt Injection': '34.0' }
+                        },
+                        'Recall': {
+                            'Full': { 'Original': '38.4', 'Noise': '20.4', 'Obfuscated': '32.9', 'Noise+Obf': '17.8', 'Prompt Injection': '36.2' },
+                            'DN': { 'Original': '38.2', 'Noise': '20.3', 'Obfuscated': '33.2', 'Noise+Obf': '17.2', 'Prompt Injection': '36.0' }
+                        },
+                        'F1': {
+                            'Full': { 'Original': '36.6', 'Noise': '20.0', 'Obfuscated': '33.5', 'Noise+Obf': '17.0', 'Prompt Injection': '34.9' },
+                            'DN': { 'Original': '36.6', 'Noise': '20.1', 'Obfuscated': '33.7', 'Noise+Obf': '16.4', 'Prompt Injection': '35.0' }
+                        },
+                        'VD-S': {
+                            'Full': { 'Original': '61.6', 'Noise': '51.0', 'Obfuscated': '67.1', 'Noise+Obf': '39.5', 'Prompt Injection': '63.8' },
+                            'DN': { 'Original': '61.8', 'Noise': '51.2', 'Obfuscated': '66.8', 'Noise+Obf': '40.3', 'Prompt Injection': '64.0' }
+                        }
+                    },
+                    'Gemini-Flash': {
+                        'Precision': {
+                            'Full': { 'Original': '28.8', 'Noise': '16.9', 'Obfuscated': '27.2', 'Noise+Obf': '14.4', 'Prompt Injection': '28.8' },
+                            'DN': { 'Original': '28.7', 'Noise': '16.5', 'Obfuscated': '27.0', 'Noise+Obf': '12.8', 'Prompt Injection': '29.0' }
+                        },
+                        'Recall': {
+                            'Full': { 'Original': '31.4', 'Noise': '17.7', 'Obfuscated': '25.0', 'Noise+Obf': '12.0', 'Prompt Injection': '31.8' },
+                            'DN': { 'Original': '31.2', 'Noise': '17.4', 'Obfuscated': '25.0', 'Noise+Obf': '10.8', 'Prompt Injection': '31.5' }
+                        },
+                        'F1': {
+                            'Full': { 'Original': '30.1', 'Noise': '17.3', 'Obfuscated': '26.1', 'Noise+Obf': '13.1', 'Prompt Injection': '30.2' },
+                            'DN': { 'Original': '29.9', 'Noise': '17.0', 'Obfuscated': '25.9', 'Noise+Obf': '11.7', 'Prompt Injection': '30.2' }
+                        },
+                        'VD-S': {
+                            'Full': { 'Original': '68.6', 'Noise': '54.2', 'Obfuscated': '75.0', 'Noise+Obf': '63.4', 'Prompt Injection': '68.2' },
+                            'DN': { 'Original': '68.8', 'Noise': '54.5', 'Obfuscated': '75.0', 'Noise+Obf': '64.7', 'Prompt Injection': '68.5' }
+                        }
+                    },
+                    'Claude-4.5': {
+                        'Precision': {
+                            'Full': { 'Original': '37.2', 'Noise': '4.4', 'Obfuscated': '17.8', 'Noise+Obf': '4.0', 'Prompt Injection': '28.8' },
+                            'DN': { 'Original': '37.7', 'Noise': '4.2', 'Obfuscated': '16.9', 'Noise+Obf': '3.9', 'Prompt Injection': '29.1' }
+                        },
+                        'Recall': {
+                            'Full': { 'Original': '34.8', 'Noise': '4.0', 'Obfuscated': '16.5', 'Noise+Obf': '3.8', 'Prompt Injection': '25.5' },
+                            'DN': { 'Original': '34.3', 'Noise': '3.8', 'Obfuscated': '15.5', 'Noise+Obf': '3.6', 'Prompt Injection': '24.8' }
+                        },
+                        'F1': {
+                            'Full': { 'Original': '35.9', 'Noise': '4.2', 'Obfuscated': '17.2', 'Noise+Obf': '3.9', 'Prompt Injection': '27.1' },
+                            'DN': { 'Original': '35.9', 'Noise': '4.0', 'Obfuscated': '16.2', 'Noise+Obf': '3.7', 'Prompt Injection': '26.8' }
+                        },
+                        'VD-S': {
+                            'Full': { 'Original': '65.2', 'Noise': '58.6', 'Obfuscated': '83.5', 'Noise+Obf': '48.7', 'Prompt Injection': '74.5' },
+                            'DN': { 'Original': '65.7', 'Noise': '59.0', 'Obfuscated': '84.5', 'Noise+Obf': '49.2', 'Prompt Injection': '75.2' }
+                        }
+                    }
+                };
             }
 
             function updateInteractiveTable() {
                 const container = document.getElementById('resultsTableContainer');
-                if (!container || !Object.keys(evaluationData).length) return;
+                if (!container) {
+                    console.warn('Results table container not found');
+                    return;
+                }
+
+                if (!Object.keys(evaluationData).length) {
+                    console.warn('No evaluation data available');
+                    container.innerHTML = '<p>Loading evaluation data...</p>';
+                    return;
+                }
 
                 let html = '<table class="results-table"><thead><tr><th>Model</th>';
                 const variants = ['Original', 'Noise', 'Obfuscated', 'Noise+Obf', 'Prompt Injection'];
@@ -675,11 +788,20 @@
                 html += '</tr></thead><tbody>';
 
                 selectedModels.forEach(model => {
-                    if (!evaluationData[model]) return;
+                    if (!evaluationData[model]) {
+                        console.warn(`Model ${model} not found in evaluation data`);
+                        return;
+                    }
 
                     html += `<tr><td>${model}</td>`;
                     variants.forEach(variant => {
-                        const value = evaluationData[model][currentMetric][currentSplit][variant];
+                        const value = evaluationData[model][currentMetric]?.[currentSplit]?.[variant];
+                        if (!value) {
+                            console.warn(`Missing data for ${model} ${currentMetric} ${currentSplit} ${variant}`);
+                            html += '<td>N/A</td>';
+                            return;
+                        }
+
                         const score = parseFloat(value);
                         let colorClass = '';
 
@@ -708,8 +830,18 @@
             }
 
             function setupInteractiveControls() {
+                // Check if controls exist before setting up
+                const metricBtns = document.querySelectorAll('.metric-btn');
+                const splitBtns = document.querySelectorAll('.split-btn');
+                const modelCheckboxes = document.querySelectorAll('.model-checkbox input');
+
+                if (metricBtns.length === 0 || splitBtns.length === 0 || modelCheckboxes.length === 0) {
+                    console.warn('Interactive controls not found, skipping setup');
+                    return;
+                }
+
                 // Metric buttons
-                document.querySelectorAll('.metric-btn').forEach(btn => {
+                metricBtns.forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
                         e.target.classList.add('active');
@@ -719,7 +851,7 @@
                 });
 
                 // Split buttons
-                document.querySelectorAll('.split-btn').forEach(btn => {
+                splitBtns.forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         document.querySelectorAll('.split-btn').forEach(b => b.classList.remove('active'));
                         e.target.classList.add('active');
@@ -729,7 +861,7 @@
                 });
 
                 // Model checkboxes
-                document.querySelectorAll('.model-checkbox input').forEach(checkbox => {
+                modelCheckboxes.forEach(checkbox => {
                     checkbox.addEventListener('change', (e) => {
                         const model = e.target.dataset.model;
                         if (e.target.checked) {
@@ -1093,7 +1225,6 @@
 
                 // Initialize interactive evaluation table
                 initializeEvaluationData();
-                setupInteractiveControls();
                 updateInteractiveTable();
 
                 disableControls(true);
@@ -1111,13 +1242,22 @@
                 } finally {
                     disableControls(false);
                 }
+
+                // Set up interactive controls after a short delay to ensure DOM is fully loaded
+                setTimeout(() => {
+                    setupInteractiveControls();
+                }, 100);
             }
 
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
-            } else {
-                init();
+            function initializePage() {
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', init);
+                } else {
+                    init();
+                }
             }
+
+            initializePage();
         })();
     </script>
 </body>
