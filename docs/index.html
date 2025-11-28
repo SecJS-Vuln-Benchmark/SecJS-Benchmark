@@ -435,18 +435,6 @@
                 Complete Precision / Recall / F1 / VD-S scores from the SecJS paper (Table RQ1). "Full" denotes the complete split; "DN" denotes the denoised split. Use the controls below to filter and explore the results.
             </p>
 
-            <div class="evaluation-info" style="display: flex; gap: 32px; margin-bottom: 24px; justify-content: center; flex-wrap: wrap;">
-                <div class="info-section">
-                    <h4 style="margin: 0 0 12px 0; color: var(--secondary); font-size: 1rem;">Dataset Variants</h4>
-                    <div style="display: grid; gap: 8px; font-size: 0.85rem; color: var(--muted);">
-                        <div><strong>Original:</strong> Raw GitHub projects with paired vulnerable and fixed commits</div>
-                        <div><strong>Noise:</strong> Adds harmless file/DB/DOM statements to test model robustness</div>
-                        <div><strong>Obfuscated:</strong> Renamed identifiers and encoded literals while keeping semantics</div>
-                        <div><strong>Noise+Obf:</strong> Combines noise injection with obfuscation for tougher stress tests</div>
-                        <div><strong>Prompt Injection:</strong> Misleading audit comments to test resistance to prompt attacks</div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Interactive Controls -->
             <div class="interactive-controls" style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; justify-content: center;">
