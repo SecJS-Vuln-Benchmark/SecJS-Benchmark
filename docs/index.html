@@ -163,10 +163,6 @@
             justify-content: center;
             margin-top: 24px;
             padding: 16px 12px;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 0 0 15px 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         .expand-collapse-btn {
             background: var(--primary);
@@ -303,11 +299,6 @@
             }
         }
 
-        /* Score color coding */
-        .score-excellent { background-color: rgba(34, 197, 94, 0.1); color: #16a34a; font-weight: 600; }
-        .score-good { background-color: rgba(59, 130, 246, 0.1); color: #2563eb; font-weight: 600; }
-        .score-average { background-color: rgba(234, 179, 8, 0.1); color: #d97706; font-weight: 600; }
-        .score-poor { background-color: rgba(239, 68, 68, 0.1); color: #dc2626; font-weight: 600; }
         @media (max-width: 768px) {
             .code-meta { flex-direction: column; }
             .case-study { padding: 28px; }
@@ -445,28 +436,6 @@
             </p>
 
             <div class="evaluation-info" style="display: flex; gap: 32px; margin-bottom: 24px; justify-content: center; flex-wrap: wrap;">
-                <div class="info-section">
-                    <h4 style="margin: 0 0 12px 0; color: var(--secondary); font-size: 1rem;">Color Legend</h4>
-                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 16px; height: 16px; background: rgba(34, 197, 94, 0.2); border: 2px solid #16a34a; border-radius: 3px;"></div>
-                            <span style="font-size: 0.85rem; color: var(--muted);">Excellent (≥35%)</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 16px; height: 16px; background: rgba(59, 130, 246, 0.2); border: 2px solid #2563eb; border-radius: 3px;"></div>
-                            <span style="font-size: 0.85rem; color: var(--muted);">Good (25-35%)</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 16px; height: 16px; background: rgba(234, 179, 8, 0.2); border: 2px solid #d97706; border-radius: 3px;"></div>
-                            <span style="font-size: 0.85rem; color: var(--muted);">Average (15-25%)</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 16px; height: 16px; background: rgba(239, 68, 68, 0.2); border: 2px solid #dc2626; border-radius: 3px;"></div>
-                            <span style="font-size: 0.85rem; color: var(--muted);">Poor (<15%)</span>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="info-section">
                     <h4 style="margin: 0 0 12px 0; color: var(--secondary); font-size: 1rem;">Dataset Variants</h4>
                     <div style="display: grid; gap: 8px; font-size: 0.85rem; color: var(--muted);">
@@ -863,25 +832,7 @@
                             return;
                         }
 
-                        const score = parseFloat(value);
-                        let colorClass = '';
-
-                        // Color coding based on performance
-                        if (currentMetric === 'VD-S') {
-                            // For VD-S, lower is better (green for low, red for high)
-                            if (score < 60) colorClass = 'score-excellent';
-                            else if (score < 70) colorClass = 'score-good';
-                            else if (score < 80) colorClass = 'score-average';
-                            else colorClass = 'score-poor';
-                        } else {
-                            // For other metrics, higher is better
-                            if (score > 35) colorClass = 'score-excellent';
-                            else if (score > 25) colorClass = 'score-good';
-                            else if (score > 15) colorClass = 'score-average';
-                            else colorClass = 'score-poor';
-                        }
-
-                        html += `<td class="${colorClass}">${value}</td>`;
+                        html += `<td>${value}</td>`;
                     });
                     html += '</tr>';
                 });
