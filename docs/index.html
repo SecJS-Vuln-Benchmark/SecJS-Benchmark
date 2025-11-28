@@ -154,23 +154,35 @@
             max-height: none;
             overflow-y: visible;
         }
-        .code-header {
+        .code-footer {
             display: flex;
-            justify-content: flex-end;
-            margin-bottom: 16px;
+            justify-content: center;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         .expand-collapse-btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: #e2e8f0;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 0.85rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(31, 58, 245, 0.3);
         }
         .expand-collapse-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: #4338ca;
+            box-shadow: 0 6px 16px rgba(31, 58, 245, 0.4);
+            transform: translateY(-1px);
+        }
+        .expand-collapse-btn:active {
+            transform: translateY(0);
         }
         pre { margin: 0; font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 0.95rem; white-space: pre-wrap; }
         .code-meta { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
@@ -366,10 +378,13 @@
             <div class="version-toggle" id="versionToggle"></div>
 
             <div class="code-panel">
-                <div class="code-header">
-                    <button id="toggleCodeBtn" class="expand-collapse-btn">Expand Code</button>
-                </div>
                 <pre id="codeSnippet"></pre>
+                <div class="code-footer">
+                    <button id="toggleCodeBtn" class="expand-collapse-btn">
+                        <span id="toggleIcon">▼</span>
+                        <span id="toggleText">Show Full Code</span>
+                    </button>
+                </div>
             </div>
             <p class="dataset-note" id="datasetNote"></p>
         </div>
@@ -421,6 +436,41 @@
             <p style="text-align:center; color: var(--muted); max-width:960px; margin:0 auto 24px;">
                 Complete Precision / Recall / F1 / VD-S scores from the SecJS paper (Table RQ1). "Full" denotes the complete split; "DN" denotes the denoised split. Use the controls below to filter and explore the results.
             </p>
+
+            <div class="evaluation-info" style="display: flex; gap: 32px; margin-bottom: 24px; justify-content: center; flex-wrap: wrap;">
+                <div class="info-section">
+                    <h4 style="margin: 0 0 12px 0; color: var(--secondary); font-size: 1rem;">Color Legend</h4>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 16px; height: 16px; background: rgba(34, 197, 94, 0.2); border: 2px solid #16a34a; border-radius: 3px;"></div>
+                            <span style="font-size: 0.85rem; color: var(--muted);">Excellent (≥35%)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 16px; height: 16px; background: rgba(59, 130, 246, 0.2); border: 2px solid #2563eb; border-radius: 3px;"></div>
+                            <span style="font-size: 0.85rem; color: var(--muted);">Good (25-35%)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 16px; height: 16px; background: rgba(234, 179, 8, 0.2); border: 2px solid #d97706; border-radius: 3px;"></div>
+                            <span style="font-size: 0.85rem; color: var(--muted);">Average (15-25%)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 16px; height: 16px; background: rgba(239, 68, 68, 0.2); border: 2px solid #dc2626; border-radius: 3px;"></div>
+                            <span style="font-size: 0.85rem; color: var(--muted);">Poor (<15%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h4 style="margin: 0 0 12px 0; color: var(--secondary); font-size: 1rem;">Dataset Variants</h4>
+                    <div style="display: grid; gap: 8px; font-size: 0.85rem; color: var(--muted);">
+                        <div><strong>Original:</strong> Raw GitHub projects with paired vulnerable and fixed commits</div>
+                        <div><strong>Noise:</strong> Adds harmless file/DB/DOM statements to test model robustness</div>
+                        <div><strong>Obfuscated:</strong> Renamed identifiers and encoded literals while keeping semantics</div>
+                        <div><strong>Noise+Obf:</strong> Combines noise injection with obfuscation for tougher stress tests</div>
+                        <div><strong>Prompt Injection:</strong> Misleading audit comments to test resistance to prompt attacks</div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Interactive Controls -->
             <div class="interactive-controls" style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; justify-content: center;">
@@ -601,6 +651,8 @@
             function toggleCodeExpansion() {
                 const codePanel = document.querySelector('.code-panel');
                 const toggleBtn = document.getElementById('toggleCodeBtn');
+                const toggleIcon = document.getElementById('toggleIcon');
+                const toggleText = document.getElementById('toggleText');
 
                 if (!codePanel || !toggleBtn) return;
 
@@ -608,10 +660,12 @@
 
                 if (codeExpanded) {
                     codePanel.classList.add('expanded');
-                    toggleBtn.textContent = 'Collapse Code';
+                    toggleIcon.textContent = '▲';
+                    toggleText.textContent = 'Collapse Code';
                 } else {
                     codePanel.classList.remove('expanded');
-                    toggleBtn.textContent = 'Expand Code';
+                    toggleIcon.textContent = '▼';
+                    toggleText.textContent = 'Show Full Code';
                 }
             }
 
