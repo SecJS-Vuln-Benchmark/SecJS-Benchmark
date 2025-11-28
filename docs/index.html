@@ -146,6 +146,31 @@
             position: relative;
             overflow: hidden;
             min-height: 260px;
+            max-height: 400px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+        .code-panel.expanded {
+            max-height: none;
+            overflow-y: visible;
+        }
+        .code-header {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+        .expand-collapse-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .expand-collapse-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
         pre { margin: 0; font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 0.95rem; white-space: pre-wrap; }
         .code-meta { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
@@ -264,9 +289,24 @@
             </div>
 
             <div class="variant-tabs" id="variantTabs"></div>
+
+            <div class="card" style="margin: 20px 0;">
+                <h3 style="margin-top:0;">What the five variants mean</h3>
+                <ul style="margin-left:20px;">
+                    <li><strong>Original:</strong> Raw GitHub projects with paired vulnerable and fixed commits.</li>
+                    <li><strong>Noise:</strong> Adds harmless file/DB/DOM statements so we can see whether models overreact to unrelated APIs.</li>
+                    <li><strong>Obfuscated:</strong> Runs javascript-obfuscator to rename identifiers and encode literals while keeping semantics.</li>
+                    <li><strong>Noise + Obf:</strong> Applies the noise injections first and then obfuscates the entire file for a tougher stress test.</li>
+                    <li><strong>Prompt Injection:</strong> Inserts misleading audit comments (for example "Security audit passed") to test textual prompt attacks.</li>
+                </ul>
+            </div>
+
             <div class="version-toggle" id="versionToggle"></div>
 
             <div class="code-panel">
+                <div class="code-header">
+                    <button id="toggleCodeBtn" class="expand-collapse-btn">Expand Code</button>
+                </div>
                 <pre id="codeSnippet"></pre>
             </div>
             <p class="dataset-note" id="datasetNote"></p>
@@ -309,16 +349,6 @@
                         </ul>
                     </div>
                 </div>
-            </div>
-            <div class="card" style="margin-top:32px;">
-                <h3 style="margin-top:0;">What the five variants mean</h3>
-                <ul style="margin-left:20px;">
-                    <li><strong>Original:</strong> Raw GitHub projects with paired vulnerable and fixed commits.</li>
-                    <li><strong>Noise:</strong> Adds harmless file/DB/DOM statements so we can see whether models overreact to unrelated APIs.</li>
-                    <li><strong>Obfuscated:</strong> Runs javascript-obfuscator to rename identifiers and encode literals while keeping semantics.</li>
-                    <li><strong>Noise + Obf:</strong> Applies the noise injections first and then obfuscates the entire file for a tougher stress test.</li>
-                    <li><strong>Prompt Injection:</strong> Inserts misleading audit comments (for example “Security audit passed”) to test textual prompt attacks.</li>
-                </ul>
             </div>
         </div>
     </section>
@@ -447,6 +477,7 @@
             let variantSamples = {}; // Store samples for each variant: {original: sample, noise: sample, ...}
             let allCweEntries = [];
             let controlsEnabled = true;
+            let codeExpanded = false; // Track if code is expanded or collapsed (default: collapsed)
 
             const variantLabels = {
                 original: 'Original',
@@ -489,6 +520,23 @@
             window.addEventListener('unhandledrejection', event => {
                 reportError('Data fetch failed', event.reason);
             });
+
+            function toggleCodeExpansion() {
+                const codePanel = document.querySelector('.code-panel');
+                const toggleBtn = document.getElementById('toggleCodeBtn');
+
+                if (!codePanel || !toggleBtn) return;
+
+                codeExpanded = !codeExpanded;
+
+                if (codeExpanded) {
+                    codePanel.classList.add('expanded');
+                    toggleBtn.textContent = 'Collapse Code';
+                } else {
+                    codePanel.classList.remove('expanded');
+                    toggleBtn.textContent = 'Expand Code';
+                }
+            }
 
             function disableControls(disabled) {
                 controlsEnabled = !disabled;
@@ -843,6 +891,13 @@
                     console.error('Required DOM elements not found');
                     return;
                 }
+
+                // Add event listener for code toggle button
+                const toggleCodeBtn = document.getElementById('toggleCodeBtn');
+                if (toggleCodeBtn) {
+                    toggleCodeBtn.addEventListener('click', toggleCodeExpansion);
+                }
+
                 renderVersionButtons();
                 // Hide CWE description initially
                 const cweDescription = document.getElementById('cweDescription');
