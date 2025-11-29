@@ -400,7 +400,7 @@
                 <h4>How this case instantiates the three SecJS principles (nine checkpoints)</h4>
                 <div class="pill-list">
                     <div class="pill">
-                        <strong>Principle 1 · Comprehensiveness</strong>
+                        <strong>Principle I: Comprehensiveness</strong>
                         <ul>
                             <li><em>Principle I-1 · CWE coverage:</em> SecJS-Gen pulls CVEs from NVD and Mend.io so the dataset covers older CWEs (SQLi-89, XSS-79, command injection-78, auth bypass-287, hard-coded creds-798) plus newer CWEs (prototype pollution-1321, ReDoS-1333, XXE-611).</li>
                             <li><em>Principle I-2 · Result and reasoning:</em> JudgeJS checks both project-level ⟨has_vulnerability, CWE⟩ pairs and function-level ⟨has_vulnerability, CWE, file, function⟩ pairs, so the model must point to `src/index.js::override()` instead of giving a one-line verdict.</li>
@@ -408,7 +408,7 @@
                         </ul>
                     </div>
                     <div class="pill">
-                        <strong>Principle 2 · Avoid Underestimation</strong>
+                        <strong>Principle II: Avoid Underestimation</strong>
                         <ul>
                             <li><em>Principle II-1 · CWE equivalence:</em> MITRE CAPEC groups (for example XSS ⇒ CWE-79/80/83, prototype pollution ⇒ CWE-1321/915) mean predictions inside the same group are counted as correct.</li>
                             <li><em>Principle II-2 · Denoised controls:</em> Samples carry ONEFUNC / NVDCHECK / SUSPICIOUS flags so experiments can focus on the high-confidence part (ONEFUNC+NVDCHECK) and skip noisy commits.</li>
@@ -416,7 +416,7 @@
                         </ul>
                     </div>
                     <div class="pill">
-                        <strong>Principle 3 · Avoid Overestimation</strong>
+                        <strong>Principle III: Avoid Overestimation</strong>
                         <ul>
                             <li><em>Principle III-1 · Full-project inputs:</em> JudgeJS always feeds the entire repo (package files, helpers, tests), so the model has to find the vulnerable `override` function itself.</li>
                             <li><em>Principle III-2 · Vulnerable/fixed pairs:</em> Every CVE provides both versions; for this case the fixed build blocks `['__proto__','constructor','prototype']`, exposing detectors that flag strings instead of reasoning.</li>
