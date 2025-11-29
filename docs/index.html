@@ -408,7 +408,7 @@
                         </ul>
                     </div>
                     <div class="pill">
-                        <strong>Principle II: Avoid Underestimation</strong>
+                        <strong>Principle II: No Underestimation</strong>
                         <ul>
                             <li><em>Principle II-1 · CWE equivalence:</em> MITRE CAPEC groups (for example XSS ⇒ CWE-79/80/83, prototype pollution ⇒ CWE-1321/915) mean predictions inside the same group are counted as correct.</li>
                             <li><em>Principle II-2 · Denoised controls:</em> Samples carry ONEFUNC / NVDCHECK / SUSPICIOUS flags so experiments can focus on the high-confidence part (ONEFUNC+NVDCHECK) and skip noisy commits.</li>
@@ -416,7 +416,7 @@
                         </ul>
                     </div>
                     <div class="pill">
-                        <strong>Principle III: Avoid Overestimation</strong>
+                        <strong>Principle III: No Overestimation</strong>
                         <ul>
                             <li><em>Principle III-1 · Full-project inputs:</em> JudgeJS always feeds the entire repo (package files, helpers, tests), so the model has to find the vulnerable `override` function itself.</li>
                             <li><em>Principle III-2 · Vulnerable/fixed pairs:</em> Every CVE provides both versions; for this case the fixed build blocks `['__proto__','constructor','prototype']`, exposing detectors that flag strings instead of reasoning.</li>
