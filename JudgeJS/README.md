@@ -1,52 +1,73 @@
-# JudgeJS – LLM Evaluation Framework
+# JudgeJS
 
-JudgeJS provides a reproducible evaluation harness for vulnerability detection with large language models (LLMs). It normalizes prompts, validates JSON outputs, and aggregates metrics at both project and function granularity.
+JudgeJS is the SecJS RQ1 evaluation framework. It runs LLM-based vulnerability detection on full JavaScript project pairs and computes project-level and function-level metrics.
 
-## Features
+## Inputs
 
-- Multi-model adapters (OpenAI, Anthropic, Google, DeepSeek, Grok, etc.)
-- Project-level and function-level judging with equivalence-aware CWE checks
-- Robust checkpointing to resume long evaluation campaigns
-- Rich metrics: Precision/Recall/F1, VD-S, Macro/Weighted F1, similarity scores
+JudgeJS expects ArenaJS data under `../ArenaJS/`:
 
-## Quick Start
+- `../ArenaJS/data/<variant>_dataset.csv`
+- `../ArenaJS/projects/<owner>_<repo>_<CVE-ID>/{vulnerable,fixed}/`
+- `../ArenaJS/augmented_projects/<variant>/...` for robustness variants
+
+The dataset will be released separately after paper acceptance.
+
+## Single Evaluation
 
 ```bash
-# Project-level evaluation
-python project_detection.py --dataset original --model gpt-4 --sample-size 10
-
-# Evaluate an augmented dataset
-python project_detection.py --dataset obfuscated --model deepseek-ai/DeepSeek-V3.1
-
-# CLI help
-python project_detection.py --help
+python project_detection.py \
+  --dataset-type original \
+  --model gpt-5-2025-08-07 \
+  --sample-size 1437 \
+  --force-restart
 ```
 
-### Common Arguments
+Resume an interrupted run:
 
-- `--dataset` – `original`, `noise`, `obfuscated`, `noise_obfuscated`, `prompt_injection`
-- `--model` – Model identifier (matching `config/config.py` or `model_endpoints.json`)
-- `--sample-size` – Number of samples to process
-- `--force-restart` / `--force-continue` – Override checkpoint prompts
-- `--only-errors` – Re-run failed samples only
+```bash
+python project_detection.py \
+  --dataset-type original \
+  --model gpt-5-2025-08-07 \
+  --sample-size 1437 \
+  --continue
+```
 
-## Configuration
+Recompute metrics from saved model outputs:
 
-- `config/config.py` stores dataset paths, similarity thresholds, and default LLM settings.
-- `DATA_CONFIG["dataset_types"]` points to `../ArenaJS/` CSVs and project folders.
-- `LLM_CONFIG` or `config/model_endpoints.json` define API keys, endpoints, and timeouts.
-- `SIMILARITY_CONFIG` and `CWE_EQUIVALENCE_GROUPS` control scoring behavior.
+```bash
+python evaluation/checkpoint_utils.py recompute \
+  --dataset-type original \
+  --model gpt-5-2025-08-07
+```
 
-## Outputs (`checkpoints/`)
+## RQ1 Runner
 
-- `{model}_{dataset}_results.csv` – Raw per-sample predictions
-- `{model}_{dataset}_checkpoint.json` – Progress + retry metadata
-- `{model}_{dataset}_metrics.json` – Aggregated metrics
+Use the repository-level runner for the full RQ1 protocol:
 
-## Requirements
+```bash
+python ../scripts/run_rq1.py
+```
 
-- Python 3.8+
-- pandas, scikit-learn, sentence-transformers, rouge-score
-- Access to the configured LLM APIs
+It iterates over the configured models and five dataset variants, then writes:
 
-Ensure that the ArenaJS datasets are downloaded to `../ArenaJS/` before running JudgeJS.
+- `../results/rq1/rq1_summary.csv`
+- `../results/rq1/rq1_table.md`
+
+For artifact evaluation, prefer the repository-level runner because it records a consistent output layout across models and variants.
+
+## Model Configuration
+
+Model endpoints are configured in `config/model_endpoints.json`. API keys are read from environment variables declared by `api_key_env`.
+
+Example:
+
+```json
+{
+  "gpt-5-2025-08-07": {
+    "api_base": "${OPENAI_API_BASE}",
+    "api_key_env": "OPENAI_API_KEY"
+  }
+}
+```
+
+Never commit real API keys.

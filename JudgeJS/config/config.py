@@ -4,6 +4,28 @@
 
 import os
 
+
+def _load_env_file():
+    env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+    if not os.path.exists(env_path):
+        return
+    try:
+        with open(env_path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except OSError:
+        pass
+
+
+_load_env_file()
+
 # 数据集相关配置
 DATA_CONFIG = {
     "raw_data_dir": "data/raw",
@@ -72,37 +94,19 @@ EVAL_CONFIG = {
     }
 }
 
-# LLM相关配置
+# LLM相关配置。API keys must be supplied through environment variables.
 LLM_CONFIG = {
-    "api_base": "https://sg.uiuiapi.com/v1",
+    "api_base": os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1"),
     "api_key": os.environ.get("OPENAI_API_KEY", ""),
-    "timeout": 60,
-    "max_retries": 3,
-    "temperature": 0.0,
+    "timeout": int(os.environ.get("SECJS_LLM_TIMEOUT", "60")),
+    "max_retries": int(os.environ.get("SECJS_MAX_RETRIES", "3")),
+    "temperature": float(os.environ.get("SECJS_TEMPERATURE", "0.7")),
     "models": [
         {
-            "name": "deepseek-chat",
-            "api_base": "https://sg.uiuiapi.com/v1",
-            "api_key": "sk-twSzMg0U0sTIAZNbs6cI71dxcIVl9cCCNIYUA1K94xBOYOOs",
-            "max_tokens": 4096
-        },
-        {
-            "name": "deepseek-ai/DeepSeek-V3.1",
-            "api_base": "https://sg.uiuiapi.com/v1",  # 可为此模型单独设置
-            "api_key": "sk-twSzMg0U0sTIAZNbs6cI71dxcIVl9cCCNIYUA1K94xBOYOOs",  # ModelScope Token
-            "max_tokens": 4096
-        },
-        {
-
-            "api_base": "https://api-inference.modelscope.cn/v1",  # 可为此模型单独设置
-            "api_key": "ms-70bfcba6-6225-4049-9f52-d1a017c4259c",  # 使用相同的ModelScope Token进行测试
-            "max_tokens": 4096
-        },
-        {
-            "name": "gpt-4",
-            "api_base": "https://api.openai.com/v1",  # 可为此模型单独设置
-            "api_key": "",  # 需要填入API Key
-            "max_tokens": 8192
+            "name": "gpt-5-2025-08-07",
+            "api_base": os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1"),
+            "api_key": os.environ.get("OPENAI_API_KEY", ""),
+            "max_tokens": int(os.environ.get("SECJS_MAX_TOKENS", "4096"))
         }
     ]
 }

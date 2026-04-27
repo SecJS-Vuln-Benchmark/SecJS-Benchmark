@@ -1,60 +1,33 @@
-# ForgeJS – Dataset Generation Framework
+# ForgeJS
 
-ForgeJS automates the entire ArenaJS construction pipeline: collecting CVE intelligence, cloning/triaging GitHub projects, extracting vulnerable/fixed snippets, and producing augmented variants.
+ForgeJS contains the data collection and benchmark construction pipeline used by SecJS. It is included so readers can inspect and rerun the dataset-building process even though the packaged ArenaJS dataset is released separately.
 
-## Highlights
+## Pipeline
 
-- **CVE harvesting** via NVD API + Mend.io mirrors  
-- **Repository mining** for paired vulnerable/fixed commits  
-- **Function-level labeling** with language-agnostic extraction  
-- **Augmentation** strategies (noise, obfuscation, combined, prompt injection)
+1. Collect JavaScript-related CVE metadata from NVD and Mend.io.
+2. Resolve GitHub repositories and patch commits.
+3. Retrieve paired vulnerable and fixed project snapshots.
+4. Extract file/function-level labels.
+5. Generate robustness variants: noise, obfuscation, noise + obfuscation, and prompt injection.
 
 ## Usage
 
 ```bash
-# Full pipeline (steps 1–4)
-python main.py --start 2022-01-01 --end 2022-03-31
+# Full collection and construction pipeline
+python main.py --start 2022-01-01 --end 2025-08-10
 
-# Augmentation only
-python main.py --only-augmentation --augment-strategies obfuscated
+# Augmentation only, after original data has been built
+python main.py --only-augmentation \
+  --augment-strategies noise obfuscated combined prompt_injection
 
-# List strategies
+# List available augmentation strategies
 python main.py --list-strategies
 ```
 
-### Key Arguments
+## Environment
 
-| Category | Flags | Description |
-| --- | --- | --- |
-| Pipeline | `--start`, `--end` | CVE date window (YYYY-MM-DD) |
-|  | `--cvss-min` | Minimum CVSS score |
-|  | `--use-api-key` | Whether to use an API key for NVD |
-| Augmentation | `--only-augmentation` | Skip collection steps |
-|  | `--augment-strategies` | `noise`, `obfuscated`, `combined`, `prompt_injection` |
-|  | `--projects-dir` | Source projects (default `../ArenaJS/projects`) |
-|  | `--augmented-projects-dir` | Output projects (default `../ArenaJS/augmented_projects`) |
+Set `NVD_API_KEY` to use authenticated NVD API requests. If it is not set, ForgeJS uses public NVD API access.
 
-## Outputs (`ForgeJS/data/`)
+Generated files are written to `ForgeJS/data/` and project snapshots are written under `../ArenaJS/`.
 
-- `js_cve_dataset.csv` – Raw CVE metadata  
-- `js_vulnerability_dataset.csv` – Project-level findings  
-- `final_dataset.csv` – Consolidated dataset  
-- `obfuscated_dataset.csv`, `noise_dataset.csv`, `noise_obfuscated_dataset.csv`, `prompt_injection_dataset.csv` – Optional augmented variants
-
-## Augmentation Matrix
-
-- **noise** – Inject distraction sinks without true sources  
-- **obfuscated** – Apply JavaScript obfuscators/minifiers  
-- **combined** – Sequential obfuscation + noise  
-- **prompt_injection** – Insert misleading comments/prompts
-
-## Notes
-
-1. Configure a GitHub token if private or rate-limited repositories are required.  
-2. Node.js tooling is mandatory for obfuscation.  
-3. Long-running jobs support checkpoints/resume to survive interruptions.
-
-## Requirements
-
-- Python 3.8+ (pandas, requests, tqdm, beautifulsoup4, etc.)  
-- Node.js with `javascript-obfuscator`, `terser`, `uglify-js`
+Large generated CSV files and project snapshots are ignored by git.

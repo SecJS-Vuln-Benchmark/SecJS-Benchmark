@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "SecJS: JavaScript Vulnerability Benchmark for LLM Evaluation"
+message: "If you use SecJS, please cite the accompanying paper. Final bibliographic metadata will be updated after acceptance."
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/SecJS-Vuln-Benchmark/SecJS-Benchmark"
+authors:
+  - name: "SecJS Authors"
+date-released: 2026-04-27

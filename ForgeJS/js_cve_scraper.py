@@ -87,8 +87,8 @@ class EnhancedJSCVEScraper:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
         
-        # 存储API Key
-        self.api_key = '4921c878-72bd-4c8d-b8e3-9b8d1ace4e64'
+        # NVD API key is optional. Public releases must not contain real keys.
+        self.api_key = os.environ.get('NVD_API_KEY', '').strip()
         
         # NVD API URL - 正确的API端点
         self.base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
@@ -99,8 +99,10 @@ class EnhancedJSCVEScraper:
         # 打印初始化信息
         logger.info(f"NVD API URL: {self.base_url}")
         logger.info(f"Mend Vulnerability Database URL: {self.mend_base_url}")
-        if USE_API_KEY:
+        if USE_API_KEY and self.api_key:
             logger.info(f"API Key: {self.api_key[:8]}...{self.api_key[-4:]}")
+        elif USE_API_KEY:
+            logger.info("API Key: 未设置 NVD_API_KEY，将使用公共访问")
         else:
             logger.info("API Key: 已禁用 (将使用公共访问，速度较慢)")
         

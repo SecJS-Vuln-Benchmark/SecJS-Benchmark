@@ -1,128 +1,133 @@
-# SecJS – JavaScript Vulnerability Benchmark
+# SecJS: JavaScript Vulnerability Benchmark for LLM Evaluation
 
-> Live demo: [SecJS Benchmark Site](https://secjs-vuln-benchmark.github.io/SecJS-Benchmark/)
+SecJS is the artifact repository for a JavaScript vulnerability benchmark and evaluation framework. The current public release is intentionally scoped to the paper's RQ1 evaluation: measuring how well LLMs detect vulnerabilities in full JavaScript project pairs.
 
-SecJS is a modular benchmark for large-scale JavaScript vulnerability research. It ships with three tightly coupled components:
+The benchmark dataset itself is not included in this repository. It will be released after paper acceptance. This repository provides the benchmark construction code, the RQ1 evaluation framework, and the scripts needed to reproduce the RQ1 tables once ArenaJS is available.
 
-- **ForgeJS** – automated data collection, labeling, and augmentation
-- **JudgeJS** – standardized LLM evaluation pipeline
-- **ArenaJS** – curated dataset bundles with all variants
+## Artifact Status
+
+| Component | Status | Notes |
+| --- | --- | --- |
+| ForgeJS data collection and construction code | Available | CVE collection, project retrieval, function labeling, augmentation |
+| JudgeJS RQ1 evaluation code | Available | Full-project LLM evaluation and metric aggregation |
+| RQ1 reproduction script | Available | `scripts/run_rq1.py` |
+| ArenaJS dataset files | Pending release | Will be provided after paper acceptance |
+| Experiments outside RQ1 | Not included | This public artifact is scoped to RQ1 |
 
 ## Repository Layout
 
-```
+```text
 SecJS/
-├── ForgeJS/                # Dataset generation pipeline
-├── JudgeJS/                # Evaluation framework
-└── ArenaJS/                # Downloaded datasets (CSV + projects)
+├── ArenaJS/                 # Dataset placeholder and expected layout
+├── ForgeJS/                 # Dataset collection/construction pipeline
+├── JudgeJS/                 # RQ1 model evaluation and metrics
+├── scripts/run_rq1.py       # Main RQ1 reproduction entry point
+├── requirements.txt         # Python dependencies
+└── .env.example             # Environment variable template
 ```
-
-### ForgeJS
-
-```
-ForgeJS/
-├── main.py                 # Orchestrates the four-stage pipeline
-├── js_cve_scraper.py       # CVE harvesting
-├── js_commit_info.py       # GitHub clone + diff extraction
-├── js_function_extractor.py# Function-level labeling
-├── augmentation_config.py  # Noise/obfuscation strategy config
-├── data/                   # Generated CSV artifacts
-└── node_tools/             # JavaScript tooling (obfuscators, etc.)
-```
-
-### JudgeJS
-
-```
-JudgeJS/
-├── project_detection.py    # Entry point for full-project evaluation
-├── evaluation/             # Metrics + checkpoint utilities
-├── models/                 # LLM adapters
-├── utils/                  # Project loaders and helpers
-├── config/                 # Dataset + model configuration
-└── checkpoints/            # Evaluation progress snapshots
-```
-
-### ArenaJS
-
-ArenaJS is a storage directory for downloadable artifacts:
-
-- `data/` – dataset CSV files (original + augmented variants)
-- `projects/` – vulnerable/fixed project pairs
-- `augmented_projects/` – project-level noise/obfuscation outputs
-
-See [ArenaJS/README.md](ArenaJS/README.md) for download instructions.
 
 ## Quick Start
 
-### 1. Prepare the dataset
-
-Download the ArenaJS bundles and place them into:
-
-- CSV files → `SecJS/ArenaJS/data/`
-- Project sources → `SecJS/ArenaJS/projects/`
-- Augmented projects → `SecJS/ArenaJS/augmented_projects/`
-
-### 2. Run ForgeJS
-
 ```bash
-cd SecJS/ForgeJS
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-# End-to-end pipeline
-python main.py --start 2022-01-01 --end 2022-03-31
-
-# Only run augmentation
-python main.py --only-augmentation --augment-strategies obfuscated
-
-# List available strategies
-python main.py --list-strategies
+cp .env.example .env
 ```
 
-### 3. Run JudgeJS
+Edit `.env` and set the API keys for the models you plan to evaluate. API keys are loaded from environment variables only and should never be committed.
+
+Install the Node.js obfuscation helper used by ForgeJS:
 
 ```bash
-cd SecJS/JudgeJS
-
-# Project-level evaluation
-python project_detection.py --dataset original --model gpt-4 --sample-size 10
-
-# Show CLI help
-python project_detection.py --help
+cd ForgeJS/node_tools/obfuscator
+npm install
+cd ../../..
 ```
 
-## Dependencies
+## Dataset Placement
 
-### Python
+After the ArenaJS release, place the dataset under `ArenaJS/`:
+
+```text
+ArenaJS/
+├── data/
+│   ├── original_dataset.csv
+│   ├── noise_dataset.csv
+│   ├── obfuscated_dataset.csv
+│   ├── noise_obfuscated_dataset.csv
+│   └── prompt_injection_dataset.csv
+├── projects/
+│   └── <owner>_<repo>_<CVE-ID>/
+│       ├── vulnerable/
+│       └── fixed/
+└── augmented_projects/
+    ├── noise/
+    ├── obfuscated/
+    ├── noise_obfuscated/
+    └── prompt_injection/
+```
+
+Until the dataset is released, `scripts/run_rq1.py --dry-run` can be used to inspect the commands without executing API calls.
+
+## Reproduce RQ1
+
+Run the full RQ1 protocol:
 
 ```bash
-pip install pandas requests tqdm beautifulsoup4 scikit-learn \
-            sentence-transformers rouge-score
+python scripts/run_rq1.py
 ```
 
-### Node.js (required for augmentation)
+Run a smaller slice:
 
 ```bash
-npm install -g javascript-obfuscator terser uglify-js
+python scripts/run_rq1.py \
+  --models gpt-5-2025-08-07 \
+  --variants original \
+  --sample-size 50
 ```
 
-## Configuration
+Aggregate existing checkpoints without issuing model API calls:
 
-- ForgeJS writes outputs to `ForgeJS/data/` and reads projects from `../ArenaJS/projects/`.
-- JudgeJS configuration lives in `JudgeJS/config/config.py` (dataset paths, model settings, similarity thresholds).
-- Model endpoints can also be stored in `JudgeJS/config/model_endpoints.json`.
+```bash
+python scripts/run_rq1.py --skip-detection
+```
 
-## ArenaJS Snapshot
+Outputs:
 
-- **1,852** original OSS projects (paired vulnerable/fixed versions)
-- **9,188** total instances across variants
-- **5** dataset variants: Original, Noise, Obfuscated, Noise+Obfuscated, Prompt-Injection
-- **30+** CWE families represented
+- `results/rq1/rq1_summary.csv`: machine-readable summary
+- `results/rq1/rq1_table.md`: paper-style Markdown table
+- `JudgeJS/evaluation/checkpoints/`: raw per-sample model outputs and checkpoints
+
+See [REPRODUCING_RQ1.md](REPRODUCING_RQ1.md) for the full step-by-step protocol.
+
+## Build or Inspect the Dataset Pipeline
+
+ForgeJS provides the code used to collect and construct ArenaJS:
+
+```bash
+cd ForgeJS
+python main.py --start 2022-01-01 --end 2025-08-10
+python main.py --only-augmentation --augment-strategies noise obfuscated combined prompt_injection
+```
+
+Set `NVD_API_KEY` for higher NVD API rate limits. Without it, ForgeJS uses public API access.
+
+## Metrics
+
+JudgeJS reports:
+
+- Project-level Precision, Recall, F1, VD-S
+- Function-level Precision, Recall, F1, VD-S
+- Full split and denoised split results
+
+The denoised split is derived from function-label metadata (`ONEFUNC` or `NVDCHECK`) in the ArenaJS CSV files.
+
+## Citation
+
+Use [CITATION.cff](CITATION.cff) for citation metadata. The paper title and bibliographic details can be updated after acceptance.
 
 ## License
 
-Code is distributed under the MIT License. Dataset contents inherit the upstream project licenses—please review the terms before redistribution.
-
-## Contributing
-
-Issues and pull requests are welcome. Please describe the dataset slice, augmentation strategy, and evaluation settings for reproducibility.
-
-
+Framework code is released under the Apache License 2.0. Dataset contents inherit the licenses of their upstream open-source projects and will be distributed separately after paper acceptance.

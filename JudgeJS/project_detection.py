@@ -45,11 +45,19 @@ def detect_project_vulnerabilities(dataset_type: str = "original", sample_size: 
                 if model_name in endpoints_config:
                     cfg = endpoints_config[model_name]
                     if not cfg.get('hidden', False):  # 跳过隐藏的模型
+                        api_base = cfg.get("api_base")
+                        if isinstance(api_base, str) and api_base.startswith("${") and api_base.endswith("}"):
+                            api_base = os.environ.get(api_base[2:-1], "")
+                        api_key = cfg.get("api_key", "")
+                        api_key_env = cfg.get("api_key_env")
+                        if api_key_env:
+                            api_key = os.environ.get(api_key_env, api_key)
                         model_cfg = {
                             "name": cfg.get("name"),
-                            "api_base": cfg.get("api_base"),
-                            "api_key": cfg.get("api_key"),
-                            "max_tokens": 4096,
+                            "api_base": api_base,
+                            "api_key": api_key,
+                            "api_key_env": api_key_env,
+                            "max_tokens": cfg.get("max_tokens", 4096),
                             "timeout": cfg.get("timeout", 60)
                         }
                         print(f"📝 使用 model_endpoints.json 中的配置（超时: {cfg.get('timeout', 60)}秒）")

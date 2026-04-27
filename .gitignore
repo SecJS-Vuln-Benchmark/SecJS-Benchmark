@@ -7,11 +7,15 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+JudgeJS/claude-code-security-review/.pytest_cache/
 
 # Virtual environments
 .venv/
 venv/
 ENV/
+.env
+.env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -30,13 +34,19 @@ ArenaJS/projects/
 ArenaJS/augmented_projects/
 ArenaJS/code_files/
 ArenaJS/augmented_code_files/
+ForgeJS/data/*.csv
+ForgeJS/data/*.json
 
 # Checkpoints and results
 JudgeJS/checkpoints/
 ForgeJS/checkpoints/
+JudgeJS/evaluation/checkpoints/
+JudgeJS/evaluation/exports/
+results/
 
 # Node modules (if needed, can be reinstalled)
 ForgeJS/node_tools/**/node_modules/
+ForgeJS/node_tools/**/tmp*/
 
 # Temporary files
 *.tmp
@@ -46,5 +56,3 @@ temp*/
 # OS files
 .DS_Store
 Thumbs.db
-
-

@@ -1,60 +1,30 @@
 # ArenaJS Dataset
 
-ArenaJS is the large-scale JavaScript vulnerability corpus that powers SecJS. Each entry contains both the vulnerable and the fixed project snapshot, plus metadata for CWE labels, files, and functions.
+ArenaJS is the dataset used by SecJS RQ1. The dataset package is not included in this repository and will be released after paper acceptance.
 
-## Overview
+This directory is kept as a placeholder so the evaluation code has a stable path.
 
-- **1,852** real OSS projects (paired vulnerable/fixed versions)
-- **9,188** total project instances after augmentation
-- **5** dataset variants:
-  - Original
-  - Noise
-  - Obfuscated
-  - Noise + Obfuscated
-  - Prompt-Injection
-- **30+** CWE categories
+Expected layout after release:
 
-## Download Instructions
-
-Because the dataset is large, please download it separately and place the files in the following structure:
-
-```
-SecJS/
-├── ArenaJS/
-│   ├── data/
-│   │   ├── original_dataset.csv
-│   │   ├── noise_dataset.csv
-│   │   ├── obfuscated_dataset.csv
-│   │   ├── noise_obfuscated_dataset.csv
-│   │   └── prompt_injection_dataset.csv
-│   ├── projects/
-│   │   └── [project_name]/
-│   │       ├── vulnerable/
-│   │       └── fixed/
-│   └── augmented_projects/
-│       ├── noise/
-│       ├── obfuscated/
-│       ├── noise_obfuscated/
-│       └── prompt_injection/
+```text
+ArenaJS/
+├── data/
+│   ├── original_dataset.csv
+│   ├── noise_dataset.csv
+│   ├── obfuscated_dataset.csv
+│   ├── noise_obfuscated_dataset.csv
+│   └── prompt_injection_dataset.csv
+├── projects/
+│   └── <owner>_<repo>_<CVE-ID>/
+│       ├── vulnerable/
+│       └── fixed/
+└── augmented_projects/
+    ├── noise/
+    ├── obfuscated/
+    ├── noise_obfuscated/
+    └── prompt_injection/
 ```
 
-### Steps
+Each CSV row contains project metadata, CWE labels, vulnerable files, vulnerable functions, line ranges, and denoising labels such as `ONEFUNC` and `NVDCHECK`. `projects/` stores the paired vulnerable and fixed full-project snapshots. `augmented_projects/` stores the project-level robustness variants.
 
-1. **CSV files** – copy every dataset CSV into `SecJS/ArenaJS/data/`.
-2. **Project sources** (optional but required for full project evaluation) – place each project into `SecJS/ArenaJS/projects/` with `vulnerable/` and `fixed/` subfolders. Naming convention: `[owner]_[repo]_[CVE-ID]`.
-3. **Augmented projects** (optional) – copy per-strategy project outputs into `SecJS/ArenaJS/augmented_projects/` under their respective strategy directory.
-
-### File Content
-
-- CSV files include project metadata, CWE labels, file paths, and function annotations.
-- Project folders contain full JavaScript projects for both vulnerable and fixed revisions.
-- Augmented projects apply noise, obfuscation, or injected prompts at the project level.
-
-## Usage
-
-- **ForgeJS** consumes `ArenaJS/data/` for CSV-level augmentation and regeneration.
-- **JudgeJS** reads from `ArenaJS/projects/` (and `ArenaJS/augmented_projects/`) when constructing prompts for LLM evaluation.
-
-## License
-
-ArenaJS redistributes code from the original OSS projects. Please respect each project's license when using or publishing the dataset.
+Use `ForgeJS/` to regenerate or inspect the collection and construction pipeline.

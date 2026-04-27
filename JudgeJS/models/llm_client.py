@@ -38,7 +38,13 @@ class LLMClient:
         self.model_name = model_config["name"]
         # 允许每个模型单独设置 api_key 与 api_base；如未设置，则回退到全局配置
         self.api_key = model_config.get("api_key", LLM_CONFIG.get("api_key", ""))
+        api_key_env = model_config.get("api_key_env")
+        if api_key_env:
+            self.api_key = os.environ.get(api_key_env, self.api_key)
         self.api_base = model_config.get("api_base", LLM_CONFIG.get("api_base", "https://api.openai.com/v1"))
+        if isinstance(self.api_base, str) and self.api_base.startswith("${") and self.api_base.endswith("}"):
+            env_name = self.api_base[2:-1]
+            self.api_base = os.environ.get(env_name, LLM_CONFIG.get("api_base", "https://api.openai.com/v1"))
         self.max_tokens = model_config.get("max_tokens", 4096)
         self.temperature = LLM_CONFIG.get("temperature", 0.0)
         # 优先使用model_config中的timeout，否则使用全局配置
